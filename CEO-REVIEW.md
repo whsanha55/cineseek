@@ -49,12 +49,13 @@ Repo: (greenfield, non-git) whsanha55 style
 
 - **PG = 진실의 원천(SoT).** Qdrant는 파생 인덱스 → 언제든 PG에서 재생성 가능(파이프라인 idempotent).
 - payload에 필터 대상(genre/year/rating/director/cast) 사본 → Qdrant 단독 필터.
-- movie_id 안정 PK 유지 → 개인화(R1) 자연 확장.
+- movie_id 안정 PK(BIGSERIAL) + tmdb_id UNIQUE 유지 → 개인화(R1) 자연 확장.
+- **데이터 소스: TMDB 단일** (메타+overview+포스터). KOFIC/KMDb 우회 후 단일화 → 학습초점 정렬 (CONCEPT §6 원안 회귀).
 
 ## 남은 열린 결정
 
-1. bge-m3 vs multilingual-e5 (한국어 줄거리 비중 → bge-m3 다국어 강함). 임베딩 차원 확정 → Qdrant 컬렉션 설정에 필요.
-2. 하이브리드: PG BM25 결합 vs Qdrant sparse vector.
+1. ✅ **확정: bge-m3** (2026-07-06). 근거 = 한국어 줄거리 비중 + 다국어 강점. 차원 **dense 1024**, sparse vector 내장, max 8192 tokens.
+2. 하이브리드: PG BM25 결합 vs Qdrant sparse vector. → **bge-m3 sparse 내장**이므로 Qdrant native sparse 권장 (PG BM25 불필요). 최종 확정은 설계 단계에서.
 
 ## 리뷰 범위 주석
 
@@ -64,6 +65,13 @@ Repo: (greenfield, non-git) whsanha55 style
 
 ## 다음 스텝
 
-1. 임베딩 모델 1개 픽 → 차원 확정.
-2. PG 스키마 + Qdrant 컬렉션 설계 → docker-compose 스캐폴딩.
-3. `/plan-eng-review`로 아키텍처/스키마 리뷰.
+1. ✅ 임베딩 모델 픽 + 차원 확정 (bge-m3, dense 1024 + sparse).
+2. ✅ PG 스키마(`db/schema.sql`) + 인프라 구성. 소스: TMDB 단일.
+   - PG(SoT) = 공유 인프라 `postgres`(infra, `~/temp/docker-compose/postgresql`, jjong PG)의 `cineseek` DB (owner=cineseek).
+   - Qdrant만 `docker-compose`(cineseek-qdrant). 별도 PG 컨테이너는 제거.
+   - 접속: localhost:5432, db=cineseek, user=cineseek / Qdrant: 6333(REST)·6334(gRPC).
+3. ✅ 파이프라인 프로토타입 완료 — TMDB 수집(overview 있는 91건) → bge-m3 dense(1024) 임베딩 → PG/Qdrant 색인 → 유사검색 데모(`search.py`). 핵심 학습 루프 검증.
+4. ✅ 평가 하니스(`eval.py`, 고정 쿼리 10종) + dense+sparse hybrid(RRF) + payload 필터(genre/year) 완료. FlagEmbedding bge-m3 sparse 사용, Qdrant 컬렉션 dense+sparse.
+5. ✅ 데이터 확대 — discover popularity.desc 병렬 수집(91→928건, ~3분47초). 하이브리드 품질 대폭 개선(올드보이/살인의추억/콰이어트플레이스 등 정합). `TMDB_PAGES`/`TMDB_WORKERS` env로 범위 제어.
+6. ✅ FastAPI 검색 API(`app.py`, 포트 8001) — `/health`, `/search?q=...&genre=...&year_min=...`. `search_movies()` 공유(CLI·API). lifespan에서 모델 미리 로드.
+7. 다음: 정량 검증 메트릭(NDCG/MRR, 라벨셋 필요), 추가 확대(3만건), 또는 con-jjong 배포.

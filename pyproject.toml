@@ -1,0 +1,18 @@
+[project]
+name = "cineseek"
+version = "0.1.0"
+description = "벡터DB 학습용 영화 시맨틱 검색 토이 — 임베딩 → 색인 → 유사검색"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "httpx",
+    "psycopg[binary]",
+    "qdrant-client",
+    "sentence-transformers",
+    "python-dotenv",
+    "flagembedding>=1.4.0",
+    "fastapi>=0.139.0",
+    "uvicorn>=0.50.2",
+]
+
+[tool.uv]
+# 모델 캐시 등 대용량 다운로드 발생
