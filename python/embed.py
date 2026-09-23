@@ -16,7 +16,9 @@ _model: BGEM3FlagModel | None = None
 def get_model() -> BGEM3FlagModel:
     global _model
     if _model is None:
-        _model = BGEM3FlagModel(os.environ["EMBED_MODEL"], use_fp16=False)
+        # EMBED_DEVICE=cpu|mps|cuda — 컨테이너는 compose가 cpu로 고정
+        device = os.environ.get("EMBED_DEVICE", "cpu")
+        _model = BGEM3FlagModel(os.environ["EMBED_MODEL"], use_fp16=False, devices=device)
     return _model
 
 

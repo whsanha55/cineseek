@@ -8,7 +8,21 @@ services:
     volumes:
       - gonamu_qdrant_data:/qdrant/storage
 
-  # embed (python/, bge-m3) — Phase 1에서 추가: healthcheck 포함, api는 service_healthy 대기
+  # embed (python/, bge-m3) — CPU 고정. 모델(~2GB)은 named volume에 캐시
+  embed:
+    build:
+      context: ./python
+    environment:
+      EMBED_MODEL: ${EMBED_MODEL:-BAAI/bge-m3}
+      EMBED_DEVICE: cpu   # Docker는 MPS 불가 — 서버(CPU)와 같은 조건
+    volumes:
+      - gonamu_embed_models:/models
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s   # 첫 기동 시 모델 다운로드(~2GB) 감안
 
   api:
     build:
@@ -26,6 +40,9 @@ services:
     depends_on:
       qdrant:
         condition: service_started
+      embed:
+        condition: service_healthy
 
 volumes:
   gonamu_qdrant_data:
+  gonamu_embed_models:

@@ -1,0 +1,8 @@
+# 빌드 컨텍스트에서 제외 — .venv는 GB 단위라 반드시 제외
+.venv
+.env
+__pycache__
+*.pyc
+db
+docker-compose.yml
+*.md

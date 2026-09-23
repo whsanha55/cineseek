@@ -286,12 +286,13 @@ docker compose -f compose.yml -f compose.prod.yml up -d
 - 확인: 이동 후에도 `python/`에서 `uv run python eval.py`가 같은 결과를 낸다. `git log --follow python/pipeline.py`로 이력이 보인다.
 
 ### Phase 1. Python 임베딩 서버 + Docker 이미지
-- [ ] `app.py`를 `/embed`, `/health` 서버로 교체 (계약 §4)
-- [ ] `EMBED_DEVICE` 적용. 현재 `embed.py`는 이 환경변수를 읽지 않는다. 컨테이너에서는 `cpu`로 고정
-- [ ] `python/Dockerfile` 작성
-- [ ] 루트 `compose.yml` + `compose.local.yml`에 qdrant, embed 등록 (api는 Phase 2에서 추가)
-- [ ] 이 단계에서는 `search.py`, `eval.py`를 삭제하지 않는다 (기준 비교용)
+- [x] `app.py`를 `/embed`, `/health` 서버로 교체 (계약 §4) — 2026-09-23. 계약 문서는 `python/README.md`
+- [x] `EMBED_DEVICE` 적용 (기본 cpu, 컨테이너는 compose가 cpu 고정)
+- [x] `python/Dockerfile` 작성 (python:3.12-slim + uv 0.12.16, HF 캐시 named volume, 이미지 ~6.2GB)
+- [x] 루트 `compose.yml` + `compose.local.yml`에 qdrant, embed 등록. api는 embed healthy까지 대기. 기존 `python/docker-compose.yml`은 삭제
+- [x] `search.py`, `eval.py` 유지 (기준 비교용)
 - 확인: 컨테이너로 띄운 뒤 `curl /embed` 응답의 dense 길이가 1024이고, 로컬에서 `embed.encode()`를 CPU로 직접 호출한 결과와 값이 같다.
+  - 2026-09-23 통과 — dense 1024, sparse nnz 일치, dense[0:3] 완전 일치. S3 재확인도 완료 (api `/actuator/health` UP + embed `/health` 200)
 
 ### Phase 2. Kotlin 뼈대 + profile + Docker 이미지
 - [x] Boot 4 + Kotlin + Java 25 + JPA 프로젝트 생성 (2026-09-23: Boot 4.1.1 / Kotlin 2.3.21 / Gradle 9.7.1, start.spring.io 생성 + `kotlin/`에 배치)
@@ -302,6 +303,7 @@ docker compose -f compose.yml -f compose.prod.yml up -d
 - [x] Testcontainers 설정 (2026-09-23: `MovieRepositoryTest` — Flyway 스키마 + validate + 저장/조회/명시적 삭제 라운드트립 통과)
 - 확인 **S3**: `docker compose -f compose.yml -f compose.local.yml up --build` 후 `/actuator/health`가 UP이다. 빈 PG에서 Flyway가 스키마를 만들고, 엔티티 검증을 통과한다.
   - 2026-09-23: PG·Qdrant·api 기동 + health UP 확인, `./gradlew test` 통과 (embed 미포함 — Phase 1 완료 후 재확인)
+  - 2026-09-23: Phase 1 완료 후 embed 포함 전체 스택 재확인 통과 (S3 완료)
 
 ### Phase 3. 검색 이식 (먼저 하는 이유: 이미 색인된 데이터로 바로 비교 가능)
 - [ ] `EmbeddingClient` + WireMock 계약 테스트

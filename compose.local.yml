@@ -22,6 +22,10 @@ services:
       - "6333:6333"   # REST
       - "6334:6334"   # gRPC
 
+  embed:
+    ports:
+      - "8001:8001"   # 계약 디버깅용 직접 호출
+
   api:
     environment:
       SPRING_PROFILES_ACTIVE: local
