@@ -65,5 +65,6 @@ cd kotlin && SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 
 - [`docs/CONCEPT.md`](docs/CONCEPT.md) — 서비스 개념·아키텍처
 - [`docs/PLAN.md`](docs/PLAN.md) — Python → Kotlin 전환 계획과 진행 상황
+- [`docs/UI-PLAN.md`](docs/UI-PLAN.md) — UI 기능 기획 + 디자인 시스템 계획
 - [`kotlin/CLAUDE.md`](kotlin/CLAUDE.md) — Kotlin 코드 컨벤션
 - [`python/README.md`](python/README.md) — 임베딩 서비스 계약(`/embed`)

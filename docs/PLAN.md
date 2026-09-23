@@ -333,7 +333,7 @@ docker compose -f compose.yml -f compose.prod.yml up -d
 - [ ] 서버에서 재색인 1회 실행
 - 확인 **S4, S5**.
 
-### Phase 7. UI (별도 계획)
+### Phase 7. UI (별도 계획 — [`UI-PLAN.md`](UI-PLAN.md))
 - `ui/` 폴더 추가. springdoc OpenAPI로 계약을 공유하고, Kotlin 쪽에서 CORS를 설정한다.
 - compose에 ui 서비스 추가.
 - 이번 계획 범위 밖이다. 스택은 그때 정한다.
