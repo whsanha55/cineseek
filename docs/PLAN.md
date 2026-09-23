@@ -186,19 +186,18 @@ JPA에서 주의할 점:
 
 ```
 com.whsanha55.cineseek
-├── config/        설정 프로퍼티 (@ConfigurationProperties)
-├── embedding/     EmbeddingClient  — POST /embed 호출, 64개 단위 분할
-├── tmdb/          TmdbClient       — discover, detail, credits
-├── movie/         영화 도메인
-│   ├── domain/    엔티티 (Movie, Genre, MovieDirector, MovieCast)
-│   └── repository/ Repository (엔티티별)
-├── index/         MovieIndexer     — 컬렉션 재생성 + 256개 단위 upsert
-├── search/        SearchService + SearchController  (search.py + app.py 이식)
-├── job/           ReindexJob       — 수집 → PG → 임베딩 → Qdrant
-└── eval/          EvalRunner       — 고정 쿼리 10개 top-5 출력
+├── config/        설정 프로퍼티 (@ConfigurationProperties), Qdrant 빈, 공용 HTTP
+├── domain/        엔티티 (Movie, Genre, MovieDirector, MovieCast) + 복합키
+├── repository/    Repository (엔티티별)
+├── client/        EmbeddingClient — POST /embed 호출, 64개 단위 분할
+│                  TmdbClient      — discover, detail, credits (+ 응답 모델)
+├── service/       SearchService, MovieUpsertService, MovieIndexer (+ 입출력 모델)
+├── controller/    SearchController + 응답 DTO
+└── job/           ReindexJob — 수집 → PG → 임베딩 → Qdrant
+                   EvalRunner  — 고정 쿼리 10개 top-5 출력
 ```
 
-컨벤션은 `kotlin/CLAUDE.md`에서 관리한다.
+컨벤션은 `kotlin/CLAUDE.md`에서 관리한다. (2026-09-23: 도메인 우선 → 레이어 우선으로 재구성)
 
 ### 파이프라인 실행 방식
 

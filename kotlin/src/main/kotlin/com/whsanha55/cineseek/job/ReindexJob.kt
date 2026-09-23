@@ -1,15 +1,15 @@
 package com.whsanha55.cineseek.job
 
+import com.whsanha55.cineseek.client.TmdbClient
+import com.whsanha55.cineseek.client.TmdbMovie
 import com.whsanha55.cineseek.config.TmdbProperties
-import com.whsanha55.cineseek.index.IndexedMovie
-import com.whsanha55.cineseek.index.MovieIndexer
-import com.whsanha55.cineseek.index.MoviePayload
-import com.whsanha55.cineseek.movie.repository.MovieCastRepository
-import com.whsanha55.cineseek.movie.repository.MovieDirectorRepository
-import com.whsanha55.cineseek.movie.repository.MovieRepository
-import com.whsanha55.cineseek.movie.service.MovieUpsertService
-import com.whsanha55.cineseek.tmdb.TmdbClient
-import com.whsanha55.cineseek.tmdb.TmdbMovie
+import com.whsanha55.cineseek.repository.MovieCastRepository
+import com.whsanha55.cineseek.repository.MovieDirectorRepository
+import com.whsanha55.cineseek.repository.MovieRepository
+import com.whsanha55.cineseek.service.IndexedMovie
+import com.whsanha55.cineseek.service.MovieIndexer
+import com.whsanha55.cineseek.service.MoviePayload
+import com.whsanha55.cineseek.service.MovieUpsertService
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import kotlin.system.exitProcess

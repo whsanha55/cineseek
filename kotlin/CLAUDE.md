@@ -33,9 +33,15 @@
 
 ## 패키지 구조
 
-- 도메인 우선 + 도메인 안 계층 분리: `movie/domain`(엔티티), `movie/repository`(리포지토리), `movie/service`(서비스)
-- 최상위 도메인: `config`, `embedding`, `tmdb`, `movie`, `index`, `search`, `job`, `eval` (PLAN §5)
-- 외부 HTTP는 `config/HttpClients.kt`의 `http1RestClient()`로 구성 (HTTP/1.1 고정)
+- 레이어 우선 최상위 패키지:
+  - `config/` — `@ConfigurationProperties`, 빈 구성, 공용 HTTP(`http1RestClient()`)
+  - `domain/` — JPA 엔티티 + 복합키
+  - `repository/` — Repository
+  - `client/` — 외부 API 클라이언트(EmbeddingClient, TmdbClient)와 그 응답 모델
+  - `service/` — 비즈니스 로직(SearchService, MovieUpsertService, MovieIndexer)과 그 입출력 모델(SearchResult, MoviePayload 등)
+  - `controller/` — HTTP 엔드포인트 + 응답 DTO(SearchResponse 등)
+  - `job/` — 배치 Runner(ReindexJob, EvalRunner, `--cineseek.job=...`)
+- 테스트 패키지는 대상 클래스의 패키지를 그대로 따른다
 
 ## Repository
 
