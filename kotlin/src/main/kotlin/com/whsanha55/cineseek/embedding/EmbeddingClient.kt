@@ -1,8 +1,7 @@
 package com.whsanha55.cineseek.embedding
 
 import com.whsanha55.cineseek.config.EmbeddingProperties
-import java.net.http.HttpClient
-import org.springframework.http.client.JdkClientHttpRequestFactory
+import com.whsanha55.cineseek.config.http1RestClient
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 
@@ -26,13 +25,8 @@ class EmbeddingClient(properties: EmbeddingProperties) {
 	private val batchSize = properties.batchSize
 
 	// embed 서버는 uvicorn(HTTP/1.1) — h2c 업그레이드 시도를 끊고 1.1로 고정한다
-	private val restClient = RestClient.builder()
+	private val restClient = http1RestClient()
 		.baseUrl(properties.baseUrl)
-		.requestFactory(
-			JdkClientHttpRequestFactory(
-				HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build(),
-			),
-		)
 		.build()
 
 	fun embed(texts: List<String>): List<Embedding> {

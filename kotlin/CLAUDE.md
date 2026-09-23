@@ -33,8 +33,9 @@
 
 ## 패키지 구조
 
-- 도메인 우선 + 도메인 안 계층 분리: `movie/domain`(엔티티), `movie/repository`(리포지토리), 서비스는 추후 `movie` 또는 `movie/service`
+- 도메인 우선 + 도메인 안 계층 분리: `movie/domain`(엔티티), `movie/repository`(리포지토리), `movie/service`(서비스)
 - 최상위 도메인: `config`, `embedding`, `tmdb`, `movie`, `index`, `search`, `job`, `eval` (PLAN §5)
+- 외부 HTTP는 `config/HttpClients.kt`의 `http1RestClient()`로 구성 (HTTP/1.1 고정)
 
 ## Repository
 

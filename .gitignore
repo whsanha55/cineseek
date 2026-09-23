@@ -1,0 +1,6 @@
+# 공통 (루트) — kotlin/·python/ 세부 항목은 각 폴더 .gitignore
+.env
+.DS_Store
+
+# Gradle / IDE 는 kotlin/.gitignore가 담당
+# Python(.venv 등)은 python/.gitignore가 담당

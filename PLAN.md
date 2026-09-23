@@ -278,11 +278,10 @@ docker compose -f compose.yml -f compose.prod.yml up -d
 각 단계는 **확인 항목을 통과해야** 다음 단계로 넘어간다.
 
 ### Phase 0. 레포 재구성
-- [ ] 현재 Python 버전으로 **기준 결과 저장**: `eval.py` 출력 → `docs/baseline-eval.txt`
-  - ⚠️ 2026-09-23 갱신: 로컬 PG·Qdrant가 새로 리셋되어 기존 색인 데이터가 없다. **재색인(Phase 4) 이후, Python 정리(Phase 5) 이전**에 실행한다
+- [x] 현재 Python 버전으로 **기준 결과 저장**: `eval.py` 출력 → `docs/baseline-eval.txt` (2026-09-23, 재색인 후 CPU로 생성)
 - [ ] `git mv`로 Python 파일을 `python/`, 문서를 `docs/`로 이동. 이 계획서도 `docs/PLAN.md`로 이동
   - 2026-09-23 갱신: Python 파일의 `python/` 이동은 완료 (91bfcae). 문서의 `docs/` 이동은 미완료
-- [ ] 루트 `.gitignore` 정리 (Python, Gradle, IDE 공통) — `kotlin/.gitignore`는 생성 완료, 루트 정리만 남음
+- [x] 루트 `.gitignore` 정리 — 2026-09-23 생성 (`.env` 포함, 나머지는 하위 폴더 .gitignore가 담당)
 - 확인: 이동 후에도 `python/`에서 `uv run python eval.py`가 같은 결과를 낸다. `git log --follow python/pipeline.py`로 이력이 보인다.
 
 ### Phase 1. Python 임베딩 서버 + Docker 이미지
@@ -311,17 +310,17 @@ docker compose -f compose.yml -f compose.prod.yml up -d
 - [x] `SearchController` `/api/search` (응답 구조는 python /search와 동일, 필드명 camelCase)
 - [x] `EvalRunner` (`--cineseek.job=eval` → 10쿼리 top-5 출력 후 종료)
 - 확인 **S1**: Kotlin eval 출력이 `docs/baseline-eval.txt`와 같다.
-  - ⏳ 보류: 로컬 Qdrant가 비어 있어 Phase 4 재색인 후 실행 (Phase 0의 기준 저장 계획과 같은 시점)
+  - ✅ 2026-09-23 통과 (동점 순서 제외) — 10쿼리 × top-5에서 차이 8개 전부 동점 구간 스왑/반올림. python 자기 재실행도 4개 라인이 뒤집히는 Qdrant tie 비결정성 때문 (쿼리 벡터 자체는 Phase 1에서 비트 단위 동일 확인)
   - 대체 검증: `SearchServiceTest` — 실제 Qdrant 컨테이너 + 임베딩 스텁으로 RRF 순서·payload 필터 확인 통과
-  - 주의: 기준 결과는 MPS로 만든 벡터, Docker는 CPU라 **쿼리 벡터 값이 미세하게 다를 수 있다.** 순서가 어긋나면 Phase 1의 CPU 결과로 기준을 다시 만들어 비교한다.
 
 ### Phase 4. 파이프라인 이식
-- [ ] `TmdbClient` (ko-KR, Bearer, `vote_count.gte=20`, popularity.desc)
-- [ ] 가상 스레드로 detail + credits 병렬 수집, 단건 실패는 건너뜀
-- [ ] `MovieUpsertService`: JPA로 upsert (§5 처리 방식), 출연진 상위 10명
-- [ ] `MovieIndexer`: 컬렉션 삭제 후 재생성(dense 1024 cosine + sparse), 64개 단위 임베딩, 256개 단위 upsert
-- [ ] `ReindexJob`
+- [x] `TmdbClient` (ko-KR, Bearer, `vote_count.gte=20`, popularity.desc) + WireMock 테스트 (2026-09-23)
+- [x] 가상 스레드로 detail + credits 병렬 수집, 단건 실패는 건너뜀 (`ReindexJob.fetchDetailsParallel`)
+- [x] `MovieUpsertService`: JPA로 upsert (§5 처리 방식), 출연진 상위 10명 + Testcontainers 테스트
+- [x] `MovieIndexer`: 컬렉션 삭제 후 재생성(dense 1024 cosine + sparse), 64개 단위 임베딩(EmbeddingClient), 256개 단위 upsert + Qdrant 컨테이너 테스트
+- [x] `ReindexJob` (`--cineseek.job=reindex`)
 - 확인 **S2**: 빈 PG와 빈 Qdrant에서 `docker compose run --rm api --cineseek.job=reindex` → 건수 일치 → S1 재통과.
+  - ✅ 2026-09-23 통과 — local profile(2페이지): PG movie 33 = Qdrant points 33, 이후 S1(기준 비교)도 통과
 
 ### Phase 5. Python 정리
 - [ ] `python/`에서 `search.py`, `pipeline.py`, `eval.py` 삭제. 의존성에서 `psycopg`, `httpx`, `qdrant-client` 제거
