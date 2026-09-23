@@ -165,15 +165,15 @@ Content-Type: application/json
 | `Movie` | `movie` | `movieId` (IDENTITY, BIGSERIAL) | `tmdbId` unique. 장르·감독·출연진과 연관 |
 | `Genre` | `genre` | `genreId` (**TMDB id를 직접 지정**, 자동 생성 아님) | |
 | `MovieGenre` | `movie_genre` | 복합키 (movie_id, genre_id) | `@ManyToMany` + `@JoinTable`로 대체 가능. 추가 컬럼이 없으므로 **`@ManyToMany` 추천** |
-| `MovieDirector` | `movie_director` | 복합키 (movie_id, person_id) | `@EmbeddedId` |
-| `MovieCast` | `movie_cast` | 복합키 (movie_id, person_id) | `@EmbeddedId`, character·cast_order 포함 |
+| `MovieDirector` | `movie_director` | 복합키 (movie_id, person_id) | `@IdClass`. 부모 참조 없음 — movieId 파생 쿼리로 명시적 조회/삭제 |
+| `MovieCast` | `movie_cast` | 복합키 (movie_id, person_id) | `@IdClass`, character·cast_order 포함. 위와 같은 방식 |
 | `User`, `WatchHistory` | `"user"`, `watch_history` | | R1 자리. **이번 범위에서는 엔티티를 만들지 않음** (테이블만 Flyway로 유지) |
 
 #### upsert 처리 방식 (Python의 `ON CONFLICT`를 JPA로)
 
 1. `movieRepository.findByTmdbId(tmdbId)`로 조회
 2. 있으면 필드를 갱신하고, 없으면 새로 만든다
-3. 감독·출연진은 기존 것을 비우고 다시 채운다 (`orphanRemoval = true`)
+3. 감독·출연진은 기존 것을 지우고(`deleteAllByMovieId`) 다시 삽입한다 — cascade 없이 명시적으로
 4. 장르는 `genreRepository.findById` → 없으면 저장 후 연결
 5. 영화 한 건당 트랜잭션 하나. 한 건이 실패해도 나머지는 계속 진행
 
@@ -189,12 +189,16 @@ com.whsanha55.cineseek
 ├── config/        설정 프로퍼티 (@ConfigurationProperties)
 ├── embedding/     EmbeddingClient  — POST /embed 호출, 64개 단위 분할
 ├── tmdb/          TmdbClient       — discover, detail, credits
-├── movie/         엔티티 + Repository + MovieUpsertService (pipeline.upsert_pg 이식)
+├── movie/         영화 도메인
+│   ├── domain/    엔티티 (Movie, Genre, MovieDirector, MovieCast)
+│   └── repository/ Repository (엔티티별)
 ├── index/         MovieIndexer     — 컬렉션 재생성 + 256개 단위 upsert
 ├── search/        SearchService + SearchController  (search.py + app.py 이식)
 ├── job/           ReindexJob       — 수집 → PG → 임베딩 → Qdrant
 └── eval/          EvalRunner       — 고정 쿼리 10개 top-5 출력
 ```
+
+컨벤션은 `kotlin/CLAUDE.md`에서 관리한다.
 
 ### 파이프라인 실행 방식
 
@@ -293,9 +297,9 @@ docker compose -f compose.yml -f compose.prod.yml up -d
 - [x] Boot 4 + Kotlin + Java 25 + JPA 프로젝트 생성 (2026-09-23: Boot 4.1.1 / Kotlin 2.3.21 / Gradle 9.7.1, start.spring.io 생성 + `kotlin/`에 배치)
 - [x] `application.yml` / `-local.yml` / `-prod.yml`
 - [x] Flyway `V1__init.sql` = 현재 `schema.sql` (**복사** — 원본 `python/db/schema.sql`은 기준 비교용으로 Phase 5 정리 때 제거). `baselineOnMigrate`는 local에만
-- [ ] JPA 엔티티 작성, `ddl-auto: validate`로 스키마와 일치하는지 확인 ← **다음 단계**
+- [x] JPA 엔티티 작성, `ddl-auto: validate`로 스키마와 일치하는지 확인 (2026-09-23: `@IdClass` 복합키, 부모 참조·cascade 없음. 컨벤션은 `kotlin/CLAUDE.md`)
 - [x] `kotlin/Dockerfile` (멀티 스테이지: temurin 25-jdk 빌드 → 25-jre 실행), compose에 api 추가 (embed는 Phase 1에서)
-- [ ] Testcontainers 설정 ← 엔티티 작성 시 함께
+- [x] Testcontainers 설정 (2026-09-23: `MovieRepositoryTest` — Flyway 스키마 + validate + 저장/조회/명시적 삭제 라운드트립 통과)
 - 확인 **S3**: `docker compose -f compose.yml -f compose.local.yml up --build` 후 `/actuator/health`가 UP이다. 빈 PG에서 Flyway가 스키마를 만들고, 엔티티 검증을 통과한다.
   - 2026-09-23: PG·Qdrant·api 기동 + health UP 확인, `./gradlew test` 통과 (embed 미포함 — Phase 1 완료 후 재확인)
 
