@@ -1,0 +1,8 @@
+# 서버: SQL 로그 끄기. 수집 페이지 수는 운영 기본값(50)을 그대로 쓴다.
+spring:
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    org.hibernate.SQL: warn

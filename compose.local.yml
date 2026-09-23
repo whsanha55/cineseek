@@ -1,0 +1,36 @@
+# 로컬 덮어쓰기 (local profile) — 전용 PG를 compose로 직접 띄운다 (공유 reins-postgres 방식 폐지)
+services:
+  postgres:
+    image: postgres:17
+    container_name: gonamu-cineseek-postgres
+    environment:
+      POSTGRES_USER: jjong
+      POSTGRES_PASSWORD: jjong
+      POSTGRES_DB: cineseek
+    ports:
+      - "5432:5432"   # IDE에서 직접 실행할 때 쓰는 노출 (호스트 5432가 비어 있을 때만)
+    volumes:
+      - gonamu_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jjong -d cineseek"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  qdrant:
+    ports:
+      - "6333:6333"   # REST
+      - "6334:6334"   # gRPC
+
+  api:
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      PG_HOST: postgres
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  gonamu_pgdata:

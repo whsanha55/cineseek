@@ -1,11 +1,12 @@
 # cineseek 모노레포 전환 계획서
 
-> 작성: 2026-09-23 · 상태: **계획 (구현 전)**
+> 작성: 2026-09-23 · 갱신: 2026-09-23 · 상태: **Phase 2 진행 중 (Kotlin 뼈대 완료)**
 > 결정 사항
 > - 접근법 **C**: 임베딩만 Python 컨테이너, 나머지 전부 Kotlin(Spring Boot)
 > - **기존 레포 `whsanha55/cineseek` 하나**에 폴더로 나눈다 (python / kotlin / 나중에 ui)
-> - Kotlin: **Java 25 + Spring Boot 4.x + JPA**
+> - Kotlin: **Java 25 + Spring Boot 4.1.1 + JPA**
 > - 로컬 개발은 **로컬에서 Docker 이미지를 빌드해 compose로 실행**. 서버 배포는 **profile만 바꿔서** 같은 구조로 올린다
+> - **(2026-09-23 변경)** 로컬 PG는 공유 `reins-postgres` 대신 **compose.local.yml의 전용 postgres 서비스**를 쓴다 (계정/비번 `jjong`). compose 프로젝트명·컨테이너·볼륨에 `gonamu` 접두어를 붙여 중복 실행·이름 충돌을 방지한다
 
 ---
 
@@ -143,10 +144,10 @@ Content-Type: application/json
 
 | 항목 | 선택 | 비고 |
 |---|---|---|
-| JDK | **Java 25** (Gradle toolchain) | |
-| 프레임워크 | **Spring Boot 4.x** | 착수 시점 최신 패치 |
-| 언어 | Kotlin 2.x | ⚠️ JVM 25 타깃을 지원하는 버전인지 착수 시 확인 |
-| 빌드 | Gradle (Kotlin DSL) | ⚠️ Java 25를 지원하는 버전(9.x) 확인 |
+| JDK | **Java 25** (Gradle toolchain) | 로컬 Corretto 25로 검증 |
+| 프레임워크 | **Spring Boot 4.1.1** | 2026-09-23 확정. 주의: 스타터명이 `web` → `spring-boot-starter-webmvc`, Kotlin JSON은 Jackson 3(`tools.jackson`) 계열 |
+| 언어 | **Kotlin 2.3.21** | JVM 25 toolchain 빌드 검증 완료 |
+| 빌드 | **Gradle 9.7.1** (Kotlin DSL, wrapper 포함) | Java 25 지원 확인 |
 | 영속성 | **Spring Data JPA (Hibernate)** + Flyway | 스키마는 Flyway가 관리, `ddl-auto: validate` |
 | Kotlin JPA 플러그인 | `kotlin("plugin.jpa")`, `kotlin("plugin.spring")` | 엔티티에 기본 생성자와 open 클래스를 자동으로 붙여줌 |
 | HTTP 클라이언트 | `RestClient` | TMDB, embed 호출 |
@@ -233,8 +234,8 @@ com.whsanha55.cineseek
 ### compose 구성
 
 ```
-compose.yml           qdrant, embed, api 정의 (이미지 빌드 경로, 포트, healthcheck, 의존 순서)
-compose.local.yml     SPRING_PROFILES_ACTIVE=local, 로컬 PG 연결, 포트를 호스트에 노출
+compose.yml           qdrant, embed, api 정의 (이미지 빌드 경로, 포트, healthcheck, 의존 순서). 프로젝트명 gonamu-cineseek
+compose.local.yml     SPRING_PROFILES_ACTIVE=local, 전용 PG(postgres:17, jjong) + 포트를 호스트에 노출
 compose.prod.yml      SPRING_PROFILES_ACTIVE=prod, 서버 PG 연결, 재시작 정책, 필요한 포트만 노출
 ```
 
@@ -255,7 +256,7 @@ docker compose -f compose.yml -f compose.prod.yml up -d
 | 항목 | 내용 |
 |---|---|
 | **Docker 안에서는 MPS(Mac GPU)를 쓸 수 없다** | Docker는 Linux VM에서 돌아서 Apple GPU에 접근하지 못한다. 로컬 Docker에서도 임베딩은 **CPU로 돈다.** 서버와 같은 조건이라 오히려 결과 비교에는 유리하다. 대신 로컬 전체 재색인은 지금(MPS)보다 느려진다 |
-| 로컬 PG | 지금처럼 공유 인프라 `reins-postgres`를 쓴다. api 컨테이너에서는 `localhost`가 아니라 `host.docker.internal:5432`로 접속한다 |
+| 로컬 PG | **compose.local.yml의 전용 postgres**를 띄운다 (2026-09-23 변경, 기존 공유 `reins-postgres` 폐지 — 해당 머신에 컨테이너가 없었음). 계정/비번 `jjong`, 컨테이너 `gonamu-cineseek-postgres`, 데이터 볼륨 `gonamu_pgdata`. api는 서비스명 `postgres`로 접속하고 IDE 직접 실행 시 `localhost:5432` |
 | 모델 캐시 | bge-m3(약 2GB)를 매번 받지 않도록 embed 컨테이너의 HuggingFace 캐시를 named volume으로 둔다 |
 | CPU 아키텍처 | 로컬 Mac(Apple Silicon)과 서버(OCI A1)가 **둘 다 arm64**다. 로컬에서 빌드한 이미지가 서버에서 그대로 돈다 |
 
@@ -274,8 +275,10 @@ docker compose -f compose.yml -f compose.prod.yml up -d
 
 ### Phase 0. 레포 재구성
 - [ ] 현재 Python 버전으로 **기준 결과 저장**: `eval.py` 출력 → `docs/baseline-eval.txt`
+  - ⚠️ 2026-09-23 갱신: 로컬 PG·Qdrant가 새로 리셋되어 기존 색인 데이터가 없다. **재색인(Phase 4) 이후, Python 정리(Phase 5) 이전**에 실행한다
 - [ ] `git mv`로 Python 파일을 `python/`, 문서를 `docs/`로 이동. 이 계획서도 `docs/PLAN.md`로 이동
-- [ ] 루트 `.gitignore` 정리 (Python, Gradle, IDE 공통)
+  - 2026-09-23 갱신: Python 파일의 `python/` 이동은 완료 (91bfcae). 문서의 `docs/` 이동은 미완료
+- [ ] 루트 `.gitignore` 정리 (Python, Gradle, IDE 공통) — `kotlin/.gitignore`는 생성 완료, 루트 정리만 남음
 - 확인: 이동 후에도 `python/`에서 `uv run python eval.py`가 같은 결과를 낸다. `git log --follow python/pipeline.py`로 이력이 보인다.
 
 ### Phase 1. Python 임베딩 서버 + Docker 이미지
@@ -287,13 +290,14 @@ docker compose -f compose.yml -f compose.prod.yml up -d
 - 확인: 컨테이너로 띄운 뒤 `curl /embed` 응답의 dense 길이가 1024이고, 로컬에서 `embed.encode()`를 CPU로 직접 호출한 결과와 값이 같다.
 
 ### Phase 2. Kotlin 뼈대 + profile + Docker 이미지
-- [ ] Boot 4 + Kotlin + Java 25 + JPA 프로젝트 생성
-- [ ] `application.yml` / `-local.yml` / `-prod.yml`
-- [ ] Flyway `V1__init.sql` = 현재 `schema.sql`. 이미 테이블이 있는 로컬 DB는 `baselineOnMigrate`로 대응
-- [ ] JPA 엔티티 작성, `ddl-auto: validate`로 스키마와 일치하는지 확인
-- [ ] `kotlin/Dockerfile`, compose에 api 추가
-- [ ] Testcontainers 설정
+- [x] Boot 4 + Kotlin + Java 25 + JPA 프로젝트 생성 (2026-09-23: Boot 4.1.1 / Kotlin 2.3.21 / Gradle 9.7.1, start.spring.io 생성 + `kotlin/`에 배치)
+- [x] `application.yml` / `-local.yml` / `-prod.yml`
+- [x] Flyway `V1__init.sql` = 현재 `schema.sql` (**복사** — 원본 `python/db/schema.sql`은 기준 비교용으로 Phase 5 정리 때 제거). `baselineOnMigrate`는 local에만
+- [ ] JPA 엔티티 작성, `ddl-auto: validate`로 스키마와 일치하는지 확인 ← **다음 단계**
+- [x] `kotlin/Dockerfile` (멀티 스테이지: temurin 25-jdk 빌드 → 25-jre 실행), compose에 api 추가 (embed는 Phase 1에서)
+- [ ] Testcontainers 설정 ← 엔티티 작성 시 함께
 - 확인 **S3**: `docker compose -f compose.yml -f compose.local.yml up --build` 후 `/actuator/health`가 UP이다. 빈 PG에서 Flyway가 스키마를 만들고, 엔티티 검증을 통과한다.
+  - 2026-09-23: PG·Qdrant·api 기동 + health UP 확인, `./gradlew test` 통과 (embed 미포함 — Phase 1 완료 후 재확인)
 
 ### Phase 3. 검색 이식 (먼저 하는 이유: 이미 색인된 데이터로 바로 비교 가능)
 - [ ] `EmbeddingClient` + WireMock 계약 테스트

@@ -1,0 +1,15 @@
+# 로컬: SQL 로그 켜기, 수집 페이지 수 작게, 공유 PG(reins-postgres)의 기존 테이블 대응
+spring:
+  flyway:
+    baseline-on-migrate: true  # 이미 테이블이 있는 DB → baseline 후 V2부터 적용
+    baseline-version: 1
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+
+cineseek:
+  tmdb:
+    pages: ${TMDB_PAGES:2}  # 로컬 재색인은 작게 (로컬 Docker는 CPU 임베딩이라 느림)

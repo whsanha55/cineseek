@@ -1,0 +1,26 @@
+# 공통 설정 — 주소·비밀값은 환경변수로만 받는다 (profile은 compose에서 SPRING_PROFILES_ACTIVE로 지정)
+spring:
+  application:
+    name: cineseek
+  datasource:
+    url: jdbc:postgresql://${PG_HOST:localhost}:${PG_PORT:5432}/${PG_DB:cineseek}
+    username: ${PG_USER:jjong}
+    password: ${PG_PASSWORD:jjong}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+cineseek:
+  embedding:
+    base-url: ${EMBED_URL:http://localhost:8001}
+    batch-size: 64          # /embed 요청 분할 단위 (계약: 1회 최대 64개)
+  index:
+    upsert-batch-size: 256  # Qdrant upsert 단위
+  tmdb:
+    base-url: https://api.themoviedb.org/3
+    access-token: ${TMDB_ACCESS_TOKEN:}
+    language: ko-KR
+    pages: ${TMDB_PAGES:50} # discover 페이지 수 (페이지당 20건 → 기본 ~1000건)
+  qdrant:
+    url: ${QDRANT_URL:http://localhost:6333}  # REST(6333), gRPC(6334)는 Phase 4 클라이언트에서
+    collection: ${QDRANT_COLLECTION:movies}

@@ -1,0 +1,31 @@
+# 공통 서비스 정의 — 로컬/서버 차이는 compose.local.yml / compose.prod.yml 덮어쓰기로만
+name: gonamu-cineseek   # 고유 프로젝트명 — 다른 compose 프로젝트와 이름 충돌·중복 실행 방지
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: gonamu-cineseek-qdrant
+    volumes:
+      - gonamu_qdrant_data:/qdrant/storage
+
+  # embed (python/, bge-m3) — Phase 1에서 추가: healthcheck 포함, api는 service_healthy 대기
+
+  api:
+    build:
+      context: ./kotlin
+    environment:
+      PG_HOST: ${PG_HOST:-postgres}
+      PG_PORT: ${PG_PORT:-5432}
+      PG_DB: ${PG_DB:-cineseek}
+      PG_USER: ${PG_USER:-jjong}
+      PG_PASSWORD: ${PG_PASSWORD:-jjong}
+      QDRANT_URL: http://qdrant:6333     # compose 네트워크 내부 주소
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-movies}
+      EMBED_URL: http://embed:8001
+      TMDB_ACCESS_TOKEN: ${TMDB_ACCESS_TOKEN:-}
+    depends_on:
+      qdrant:
+        condition: service_started
+
+volumes:
+  gonamu_qdrant_data:
