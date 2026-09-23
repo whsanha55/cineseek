@@ -1,12 +1,11 @@
 """bge-m3 dense+sparse 임베딩 래퍼 (FlagEmbedding).
 
-pipeline/search/eval 공통 사용. CPU 기반(use_fp16=False).
+임베딩 서버(app.py) 전용. CPU 기반(use_fp16=False).
 """
 import os
 
 from dotenv import load_dotenv
 from FlagEmbedding import BGEM3FlagModel
-from qdrant_client.http.models import SparseVector
 
 load_dotenv()
 
@@ -30,12 +29,4 @@ def encode(texts: list[str]) -> dict:
         return_dense=True,
         return_sparse=True,
         return_colbert_vecs=False,
-    )
-
-
-def to_sparse(weights: dict) -> SparseVector:
-    """lexical_weights dict → Qdrant SparseVector."""
-    return SparseVector(
-        indices=[int(k) for k in weights],
-        values=[float(v) for v in weights.values()],
     )

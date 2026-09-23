@@ -1,7 +1,7 @@
 # python/ — cineseek 임베딩 서비스
 
-bge-m3 dense+sparse 임베딩만 제공한다. 수집·검색·평가는 `kotlin/`에 있다.
-(`search.py`, `pipeline.py`, `eval.py`는 Kotlin 이식 기준 비교용 — Phase 5에 삭제)
+임베딩 서비스 전용 — bge-m3 dense+sparse만 제공한다. 수집·검색·평가는 전부 `kotlin/`에 있다.
+(기준 비교용 python 스크립트는 Kotlin 이식 완료(S1·S2 통과) 후 삭제했다)
 
 ## 실행
 

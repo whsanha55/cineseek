@@ -1,6 +1,6 @@
 # cineseek 모노레포 전환 계획서
 
-> 작성: 2026-09-23 · 갱신: 2026-09-23 · 상태: **Phase 2 진행 중 (Kotlin 뼈대 완료)**
+> 작성: 2026-09-23 · 갱신: 2026-09-23 · 상태: **Phase 5 완료 — 전환 본체 종료. Phase 6(서버 배포) 보류 중**
 > 결정 사항
 > - 접근법 **C**: 임베딩만 Python 컨테이너, 나머지 전부 Kotlin(Spring Boot)
 > - **기존 레포 `whsanha55/cineseek` 하나**에 폴더로 나눈다 (python / kotlin / 나중에 ui)
@@ -279,8 +279,7 @@ docker compose -f compose.yml -f compose.prod.yml up -d
 
 ### Phase 0. 레포 재구성
 - [x] 현재 Python 버전으로 **기준 결과 저장**: `eval.py` 출력 → `docs/baseline-eval.txt` (2026-09-23, 재색인 후 CPU로 생성)
-- [ ] `git mv`로 Python 파일을 `python/`, 문서를 `docs/`로 이동. 이 계획서도 `docs/PLAN.md`로 이동
-  - 2026-09-23 갱신: Python 파일의 `python/` 이동은 완료 (91bfcae). 문서의 `docs/` 이동은 미완료
+- [x] `git mv`로 Python 파일을 `python/`, 문서를 `docs/`로 이동. 이 계획서도 `docs/PLAN.md`로 이동 (2026-09-23 완료 — CONCEPT.md·CEO-REVIEW.md·PLAN.md → `docs/`)
 - [x] 루트 `.gitignore` 정리 — 2026-09-23 생성 (`.env` 포함, 나머지는 하위 폴더 .gitignore가 담당)
 - 확인: 이동 후에도 `python/`에서 `uv run python eval.py`가 같은 결과를 낸다. `git log --follow python/pipeline.py`로 이력이 보인다.
 
@@ -323,9 +322,10 @@ docker compose -f compose.yml -f compose.prod.yml up -d
   - ✅ 2026-09-23 통과 — local profile(2페이지): PG movie 33 = Qdrant points 33, 이후 S1(기준 비교)도 통과
 
 ### Phase 5. Python 정리
-- [ ] `python/`에서 `search.py`, `pipeline.py`, `eval.py` 삭제. 의존성에서 `psycopg`, `httpx`, `qdrant-client` 제거
-- [ ] `python/README.md`에 "임베딩 서비스 전용"과 계약 명시
+- [x] `python/`에서 `search.py`, `pipeline.py`, `eval.py`, `db/schema.sql` 삭제 (2026-09-23). 의존성에서 `psycopg`, `httpx`, `qdrant-client` 제거 + `embed.py`의 `to_sparse`(qdrant 전용) 제거, `uv.lock` 재생성
+- [x] `python/README.md`에 "임베딩 서비스 전용"과 계약 명시
 - 확인: `python/`에는 임베딩 관련 코드만 남고, 이미지가 빌드된다.
+  - 2026-09-23 통과 — `app.py`·`embed.py`만 남음, 의존성 정리 후 이미지 빌드 확인
 
 ### Phase 6. 서버 배포 (con-jjong, OCI A1 arm64)
 - [ ] `compose.prod.yml` 작성 (prod profile, 서버 PG 주소, `restart: unless-stopped`)
