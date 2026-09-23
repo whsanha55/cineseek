@@ -48,6 +48,7 @@ cineseek/                         ← git 루트 (whsanha55/cineseek)
 │   │   ├── application-prod.yml
 │   │   └── db/migration/V1__init.sql   ← 현재 db/schema.sql
 │   ├── build.gradle.kts
+│   ├── .env.example              api 환경변수 예시 (TMDB 토큰)
 │   └── Dockerfile
 ├── ui/                           (나중에)
 ├── docs/
@@ -57,7 +58,7 @@ cineseek/                         ← git 루트 (whsanha55/cineseek)
 ├── compose.yml                   공통 서비스 정의 (qdrant, embed, api)
 ├── compose.local.yml             로컬 덮어쓰기 (local profile)
 ├── compose.prod.yml              서버 덮어쓰기 (prod profile)
-├── .env.example                  공통 환경변수 예시
+├── README.md
 └── .gitignore
 ```
 

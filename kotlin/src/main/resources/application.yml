@@ -2,6 +2,8 @@
 spring:
   application:
     name: cineseek
+  config:
+    import: optional:file:.env[.properties]  # IDE/bootRun용 — 작업 디렉터리(kotlin/)의 .env. 컨테이너엔 없음(compose env_file)
   datasource:
     url: jdbc:postgresql://${PG_HOST:localhost}:${PG_PORT:5432}/${PG_DB:cineseek}
     username: ${PG_USER:jjong}

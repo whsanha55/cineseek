@@ -1,4 +1,4 @@
-# 공통 (루트) — kotlin/·python/ 세부 항목은 각 폴더 .gitignore
+# 공통 (루트) — kotlin/·python/ 세부 항목은 각 폴더 .gitignore. .env는 하위 폴더(kotlin/.env, python/.env)까지 매칭
 .env
 .DS_Store
 
