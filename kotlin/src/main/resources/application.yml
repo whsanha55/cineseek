@@ -22,5 +22,6 @@ cineseek:
     language: ko-KR
     pages: ${TMDB_PAGES:50} # discover 페이지 수 (페이지당 20건 → 기본 ~1000건)
   qdrant:
-    url: ${QDRANT_URL:http://localhost:6333}  # REST(6333), gRPC(6334)는 Phase 4 클라이언트에서
+    grpc-url: ${QDRANT_GRPC_URL:localhost:6334}  # java 클라이언트는 gRPC만 제공
     collection: ${QDRANT_COLLECTION:movies}
+  job: ${CINESEEK_JOB:}  # eval / reindex — 플래그가 있을 때만 해당 Runner가 돌고 종료

@@ -306,11 +306,13 @@ docker compose -f compose.yml -f compose.prod.yml up -d
   - 2026-09-23: Phase 1 완료 후 embed 포함 전체 스택 재확인 통과 (S3 완료)
 
 ### Phase 3. 검색 이식 (먼저 하는 이유: 이미 색인된 데이터로 바로 비교 가능)
-- [ ] `EmbeddingClient` + WireMock 계약 테스트
-- [ ] `SearchService`: dense와 sparse prefetch(각 20개) → RRF → limit, payload 필터(genre match, release_year ≥)
-- [ ] `SearchController` `/api/search`
-- [ ] `EvalRunner`
+- [x] `EmbeddingClient` + WireMock 계약 테스트 (2026-09-23: 64개 분할·응답 파싱 검증)
+- [x] `SearchService`: dense와 sparse prefetch(각 20개) → RRF → limit, payload 필터(genre match, release_year ≥) — search.py 이식
+- [x] `SearchController` `/api/search` (응답 구조는 python /search와 동일, 필드명 camelCase)
+- [x] `EvalRunner` (`--cineseek.job=eval` → 10쿼리 top-5 출력 후 종료)
 - 확인 **S1**: Kotlin eval 출력이 `docs/baseline-eval.txt`와 같다.
+  - ⏳ 보류: 로컬 Qdrant가 비어 있어 Phase 4 재색인 후 실행 (Phase 0의 기준 저장 계획과 같은 시점)
+  - 대체 검증: `SearchServiceTest` — 실제 Qdrant 컨테이너 + 임베딩 스텁으로 RRF 순서·payload 필터 확인 통과
   - 주의: 기준 결과는 MPS로 만든 벡터, Docker는 CPU라 **쿼리 벡터 값이 미세하게 다를 수 있다.** 순서가 어긋나면 Phase 1의 CPU 결과로 기준을 다시 만들어 비교한다.
 
 ### Phase 4. 파이프라인 이식

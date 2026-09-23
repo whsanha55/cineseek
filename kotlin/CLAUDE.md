@@ -41,3 +41,10 @@
 - `JpaRepository` 상속, 엔티티별 파일 (파일명 = 클래스명)
 - 파생 쿼리 우선. `@Query`는 파생으로 못 쓸 때만
 - import는 명시적으로 (와일드카드 ❌)
+
+## 일반 Kotlin
+
+- DTO는 `data class` (엔티티만 일반 class 예외). 와이어 DTO는 사용 파일 안에서 `private`
+- 외부 HTTP 클라이언트는 `RestClient.builder()` 직접 구성 — Boot 4는 `RestClient.Builder` 자동구성 빈이 없다. 대상이 uvicorn(HTTP/1.1)이면 HTTP/1.1로 고정한다 (h2c 시도가 RST_STREAM을 유발)
+- 배치 실행(`--cineseek.job=eval` 등)은 `@ConditionalOnProperty(prefix="cineseek", name=["job"])` + `ApplicationRunner` + `exitProcess(0)`
+- Qdrant는 gRPC(`io.qdrant:client`)만 사용. 주의: 클라이언트 POM이 grpc 의존성을 runtime scope로 선언하므로 `grpc-protobuf`·`grpc-stub`을 implementation으로 직접 추가해야 컴파일된다

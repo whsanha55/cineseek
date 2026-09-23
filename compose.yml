@@ -33,7 +33,8 @@ services:
       PG_DB: ${PG_DB:-cineseek}
       PG_USER: ${PG_USER:-jjong}
       PG_PASSWORD: ${PG_PASSWORD:-jjong}
-      QDRANT_URL: http://qdrant:6333     # compose 네트워크 내부 주소
+      QDRANT_URL: http://qdrant:6333     # 디버깅/대시보드용 REST (python 기준 비교 스크립트)
+      QDRANT_GRPC_URL: qdrant:6334       # Kotlin 클라이언트는 gRPC 사용
       QDRANT_COLLECTION: ${QDRANT_COLLECTION:-movies}
       EMBED_URL: http://embed:8001
       TMDB_ACCESS_TOKEN: ${TMDB_ACCESS_TOKEN:-}
