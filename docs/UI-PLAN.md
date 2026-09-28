@@ -111,20 +111,20 @@
 
 ## 5. API 계약 — 현재 vs 필요
 
-현재 Kotlin API는 `GET /api/search`뿐이고, 응답에 UI에 필요한 필드가 빠져 있다. **UI 작업 전 백엔드 Phase(U-B)로 먼저 채운다.**
+현재 Kotlin API는 `GET /cineseek/search`뿐이고, 응답에 UI에 필요한 필드가 빠져 있다. **UI 작업 전 백엔드 Phase(U-B)로 먼저 채운다.**
 
 | # | 엔드포인트 | 상태 | 변경 |
 |---|---|---|---|
-| A1 | `GET /api/search` | 있음 | 응답에 `movieId`, `posterPath` 추가 (Qdrant payload에 `poster_path` 추가 → 재색인). 파라미터 `yearMax`, `ratingMin`, `director`, `cast` 추가 |
-| A2 | `GET /api/movies/{id}` | **없음** | PG 조회: 메타 + 줄거리 + 장르 + 감독 + 출연진(상위 5, 배역) |
-| A3 | `GET /api/movies/{id}/similar?limit=` | **없음** | Qdrant 포인트 id = `movie_id`이므로 해당 포인트 벡터로 query (자기 자신 제외). U2 |
-| A4 | `GET /api/movies?genre=&sort=&page=` | **없음** | 탐색용 PG 목록 (F5) |
-| A5 | `GET /api/genres` | **없음** | 장르 칩 목록 (`name_ko`) |
-| A6 | `GET /api/people?q=&role=director\|cast` | **없음** | 감독·배우 자동완성 (PG `movie_director`/`movie_cast` 이름 검색, distinct, 상위 10) |
+| A1 | `GET /cineseek/search` | 있음 | 응답에 `movieId`, `posterPath` 추가 (Qdrant payload에 `poster_path` 추가 → 재색인). 파라미터 `yearMax`, `ratingMin`, `director`, `cast` 추가 |
+| A2 | `GET /cineseek/movies/{id}` | **없음** | PG 조회: 메타 + 줄거리 + 장르 + 감독 + 출연진(상위 5, 배역) |
+| A3 | `GET /cineseek/movies/{id}/similar?limit=` | **없음** | Qdrant 포인트 id = `movie_id`이므로 해당 포인트 벡터로 query (자기 자신 제외). U2 |
+| A4 | `GET /cineseek/movies?genre=&sort=&page=` | **없음** | 탐색용 PG 목록 (F5) |
+| A5 | `GET /cineseek/genres` | **없음** | 장르 칩 목록 (`name_ko`) |
+| A6 | `GET /cineseek/people?q=&role=director\|cast` | **없음** | 감독·배우 자동완성 (PG `movie_director`/`movie_cast` 이름 검색, distinct, 상위 10) |
 
 - 포스터 URL은 **TMDB 이미지 CDN**(`https://image.tmdb.org/t/p/w342{posterPath}`)을 프론트에서 조립한다. 크기: 카드 `w342`, 상세 `w500`. 포스터 없음 → 플레이스홀더 컴포넌트
 - 계약 공유: PLAN.md 계획대로 **springdoc-openapi** → `openapi-typescript`로 TS 타입 생성. 수기 타입 금지
-- CORS: 로컬은 Vite dev proxy, compose는 nginx가 `/api` → `api:8080` 프록시 → **같은 출처라 CORS 설정 불필요**
+- CORS: 로컬은 Vite dev proxy, compose는 nginx가 `/cineseek` → `api:8080` 프록시 → **같은 출처라 CORS 설정 불필요**
 
 ---
 
@@ -230,8 +230,8 @@ ui/
 │   ├── styles/tokens.css
 │   └── main.tsx
 ├── index.html
-├── vite.config.ts      dev proxy: /api → localhost:8080
-├── Dockerfile          node 빌드 → nginx:alpine 정적 서빙 + /api 프록시
+├── vite.config.ts      dev proxy: /cineseek → localhost:8080
+├── Dockerfile          node 빌드 → nginx:alpine 정적 서빙 + /cineseek 프록시
 └── nginx.conf
 ```
 

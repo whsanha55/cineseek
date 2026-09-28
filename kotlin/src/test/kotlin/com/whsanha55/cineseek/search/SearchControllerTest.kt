@@ -25,7 +25,7 @@ class SearchControllerTest {
             listOf(SearchResult("쇼생크 탈출", 1994L, 8.7, 0.9f, listOf("범죄"), listOf("프랭크 다라본트")))
 
         // when
-        val result = mockMvc.get("/api/search") {
+        val result = mockMvc.get("/cineseek/search") {
             param("q", "탈출")
             param("genre", "범죄")
             param("yearMin", "2000")
@@ -50,7 +50,7 @@ class SearchControllerTest {
     @Test
     fun `limit이 범위를 벗어나면 400과 필드 오류를 ProblemDetail로 응답한다`() {
         // when
-        val result = mockMvc.get("/api/search") {
+        val result = mockMvc.get("/cineseek/search") {
             param("q", "탈출")
             param("limit", "51")
             header("X-Request-Id", "req-2")
@@ -69,7 +69,7 @@ class SearchControllerTest {
     @Test
     fun `q가 없으면 400으로 응답한다`() {
         // when
-        val result = mockMvc.get("/api/search")
+        val result = mockMvc.get("/cineseek/search")
 
         // then
         result.andExpect {
@@ -84,7 +84,7 @@ class SearchControllerTest {
         every { searchService.search(any<String>(), any(), any(), any()) } throws IllegalStateException("qdrant down")
 
         // when
-        val result = mockMvc.get("/api/search") { param("q", "탈출") }
+        val result = mockMvc.get("/cineseek/search") { param("q", "탈출") }
 
         // then
         result.andExpect {

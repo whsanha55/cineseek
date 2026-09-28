@@ -21,7 +21,7 @@
 
 | # | 기준 | 확인 방법 |
 |---|---|---|
-| S1 | Kotlin `/api/search` 결과가 현재 Python `/search`와 같다 | 고정 쿼리 10개의 top-5 제목과 순서 비교 |
+| S1 | Kotlin `/cineseek/search` 결과가 현재 Python `/search`와 같다 | 고정 쿼리 10개의 top-5 제목과 순서 비교 |
 | S2 | Kotlin 파이프라인으로 PG와 Qdrant를 처음부터 다시 만들 수 있다 | 재색인 후 PG `movie` 건수 = Qdrant 포인트 수, S1 재통과 |
 | S3 | 로컬에서 `docker compose up` 한 번으로 전체가 뜬다 (local profile) | api `/actuator/health`, embed `/health` 모두 200 |
 | S4 | 서버에서 같은 이미지로 profile만 바꿔 뜬다 (prod profile) | S3과 같은 확인을 서버에서 |
@@ -91,7 +91,7 @@ cineseek/                         ← git 루트 (whsanha55/cineseek)
      ▼
 ┌──────────────────────┐   POST /embed   ┌────────────────────┐
 │ api  (kotlin) :8080  │ ──────────────▶ │ embed (python)     │
-│  /api/search         │ ◀────────────── │ :8001  bge-m3      │
+│  /cineseek/search         │ ◀────────────── │ :8001  bge-m3      │
 │  수집·색인 Job        │  dense + sparse │ (FlagEmbedding)    │
 └──────┬─────────┬─────┘                 └────────────────────┘
        │ JPA     │ gRPC :6334
@@ -219,9 +219,9 @@ com.whsanha55.cineseek
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
-| GET | `/api/search?q=&genre=&yearMin=&limit=` | 현재 `/search`와 같은 응답 구조 (필드명만 camelCase) |
+| GET | `/cineseek/search?q=&genre=&yearMin=&limit=` | 현재 `/search`와 같은 응답 구조 (필드명만 camelCase) |
 | GET | `/actuator/health` | |
-| — | `/api/movies/{id}/similar` | U2. **이번 전환 범위에서는 제외** (전환 후 첫 기능 후보) |
+| — | `/cineseek/movies/{id}/similar` | U2. **이번 전환 범위에서는 제외** (전환 후 첫 기능 후보) |
 
 ---
 
@@ -314,7 +314,7 @@ docker compose -f compose.yml -f compose.prod.yml up -d
 ### Phase 3. 검색 이식 (먼저 하는 이유: 이미 색인된 데이터로 바로 비교 가능)
 - [x] `EmbeddingClient` + WireMock 계약 테스트 (2026-09-23: 64개 분할·응답 파싱 검증)
 - [x] `SearchService`: dense와 sparse prefetch(각 20개) → RRF → limit, payload 필터(genre match, release_year ≥) — search.py 이식
-- [x] `SearchController` `/api/search` (응답 구조는 python /search와 동일, 필드명 camelCase)
+- [x] `SearchController` `/cineseek/search` (응답 구조는 python /search와 동일, 필드명 camelCase)
 - [x] `EvalRunner` (`--cineseek.job=eval` → 10쿼리 top-5 출력 후 종료)
 - 확인 **S1**: Kotlin eval 출력이 `docs/baseline-eval.txt`와 같다.
   - ✅ 2026-09-23 통과 (동점 순서 제외) — 10쿼리 × top-5에서 차이 8개 전부 동점 구간 스왑/반올림. python 자기 재실행도 4개 라인이 뒤집히는 Qdrant tie 비결정성 때문 (쿼리 벡터 자체는 Phase 1에서 비트 단위 동일 확인)

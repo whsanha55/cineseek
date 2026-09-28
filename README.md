@@ -16,7 +16,7 @@ cineseek/
 
 | 서비스 | 역할 | 포트 |
 |---|---|---|
-| `api` (kotlin/) | `/api/search`, TMDB 수집 → PG → 임베딩 → Qdrant | 8080 |
+| `api` (kotlin/) | `/cineseek/search`, TMDB 수집 → PG → 임베딩 → Qdrant | 8080 |
 | `embed` (python/) | 텍스트 → dense(1024) + sparse | 8001 |
 | `qdrant` | 벡터 검색 | 6333(REST), 6334(gRPC) |
 | `postgres` (로컬만) | 영화 원본/메타 (SoT) | 5432 |
@@ -34,7 +34,7 @@ docker compose -f compose.yml -f compose.local.yml up --build
 docker compose -f compose.yml -f compose.local.yml run --rm api --cineseek.job=reindex
 
 # 4. 검색
-curl 'http://localhost:8080/api/search?q=감옥에서 탈출하는 이야기&limit=5'
+curl 'http://localhost:8080/cineseek/search?q=감옥에서 탈출하는 이야기&limit=5'
 ```
 
 - 헬스체크: `GET :8080/actuator/health`, `GET :8001/health`

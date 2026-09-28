@@ -4,7 +4,7 @@ import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 
-/** GET /api/search 쿼리 파라미터 */
+/** GET /cineseek/search 쿼리 파라미터 */
 data class SearchRequest(
     @field:NotBlank
     val q: String,
