@@ -200,7 +200,7 @@ com.whsanha55.cineseek
 └── search/
     ├── SearchController.kt
     ├── service/       SearchService, MovieIndexer
-    ├── dto/           SearchResponse (API 응답)
+    ├── dto/           SearchRequest, SearchResponse, SearchResultResponse (API 요청·응답)
     ├── vo/            Embedding, SearchResult, MoviePayload, IndexedMovie
     └── job/           ReindexJob — 수집 → PG → 임베딩 → Qdrant
                        EvalRunner  — 고정 쿼리 10개 top-5 출력

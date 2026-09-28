@@ -41,6 +41,9 @@ class SearchControllerTest {
             jsonPath("$.filter.genre") { value("범죄") }
             jsonPath("$.count") { value(1) }
             jsonPath("$.results[0].title") { value("쇼생크 탈출") }
+            jsonPath("$.results[0].releaseYear") { value(1994) }
+            jsonPath("$.results[0].score") { value(0.9) }
+            jsonPath("$.results[0].directors[0]") { value("프랭크 다라본트") }
         }
     }
 
