@@ -33,14 +33,13 @@
 
 ## 패키지 구조
 
-- 레이어 우선 최상위 패키지:
-  - `config/` — `@ConfigurationProperties`, 빈 구성, 공용 HTTP(`http1RestClient()`)
-  - `domain/` — JPA 엔티티 + 복합키
-  - `repository/` — Repository
-  - `client/` — 외부 API 클라이언트(EmbeddingClient, TmdbClient)와 그 응답 모델
-  - `service/` — 비즈니스 로직(SearchService, MovieUpsertService, MovieIndexer)과 그 입출력 모델(SearchResult, MoviePayload 등)
-  - `controller/` — HTTP 엔드포인트 + 응답 DTO(SearchResponse 등)
-  - `job/` — 배치 Runner(ReindexJob, EvalRunner, `--cineseek.job=...`)
+- 도메인 우선 — `docs/convention/backend/kotlin/spring.md` 1절을 따른다:
+  - `global/config/` — 공용 HTTP(`http1RestClient()`)
+  - `external/{tmdb,embedding,qdrant}/` — 외부 시스템별 `client/`·`config/`(`@ConfigurationProperties`, 빈)
+  - `movie/` — `entity/`(엔티티 + 복합키), `repository/`, `service/`(MovieUpsertService), `vo/`(TmdbMovie — TmdbClient가 변환해 넘기는 수집 모델)
+  - `search/` — `SearchController`, `service/`(SearchService, MovieIndexer), `job/`
+  - 배치 Runner(`--cineseek.job=...`)는 도메인 아래 `job/`에 둔다 (ReindexJob, EvalRunner)
+- 의존 방향은 `search → movie` 한쪽만. movie는 search를 참조하지 않는다
 - 테스트 패키지는 대상 클래스의 패키지를 그대로 따른다
 
 ## Repository

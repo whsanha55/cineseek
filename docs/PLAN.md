@@ -187,18 +187,24 @@ JPA에서 주의할 점:
 
 ```
 com.whsanha55.cineseek
-├── config/        설정 프로퍼티 (@ConfigurationProperties), Qdrant 빈, 공용 HTTP
-├── domain/        엔티티 (Movie, Genre, MovieDirector, MovieCast) + 복합키
-├── repository/    Repository (엔티티별)
-├── client/        EmbeddingClient — POST /embed 호출, 64개 단위 분할
-│                  TmdbClient      — discover, detail, credits (+ 응답 모델)
-├── service/       SearchService, MovieUpsertService, MovieIndexer (+ 입출력 모델)
-├── controller/    SearchController + 응답 DTO
-└── job/           ReindexJob — 수집 → PG → 임베딩 → Qdrant
-                   EvalRunner  — 고정 쿼리 10개 top-5 출력
+├── global/config/     공용 HTTP (HTTP/1.1 고정 RestClient)
+├── external/
+│   ├── tmdb/          TmdbClient — discover, detail, credits / TmdbProperties
+│   ├── embedding/     EmbeddingClient — POST /embed 호출, 64개 단위 분할 / EmbeddingProperties
+│   └── qdrant/        Qdrant gRPC 빈 / QdrantProperties
+├── movie/
+│   ├── entity/        Movie, Genre, MovieDirector, MovieCast + 복합키
+│   ├── repository/    Repository (엔티티별)
+│   ├── service/       MovieUpsertService
+│   └── vo/            TmdbMovie (수집 모델)
+└── search/
+    ├── SearchController.kt
+    ├── service/       SearchService, MovieIndexer
+    └── job/           ReindexJob — 수집 → PG → 임베딩 → Qdrant
+                       EvalRunner  — 고정 쿼리 10개 top-5 출력
 ```
 
-컨벤션은 `kotlin/CLAUDE.md`에서 관리한다. (2026-09-23: 도메인 우선 → 레이어 우선으로 재구성)
+컨벤션은 `kotlin/CLAUDE.md`에서 관리한다. (2026-09-23: 도메인 우선 → 레이어 우선, 2026-09-28: 공용 컨벤션 도입으로 다시 도메인 우선)
 
 ### 파이프라인 실행 방식
 
