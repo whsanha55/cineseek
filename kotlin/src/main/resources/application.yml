@@ -9,6 +9,7 @@ spring:
     username: ${PG_USER:jjong}
     password: ${PG_PASSWORD:jjong}
   jpa:
+    open-in-view: false  # 트랜잭션 밖 지연 로딩 금지 — 필요한 연관은 fetch join·@EntityGraph로 한 번에
     hibernate:
       ddl-auto: validate
 
