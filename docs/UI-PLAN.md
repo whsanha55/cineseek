@@ -254,7 +254,7 @@ compose: `ui` 서비스 추가 (compose.local.yml에서 `5173:80` 또는 `3000:8
 각 단계는 확인 항목을 통과해야 다음으로 넘어간다.
 
 ### Phase U-B. 백엔드 API 보강 (kotlin/)
-- [ ] springdoc-openapi 추가, `/v3/api-docs` 노출
+- [x] springdoc-openapi 추가, `/v3/api-docs` 노출
 - [ ] Qdrant payload에 `poster_path` 추가 → 재색인. A1 응답에 `movieId`, `posterPath` 추가
 - [ ] A1 필터 확장: `yearMax`, `ratingMin`, `director`, `cast`
 - [ ] A2 상세, A3 유사, A4 목록, A5 장르, A6 사람 자동완성
