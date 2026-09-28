@@ -4,6 +4,7 @@
 
 ## JPA 엔티티
 
+- 클래스명은 `*Entity` (`MovieEntity`), 파일명도 같다. 복합키는 `*Id` (`MovieCastId`)
 - 일반 `class`를 쓴다 (`data class` ❌ — equals/hashCode가 지연 로딩과 충돌). PK는 `val`, 가변 필드는 `var`
 - 설명 주석은 KDoc(`/** ... */`). `//` 한 줄 주석은 쓰지 않는다
 - `@Table(name)`은 항상 명시

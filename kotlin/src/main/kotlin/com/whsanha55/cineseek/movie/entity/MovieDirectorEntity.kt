@@ -14,7 +14,7 @@ import java.io.Serializable
 @Entity
 @IdClass(MovieDirectorId::class)
 @Table(name = "movie_director")
-class MovieDirector(
+class MovieDirectorEntity(
     @Id
     val movieId: Long,
 

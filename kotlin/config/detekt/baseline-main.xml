@@ -18,7 +18,7 @@
     <ID>ForbiddenMethodCall:ReindexJob.kt:ReindexJob$println("재색인 완료: PG movie=${stored.size}, 색인 대상=${indexed.size}")</ID>
     <ID>IgnoredReturnValue:MovieIndexer.kt:MovieIndexer$get()</ID>
     <ID>ImplicitDefaultLocale:EvalRunner.kt:EvalRunner$"%.3f".format(r.score)</ID>
-    <ID>LongParameterList:Movie.kt:Movie</ID>
+    <ID>LongParameterList:MovieEntity.kt:MovieEntity</ID>
     <ID>LongParameterList:ReindexJob.kt:ReindexJob</ID>
     <ID>MagicNumber:EvalRunner.kt:EvalRunner$5</ID>
     <ID>MagicNumber:MovieUpsertService.kt:MovieUpsertService$4</ID>
@@ -26,8 +26,8 @@
     <ID>MagicNumber:ReindexJob.kt:ReindexJob$5</ID>
     <ID>MagicNumber:SearchController.kt:SearchController$50</ID>
     <ID>ReturnCount:TmdbClient.kt:TmdbClient$fun fetchDetail: TmdbMovie?</ID>
-    <ID>SerialVersionUIDInSerializableClass:MovieCast.kt:MovieCastId : Serializable</ID>
-    <ID>SerialVersionUIDInSerializableClass:MovieDirector.kt:MovieDirectorId : Serializable</ID>
+    <ID>SerialVersionUIDInSerializableClass:MovieCastEntity.kt:MovieCastId : Serializable</ID>
+    <ID>SerialVersionUIDInSerializableClass:MovieDirectorEntity.kt:MovieDirectorId : Serializable</ID>
     <ID>SpreadOperator:CineseekApplication.kt:(*args)</ID>
   </CurrentIssues>
 </SmellBaseline>

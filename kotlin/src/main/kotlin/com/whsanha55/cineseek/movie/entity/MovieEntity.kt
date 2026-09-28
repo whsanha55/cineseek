@@ -20,7 +20,7 @@ import java.time.LocalDate
  */
 @Entity
 @Table(name = "movie")
-class Movie(
+class MovieEntity(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val movieId: Long = 0,
@@ -49,7 +49,7 @@ class Movie(
         joinColumns = [JoinColumn(name = "movie_id")],
         inverseJoinColumns = [JoinColumn(name = "genre_id")],
     )
-    val genres: MutableSet<Genre> = mutableSetOf(),
+    val genres: MutableSet<GenreEntity> = mutableSetOf(),
 
     @CreationTimestamp
     @Column(nullable = false)

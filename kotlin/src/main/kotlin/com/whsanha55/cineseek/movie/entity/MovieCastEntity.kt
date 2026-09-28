@@ -15,7 +15,7 @@ import java.io.Serializable
 @Entity
 @IdClass(MovieCastId::class)
 @Table(name = "movie_cast")
-class MovieCast(
+class MovieCastEntity(
     @Id
     val movieId: Long,
 

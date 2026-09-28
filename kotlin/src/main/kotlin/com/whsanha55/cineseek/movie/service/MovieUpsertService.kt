@@ -1,8 +1,8 @@
 package com.whsanha55.cineseek.movie.service
 
-import com.whsanha55.cineseek.movie.entity.Movie
-import com.whsanha55.cineseek.movie.entity.MovieCast
-import com.whsanha55.cineseek.movie.entity.MovieDirector
+import com.whsanha55.cineseek.movie.entity.MovieCastEntity
+import com.whsanha55.cineseek.movie.entity.MovieDirectorEntity
+import com.whsanha55.cineseek.movie.entity.MovieEntity
 import com.whsanha55.cineseek.movie.repository.GenreRepository
 import com.whsanha55.cineseek.movie.repository.MovieCastRepository
 import com.whsanha55.cineseek.movie.repository.MovieDirectorRepository
@@ -35,7 +35,7 @@ class MovieUpsertService(
         saved.genres.clear()
         m.genres.forEach { g ->
             val genre = genreRepository.findById(g.genreId)
-                .orElseGet { genreRepository.save(com.whsanha55.cineseek.movie.entity.Genre(g.genreId, g.name)) }
+                .orElseGet { genreRepository.save(com.whsanha55.cineseek.movie.entity.GenreEntity(g.genreId, g.name)) }
             saved.genres += genre
         }
         movieRepository.save(saved)
@@ -43,14 +43,16 @@ class MovieUpsertService(
         // 자식 — 기존 것을 지우고 다시 채운다 (명시적 삭제, 출연진은 상위 10명)
         movieDirectorRepository.deleteAllByMovieId(saved.movieId)
         movieCastRepository.deleteAllByMovieId(saved.movieId)
-        movieDirectorRepository.saveAll(m.directors.map { MovieDirector(saved.movieId, it.personId, it.name) })
+        movieDirectorRepository.saveAll(m.directors.map { MovieDirectorEntity(saved.movieId, it.personId, it.name) })
         movieCastRepository.saveAll(
-            m.cast.take(CAST_LIMIT).map { MovieCast(saved.movieId, it.personId, it.name, it.character, it.castOrder) },
+            m.cast.take(CAST_LIMIT).map {
+                MovieCastEntity(saved.movieId, it.personId, it.name, it.character, it.castOrder)
+            },
         )
         return saved.movieId
     }
 
-    private fun TmdbMovie.toEntity() = Movie(
+    private fun TmdbMovie.toEntity() = MovieEntity(
         tmdbId = tmdbId,
         title = title,
         originalTitle = originalTitle,
@@ -67,7 +69,7 @@ class MovieUpsertService(
     )
 
     /** python DO UPDATE SET 절과 같은 필드만 갱신 */
-    private fun Movie.updateFrom(m: TmdbMovie) {
+    private fun MovieEntity.updateFrom(m: TmdbMovie) {
         title = m.title
         overview = m.overview
         releaseDate = m.releaseDate?.takeIf { it.isNotBlank() }?.let(java.time.LocalDate::parse)

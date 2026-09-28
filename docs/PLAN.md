@@ -193,7 +193,7 @@ com.whsanha55.cineseek
 │   ├── embedding/     EmbeddingClient — POST /embed 호출, 64개 단위 분할 / EmbeddingProperties / 와이어 DTO
 │   └── qdrant/        Qdrant gRPC 빈 / QdrantProperties
 ├── movie/
-│   ├── entity/        Movie, Genre, MovieDirector, MovieCast + 복합키
+│   ├── entity/        MovieEntity, GenreEntity, MovieDirectorEntity, MovieCastEntity + 복합키
 │   ├── repository/    Repository (엔티티별)
 │   ├── service/       MovieUpsertService
 │   └── vo/            TmdbMovie (수집 모델)

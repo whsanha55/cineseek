@@ -8,7 +8,7 @@ import jakarta.persistence.Table
 /** TMDB 장르 마스터 — genre_id는 TMDB id를 그대로 쓴다 (자동 생성 아님) */
 @Entity
 @Table(name = "genre")
-class Genre(
+class GenreEntity(
     @Id
     val genreId: Long,
 

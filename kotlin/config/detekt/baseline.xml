@@ -9,7 +9,7 @@
     <ID>MagicNumber:ReindexJob.kt:ReindexJob$5</ID>
     <ID>MagicNumber:SearchController.kt:SearchController$50</ID>
     <ID>ReturnCount:TmdbClient.kt:TmdbClient$fun fetchDetail: TmdbMovie?</ID>
-    <ID>SerialVersionUIDInSerializableClass:MovieCast.kt:MovieCastId : Serializable</ID>
-    <ID>SerialVersionUIDInSerializableClass:MovieDirector.kt:MovieDirectorId : Serializable</ID>
+    <ID>SerialVersionUIDInSerializableClass:MovieCastEntity.kt:MovieCastId : Serializable</ID>
+    <ID>SerialVersionUIDInSerializableClass:MovieDirectorEntity.kt:MovieDirectorId : Serializable</ID>
   </CurrentIssues>
 </SmellBaseline>
