@@ -7,9 +7,9 @@ import com.whsanha55.cineseek.movie.repository.MovieDirectorRepository
 import com.whsanha55.cineseek.movie.repository.MovieRepository
 import com.whsanha55.cineseek.movie.service.MovieUpsertService
 import com.whsanha55.cineseek.movie.vo.TmdbMovie
-import com.whsanha55.cineseek.search.service.IndexedMovie
 import com.whsanha55.cineseek.search.service.MovieIndexer
-import com.whsanha55.cineseek.search.service.MoviePayload
+import com.whsanha55.cineseek.search.vo.IndexedMovie
+import com.whsanha55.cineseek.search.vo.MoviePayload
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty

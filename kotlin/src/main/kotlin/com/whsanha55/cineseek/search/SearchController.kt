@@ -1,16 +1,13 @@
 package com.whsanha55.cineseek.search
 
-import com.whsanha55.cineseek.search.service.SearchResult
+import com.whsanha55.cineseek.search.dto.SearchFilter
+import com.whsanha55.cineseek.search.dto.SearchResponse
 import com.whsanha55.cineseek.search.service.SearchService
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
-
-data class SearchFilter(val genre: String?, val yearMin: Int?)
-
-data class SearchResponse(val query: String, val filter: SearchFilter, val count: Int, val results: List<SearchResult>)
 
 /** GET /api/search — python /search와 같은 응답 구조 (필드명은 camelCase) */
 @RestController

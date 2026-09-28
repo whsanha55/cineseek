@@ -1,13 +1,11 @@
 package com.whsanha55.cineseek.external.embedding.client
 
 import com.whsanha55.cineseek.external.embedding.config.EmbeddingProperties
+import com.whsanha55.cineseek.external.embedding.dto.EmbedRequestBody
+import com.whsanha55.cineseek.external.embedding.dto.EmbedResponseBody
 import com.whsanha55.cineseek.global.config.http1RestClient
+import com.whsanha55.cineseek.search.vo.Embedding
 import org.springframework.stereotype.Component
-
-/** dense(1024, L2 정규화) + sparse(토큰 id → 가중치) */
-data class Embedding(val dense: List<Float>, val sparse: Sparse) {
-    data class Sparse(val indices: List<Long>, val values: List<Float>)
-}
 
 /**
  * POST /embed 클라이언트 — 계약상 1회 최대 64개라 batchSize 단위로 나눠 보낸다.
@@ -34,13 +32,4 @@ class EmbeddingClient(properties: EmbeddingProperties) {
             response.items.map { Embedding(it.dense, Embedding.Sparse(it.sparse.indices, it.sparse.values)) }
         }
     }
-}
-
-// 와이어 계약 DTO — 이 파일 안에서만 쓴다
-private data class EmbedRequestBody(val texts: List<String>)
-
-private data class EmbedResponseBody(val model: String, val items: List<Item>) {
-    data class Item(val dense: List<Float>, val sparse: Sparse)
-
-    data class Sparse(val indices: List<Long>, val values: List<Float>)
 }

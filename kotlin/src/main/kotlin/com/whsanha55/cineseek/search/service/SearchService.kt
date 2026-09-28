@@ -1,8 +1,9 @@
 package com.whsanha55.cineseek.search.service
 
-import com.whsanha55.cineseek.external.embedding.client.Embedding
 import com.whsanha55.cineseek.external.embedding.client.EmbeddingClient
 import com.whsanha55.cineseek.external.qdrant.config.QdrantProperties
+import com.whsanha55.cineseek.search.vo.Embedding
+import com.whsanha55.cineseek.search.vo.SearchResult
 import io.qdrant.client.ConditionFactory
 import io.qdrant.client.QdrantClient
 import io.qdrant.client.QueryFactory
@@ -10,16 +11,6 @@ import io.qdrant.client.VectorInputFactory
 import io.qdrant.client.WithPayloadSelectorFactory
 import io.qdrant.client.grpc.Points
 import org.springframework.stereotype.Service
-
-/** 검색 결과 — Qdrant payload 사본 기반 */
-data class SearchResult(
-    val title: String?,
-    val releaseYear: Long?,
-    val rating: Double?,
-    val score: Float,
-    val genres: List<String> = emptyList(),
-    val directors: List<String> = emptyList(),
-)
 
 /**
  * 하이브리드(dense+sparse RRF) 검색 — search.py 이식.

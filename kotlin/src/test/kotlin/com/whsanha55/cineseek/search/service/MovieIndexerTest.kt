@@ -6,6 +6,8 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import com.whsanha55.cineseek.external.embedding.client.EmbeddingClient
 import com.whsanha55.cineseek.external.embedding.config.EmbeddingProperties
 import com.whsanha55.cineseek.external.qdrant.config.QdrantProperties
+import com.whsanha55.cineseek.search.vo.IndexedMovie
+import com.whsanha55.cineseek.search.vo.MoviePayload
 import io.qdrant.client.QdrantClient
 import io.qdrant.client.QdrantGrpcClient
 import org.junit.jupiter.api.AfterEach

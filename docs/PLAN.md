@@ -189,8 +189,8 @@ JPA에서 주의할 점:
 com.whsanha55.cineseek
 ├── global/config/     공용 HTTP (HTTP/1.1 고정 RestClient)
 ├── external/
-│   ├── tmdb/          TmdbClient — discover, detail, credits / TmdbProperties
-│   ├── embedding/     EmbeddingClient — POST /embed 호출, 64개 단위 분할 / EmbeddingProperties
+│   ├── tmdb/          TmdbClient — discover, detail, credits / TmdbProperties / 와이어 DTO
+│   ├── embedding/     EmbeddingClient — POST /embed 호출, 64개 단위 분할 / EmbeddingProperties / 와이어 DTO
 │   └── qdrant/        Qdrant gRPC 빈 / QdrantProperties
 ├── movie/
 │   ├── entity/        Movie, Genre, MovieDirector, MovieCast + 복합키
@@ -200,6 +200,8 @@ com.whsanha55.cineseek
 └── search/
     ├── SearchController.kt
     ├── service/       SearchService, MovieIndexer
+    ├── dto/           SearchResponse (API 응답)
+    ├── vo/            Embedding, SearchResult, MoviePayload, IndexedMovie
     └── job/           ReindexJob — 수집 → PG → 임베딩 → Qdrant
                        EvalRunner  — 고정 쿼리 10개 top-5 출력
 ```

@@ -1,8 +1,9 @@
 package com.whsanha55.cineseek.external.tmdb.client
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.annotation.JsonProperty
 import com.whsanha55.cineseek.external.tmdb.config.TmdbProperties
+import com.whsanha55.cineseek.external.tmdb.dto.CreditsBody
+import com.whsanha55.cineseek.external.tmdb.dto.DetailBody
+import com.whsanha55.cineseek.external.tmdb.dto.DiscoverBody
 import com.whsanha55.cineseek.global.config.http1RestClient
 import com.whsanha55.cineseek.movie.vo.TmdbCastMember
 import com.whsanha55.cineseek.movie.vo.TmdbGenre
@@ -11,7 +12,6 @@ import com.whsanha55.cineseek.movie.vo.TmdbPerson
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
-import java.math.BigDecimal
 
 /**
  * TMDB 클라이언트 — v4 Bearer 인증, ko-KR 고정 (pipeline.tmdb_get 이식).
@@ -84,38 +84,3 @@ class TmdbClient(private val properties: TmdbProperties) {
         private const val DIRECTOR_JOB = "Director"
     }
 }
-
-// TMDB 와이어 DTO — snake_case JSON이라 @JsonProperty 명시 (자동 변환 안 함)
-@JsonIgnoreProperties(ignoreUnknown = true)
-private data class DiscoverBody(val results: List<DiscoverItem> = emptyList())
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-private data class DiscoverItem(val id: Long)
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-private data class DetailBody(
-    val id: Long,
-    val title: String? = null,
-    @JsonProperty("original_title") val originalTitle: String? = null,
-    val overview: String? = null,
-    @JsonProperty("release_date") val releaseDate: String? = null,
-    val runtime: Int? = null,
-    @JsonProperty("vote_average") val voteAverage: BigDecimal? = null,
-    @JsonProperty("vote_count") val voteCount: Int? = null,
-    @JsonProperty("poster_path") val posterPath: String? = null,
-    @JsonProperty("backdrop_path") val backdropPath: String? = null,
-    @JsonProperty("original_language") val originalLanguage: String? = null,
-    val genres: List<GenreItem> = emptyList(),
-)
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-private data class GenreItem(val id: Long, val name: String)
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-private data class CreditsBody(val crew: List<CrewItem> = emptyList(), val cast: List<CastItem> = emptyList())
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-private data class CrewItem(val id: Long, val name: String, val job: String? = null)
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-private data class CastItem(val id: Long, val name: String, val character: String? = null, val order: Int? = null)

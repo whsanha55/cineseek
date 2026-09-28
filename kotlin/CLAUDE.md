@@ -35,9 +35,9 @@
 
 - 도메인 우선 — `docs/convention/backend/kotlin/spring.md` 1절을 따른다:
   - `global/config/` — 공용 HTTP(`http1RestClient()`)
-  - `external/{tmdb,embedding,qdrant}/` — 외부 시스템별 `client/`·`config/`(`@ConfigurationProperties`, 빈)
+  - `external/{tmdb,embedding,qdrant}/` — 외부 시스템별 `client/`·`config/`(`@ConfigurationProperties`, 빈)·`dto/`(와이어 DTO)
   - `movie/` — `entity/`(엔티티 + 복합키), `repository/`, `service/`(MovieUpsertService), `vo/`(TmdbMovie — TmdbClient가 변환해 넘기는 수집 모델)
-  - `search/` — `SearchController`, `service/`(SearchService, MovieIndexer), `job/`
+  - `search/` — `SearchController`, `service/`(SearchService, MovieIndexer), `dto/`(API 응답), `vo/`(Embedding, SearchResult, MoviePayload, IndexedMovie), `job/`
   - 배치 Runner(`--cineseek.job=...`)는 도메인 아래 `job/`에 둔다 (ReindexJob, EvalRunner)
 - 의존 방향은 `search → movie` 한쪽만. movie는 search를 참조하지 않는다
 - 테스트 패키지는 대상 클래스의 패키지를 그대로 따른다
@@ -50,7 +50,7 @@
 
 ## 일반 Kotlin
 
-- DTO는 `data class` (엔티티만 일반 class 예외). 와이어 DTO는 사용 파일 안에서 `private`
+- DTO는 `data class` (엔티티만 일반 class 예외). 외부 와이어 DTO는 `external/{target}/dto/`에 `internal`로 두고, 클라이언트가 내부 타입(`vo/`)으로 변환해 반환한다
 - 외부 HTTP 클라이언트는 `RestClient.builder()` 직접 구성 — Boot 4는 `RestClient.Builder` 자동구성 빈이 없다. 대상이 uvicorn(HTTP/1.1)이면 HTTP/1.1로 고정한다 (h2c 시도가 RST_STREAM을 유발)
 - 배치 실행(`--cineseek.job=eval` 등)은 `@ConditionalOnProperty(prefix="cineseek", name=["job"])` + `ApplicationRunner` + `exitProcess(0)`
 - Qdrant는 gRPC(`io.qdrant:client`)만 사용. 주의: 클라이언트 POM이 grpc 의존성을 runtime scope로 선언하므로 `grpc-protobuf`·`grpc-stub`을 implementation으로 직접 추가해야 컴파일된다

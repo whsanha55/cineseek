@@ -2,6 +2,8 @@ package com.whsanha55.cineseek.search.service
 
 import com.whsanha55.cineseek.external.embedding.client.EmbeddingClient
 import com.whsanha55.cineseek.external.qdrant.config.QdrantProperties
+import com.whsanha55.cineseek.search.vo.IndexedMovie
+import com.whsanha55.cineseek.search.vo.MoviePayload
 import io.qdrant.client.PointIdFactory
 import io.qdrant.client.QdrantClient
 import io.qdrant.client.ValueFactory
@@ -11,19 +13,6 @@ import io.qdrant.client.grpc.Collections
 import io.qdrant.client.grpc.JsonWithInt
 import io.qdrant.client.grpc.Points
 import org.springframework.stereotype.Component
-
-/** Qdrant payload — 필터 대상 사본 (pipeline.build_payload 이식) */
-data class MoviePayload(
-    val title: String?,
-    val releaseYear: Int?,
-    val rating: Double?,
-    val genres: List<String>,
-    val directors: List<String>, // 상위 3명
-    val cast: List<String>, // 상위 5명
-)
-
-/** 색인 단위 입력 — PG(SoT)에서 만든다 */
-data class IndexedMovie(val movieId: Long, val overview: String, val payload: MoviePayload)
 
 /**
  * Qdrant 파생 인덱스 관리 — 컬렉션 재생성(dense 1024 cosine + sparse) + 배치 upsert.
