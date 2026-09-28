@@ -14,7 +14,7 @@
 - 자동 생성 PK: `@GeneratedValue(strategy = GenerationType.IDENTITY)` + `val id: Long = 0`
 - 타입 매핑: TIMESTAMPTZ → `Instant`, DATE → `LocalDate`, NUMERIC → `BigDecimal`
 - 생성/수정 시각: `@CreationTimestamp`/`@UpdateTimestamp` + `var createdAt: Instant? = null` (Kotlin 타입은 nullable, Hibernate가 flush 때 채움. Spring Data auditing 안 씀)
-- 들여쓰기는 탭, 주석·문서는 한국어
+- 주석·문서는 한국어 (포맷은 `.editorconfig`·ktlint를 따른다)
 
 ### 연관관계
 
