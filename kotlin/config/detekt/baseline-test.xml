@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>EmptyFunctionBlock:CineseekApplicationTests.kt:CineseekApplicationTests${ }</ID>
+    <ID>IgnoredReturnValue:SearchServiceTest.kt:SearchServiceTest$get()</ID>
+    <ID>LongParameterList:SearchServiceTest.kt:SearchServiceTest$private fun point: Points.PointStruct</ID>
+  </CurrentIssues>
+</SmellBaseline>

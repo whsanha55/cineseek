@@ -1,0 +1,33 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ForbiddenMethodCall:EvalRunner.kt:EvalRunner$println( " ${j + 1}. ${r.title} (${r.releaseYear}) score=${"%.3f".format(r.score)} genres=${r.genres}", )</ID>
+    <ID>ForbiddenMethodCall:EvalRunner.kt:EvalRunner$println("\n▶ $query")</ID>
+    <ID>ForbiddenMethodCall:MovieIndexer.kt:MovieIndexer$println("컬렉션 재생성(dense+sparse): ${qdrantProperties.collection}")</ID>
+    <ID>ForbiddenMethodCall:MovieUpsertService.kt:MovieUpsertService$now()</ID>
+    <ID>ForbiddenMethodCall:ReindexJob.kt:ReindexJob$print("PG 적재...")</ID>
+    <ID>ForbiddenMethodCall:ReindexJob.kt:ReindexJob$print("상세 수집(가상 스레드)...")</ID>
+    <ID>ForbiddenMethodCall:ReindexJob.kt:ReindexJob$print("임베딩 + Qdrant 색인...")</ID>
+    <ID>ForbiddenMethodCall:ReindexJob.kt:ReindexJob$println(" upsert 스킵 tmdbId=${m.tmdbId}: ${it.message}")</ID>
+    <ID>ForbiddenMethodCall:ReindexJob.kt:ReindexJob$println(" 수집 스킵: ${it.message}")</ID>
+    <ID>ForbiddenMethodCall:ReindexJob.kt:ReindexJob$println(" 완료: ${indexed.size}건")</ID>
+    <ID>ForbiddenMethodCall:ReindexJob.kt:ReindexJob$println(" 완료: ${movies.size}건 (overview 있는 영화)")</ID>
+    <ID>ForbiddenMethodCall:ReindexJob.kt:ReindexJob$println(" 완료: ${stored.size}건")</ID>
+    <ID>ForbiddenMethodCall:ReindexJob.kt:ReindexJob$println("TMDB 후보: ${ids.size}개 id (discover ${tmdbProperties.pages}페이지)")</ID>
+    <ID>ForbiddenMethodCall:ReindexJob.kt:ReindexJob$println("재색인 완료: PG movie=${stored.size}, 색인 대상=${indexed.size}")</ID>
+    <ID>IgnoredReturnValue:MovieIndexer.kt:MovieIndexer$get()</ID>
+    <ID>ImplicitDefaultLocale:EvalRunner.kt:EvalRunner$"%.3f".format(r.score)</ID>
+    <ID>LongParameterList:Movie.kt:Movie</ID>
+    <ID>LongParameterList:ReindexJob.kt:ReindexJob</ID>
+    <ID>MagicNumber:EvalRunner.kt:EvalRunner$5</ID>
+    <ID>MagicNumber:MovieUpsertService.kt:MovieUpsertService$4</ID>
+    <ID>MagicNumber:ReindexJob.kt:ReindexJob$3</ID>
+    <ID>MagicNumber:ReindexJob.kt:ReindexJob$5</ID>
+    <ID>MagicNumber:SearchController.kt:SearchController$50</ID>
+    <ID>ReturnCount:TmdbClient.kt:TmdbClient$fun fetchDetail: TmdbMovie?</ID>
+    <ID>SerialVersionUIDInSerializableClass:MovieCast.kt:MovieCastId : Serializable</ID>
+    <ID>SerialVersionUIDInSerializableClass:MovieDirector.kt:MovieDirectorId : Serializable</ID>
+    <ID>SpreadOperator:CineseekApplication.kt:(*args)</ID>
+  </CurrentIssues>
+</SmellBaseline>
