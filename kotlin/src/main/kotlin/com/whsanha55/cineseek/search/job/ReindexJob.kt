@@ -10,6 +10,7 @@ import com.whsanha55.cineseek.movie.vo.TmdbMovie
 import com.whsanha55.cineseek.search.service.MovieIndexer
 import com.whsanha55.cineseek.search.vo.IndexedMovie
 import com.whsanha55.cineseek.search.vo.MoviePayload
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Component
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import kotlin.system.exitProcess
+
+private val log = KotlinLogging.logger {}
 
 /**
  * 재색인 배치 — 수집(TMDB) → PG(SoT) → 임베딩 → Qdrant (pipeline.main 이식).
@@ -36,22 +39,17 @@ class ReindexJob(
 
     override fun run(args: ApplicationArguments) {
         val ids = tmdbClient.fetchTmdbIds(tmdbProperties.pages)
-        println("TMDB 후보: ${ids.size}개 id (discover ${tmdbProperties.pages}페이지)")
+        log.info { "TMDB 후보 수집. ids=${ids.size}, pages=${tmdbProperties.pages}" }
 
-        print("상세 수집(가상 스레드)...")
         val movies = fetchDetailsParallel(ids)
-        println(" 완료: ${movies.size}건 (overview 있는 영화)")
+        log.info { "상세 수집 완료(가상 스레드). overview 있는 영화=${movies.size}" }
 
-        print("PG 적재...")
         val stored = movies.mapNotNull { upsertSafe(it) }
-        println(" 완료: ${stored.size}건")
+        log.info { "PG 적재 완료. stored=${stored.size}" }
 
-        print("임베딩 + Qdrant 색인...")
         val indexed = buildIndexedMovies()
         indexer.reindex(indexed)
-        println(" 완료: ${indexed.size}건")
-
-        println("재색인 완료: PG movie=${stored.size}, 색인 대상=${indexed.size}")
+        log.info { "재색인 완료. PG movie=${stored.size}, 색인 대상=${indexed.size}" }
         exitProcess(0) // 배치 성격 — 출력 후 종료
     }
 
@@ -61,13 +59,13 @@ class ReindexJob(
             executor.invokeAll(ids.map { id -> Callable { runCatching { tmdbClient.fetchDetail(id) } } })
         }.mapNotNull { future ->
             future.get()
-                .onFailure { println("  수집 스킵: ${it.message}") }
+                .onFailure { log.warn(it) { "수집 스킵" } }
                 .getOrNull()
         }
 
     /** 한 건이 실패해도 나머지는 계속 (영화 한 건당 트랜잭션) */
     private fun upsertSafe(m: TmdbMovie): Long? = runCatching { upsertService.upsert(m) }
-        .onFailure { println("  upsert 스킵 tmdbId=${m.tmdbId}: ${it.message}") }
+        .onFailure { log.warn(it) { "upsert 스킵. tmdbId=${m.tmdbId}" } }
         .getOrNull()
 
     /** PG에서 payload를 만들어 색인 입력 조립 — SoT 기준 */

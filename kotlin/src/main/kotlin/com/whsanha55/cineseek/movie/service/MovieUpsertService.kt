@@ -10,6 +10,7 @@ import com.whsanha55.cineseek.movie.repository.MovieRepository
 import com.whsanha55.cineseek.movie.vo.TmdbMovie
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 import java.time.Instant
 
 /**
@@ -23,6 +24,7 @@ class MovieUpsertService(
     private val genreRepository: GenreRepository,
     private val movieDirectorRepository: MovieDirectorRepository,
     private val movieCastRepository: MovieCastRepository,
+    private val clock: Clock,
 ) {
 
     @Transactional
@@ -65,7 +67,7 @@ class MovieUpsertService(
         posterPath = posterPath,
         backdropPath = backdropPath,
         originalLanguage = originalLanguage,
-        overviewUpdatedAt = Instant.now(),
+        overviewUpdatedAt = Instant.now(clock),
     )
 
     /** python DO UPDATE SET 절과 같은 필드만 갱신 */
@@ -78,7 +80,7 @@ class MovieUpsertService(
         voteAverage = m.voteAverage
         voteCount = m.voteCount
         posterPath = m.posterPath
-        overviewUpdatedAt = Instant.now()
+        overviewUpdatedAt = Instant.now(clock)
     }
 
     companion object {

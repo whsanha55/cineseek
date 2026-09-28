@@ -4,6 +4,7 @@ import com.whsanha55.cineseek.external.embedding.client.EmbeddingClient
 import com.whsanha55.cineseek.external.qdrant.config.QdrantProperties
 import com.whsanha55.cineseek.search.vo.IndexedMovie
 import com.whsanha55.cineseek.search.vo.MoviePayload
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.qdrant.client.PointIdFactory
 import io.qdrant.client.QdrantClient
 import io.qdrant.client.ValueFactory
@@ -13,6 +14,8 @@ import io.qdrant.client.grpc.Collections
 import io.qdrant.client.grpc.JsonWithInt
 import io.qdrant.client.grpc.Points
 import org.springframework.stereotype.Component
+
+private val log = KotlinLogging.logger {}
 
 /**
  * Qdrant 파생 인덱스 관리 — 컬렉션 재생성(dense 1024 cosine + sparse) + 배치 upsert.
@@ -75,7 +78,7 @@ class MovieIndexer(
                 )
                 .build(),
         ).get()
-        println("컬렉션 재생성(dense+sparse): ${qdrantProperties.collection}")
+        log.info { "컬렉션 재생성(dense+sparse). collection=${qdrantProperties.collection}" }
     }
 
     private fun MoviePayload.toGrpc(): Map<String, JsonWithInt.Value> = buildMap {

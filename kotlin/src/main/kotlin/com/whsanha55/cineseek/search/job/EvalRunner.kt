@@ -2,11 +2,15 @@ package com.whsanha55.cineseek.search.job
 
 import com.whsanha55.cineseek.external.embedding.client.EmbeddingClient
 import com.whsanha55.cineseek.search.service.SearchService
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
+import java.util.Locale
 import kotlin.system.exitProcess
+
+private val log = KotlinLogging.logger {}
 
 /**
  * 고정 쿼리 10종 top-5 출력 — eval.py 이식. 회귀감지 기준점.
@@ -20,17 +24,18 @@ class EvalRunner(private val searchService: SearchService, private val embedding
     override fun run(args: ApplicationArguments) {
         val embeddings = embeddingClient.embed(QUERIES) // python처럼 한 번의 배치로
         QUERIES.forEachIndexed { i, query ->
-            println("\n▶ $query")
-            searchService.search(embeddings[i], null, null, 5).forEachIndexed { j, r ->
-                println(
-                    "  ${j + 1}. ${r.title} (${r.releaseYear})  score=${"%.3f".format(r.score)}  genres=${r.genres}",
-                )
+            val lines = searchService.search(embeddings[i], null, null, TOP_K).mapIndexed { j, r ->
+                val score = String.format(Locale.ROOT, "%.3f", r.score)
+                "  ${j + 1}. ${r.title} (${r.releaseYear})  score=$score  genres=${r.genres}"
             }
+            log.info { "▶ $query\n" + lines.joinToString("\n") }
         }
         exitProcess(0) // 배치 성격 — 출력 후 종료
     }
 
     companion object {
+        private const val TOP_K = 5
+
         private val QUERIES = listOf(
             "감옥에서 탈출하는 이야기",
             "가족을 지키려는 아버지의 사투",

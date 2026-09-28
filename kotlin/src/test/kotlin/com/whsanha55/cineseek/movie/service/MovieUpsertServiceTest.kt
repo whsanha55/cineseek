@@ -11,18 +11,23 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
+import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
+import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.math.BigDecimal
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import kotlin.test.assertEquals
 
 /** MovieUpsertService — pipeline.upsert_pg 이식 검증 (신규/재 upsert, 자식 교체) */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(MovieUpsertService::class)
+@Import(MovieUpsertService::class, MovieUpsertServiceTest.FixedClockConfig::class)
 @Testcontainers
 class MovieUpsertServiceTest {
 
@@ -31,6 +36,14 @@ class MovieUpsertServiceTest {
         @ServiceConnection
         @JvmStatic
         val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:17")
+
+        val NOW: Instant = Instant.parse("2026-01-01T00:00:00Z")
+    }
+
+    @TestConfiguration
+    class FixedClockConfig {
+        @Bean
+        fun clock(): Clock = Clock.fixed(NOW, ZoneOffset.UTC)
     }
 
     @Autowired lateinit var service: MovieUpsertService
@@ -68,6 +81,7 @@ class MovieUpsertServiceTest {
         val found = movieRepository.findByTmdbId(155L)!!
         assertEquals("다크 나이트", found.title)
         assertEquals(2008, found.releaseYear)
+        assertEquals(NOW, found.overviewUpdatedAt)
         assertEquals(setOf(80L, 28L), found.genres.map { it.genreId }.toSet())
         assertEquals(listOf("크리스토퍼 놀란"), movieDirectorRepository.findAllByMovieId(movieId).map { it.name })
         assertEquals(listOf("크리스찬 베일"), movieCastRepository.findAllByMovieId(movieId).map { it.name })
