@@ -12,6 +12,10 @@ spring:
     hibernate:
       ddl-auto: validate
 
+logging:
+  pattern:
+    correlation: "[%X{requestId:-}] "  # RequestIdFilter가 MDC에 넣은 요청 ID
+
 cineseek:
   embedding:
     base-url: ${EMBED_URL:http://localhost:8001}

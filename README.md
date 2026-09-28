@@ -38,7 +38,7 @@ curl 'http://localhost:8080/api/search?q=감옥에서 탈출하는 이야기&lim
 ```
 
 - 헬스체크: `GET :8080/actuator/health`, `GET :8001/health`
-- 검색 파라미터: `q`(필수), `genre`, `yearMin`, `limit`(1~50, 기본 5)
+- 검색 파라미터: `q`(필수), `genre`, `yearMin`, `limit`(1~50, 기본 5). 잘못된 값은 400 ProblemDetail(`code`, `requestId`, `errors`)로 응답
 - 평가(고정 쿼리 10개 top-5): `... run --rm api --cineseek.job=eval` — 기준 결과는 `docs/baseline-eval.txt`
 
 ## 환경변수
