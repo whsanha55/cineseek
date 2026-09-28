@@ -14,12 +14,12 @@ import io.qdrant.client.VectorFactory
 import io.qdrant.client.VectorsFactory
 import io.qdrant.client.grpc.Collections
 import io.qdrant.client.grpc.Points
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
-import kotlin.test.assertEquals
 
 /**
  * SearchService 통합 테스트 — 실제 Qdrant 컨테이너(dense 4차원 + sparse) + WireMock 임베딩 스텁.
@@ -62,19 +62,28 @@ class SearchServiceTest {
 
     @Test
     fun `RRF 하이브리드 — dense와 sparse 모두 상위인 영화A가 1위`() {
+        // when
         val results = service.search("쿼리", null, null, 5)
 
-        assertEquals(listOf("영화A", "영화B", "영화C"), results.map { it.title })
-        assertEquals(listOf("범죄"), results.first().genres)
-        assertEquals(2000L, results.first().releaseYear)
-        assertEquals(8.5, results.first().rating)
+        // then
+        assertThat(results.map { it.title }).containsExactly("영화A", "영화B", "영화C")
+        val top = results.first()
+        assertThat(top.genres).containsExactly("범죄")
+        assertThat(top.releaseYear).isEqualTo(2000L)
+        assertThat(top.rating).isEqualTo(8.5)
     }
 
     @Test
     fun `genre 필터와 yearMin 필터가 payload에 적용된다`() {
-        assertEquals(listOf("영화A", "영화C"), service.search("쿼리", "범죄", null, 5).map { it.title })
-        assertEquals(listOf("영화A", "영화C"), service.search("쿼리", null, 2000, 5).map { it.title })
-        assertEquals(listOf("영화C"), service.search("쿼리", "범죄", 2005, 5).map { it.title })
+        // when
+        val byGenre = service.search("쿼리", "범죄", null, 5)
+        val byYear = service.search("쿼리", null, 2000, 5)
+        val byBoth = service.search("쿼리", "범죄", 2005, 5)
+
+        // then
+        assertThat(byGenre.map { it.title }).containsExactly("영화A", "영화C")
+        assertThat(byYear.map { it.title }).containsExactly("영화A", "영화C")
+        assertThat(byBoth.map { it.title }).containsExactly("영화C")
     }
 
     private fun createCollection() {

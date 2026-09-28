@@ -5,3 +5,7 @@
 ## 패키지
 
 - 배치 Runner(`ApplicationRunner` + `--cineseek.job=...`)는 해당 도메인 아래 `job/`에 둔다. 컨벤션 패키지 구조에 배치 자리가 없어서 추가한다.
+
+## 테스트
+
+- Qdrant·PG에 의존하는 Service(`SearchService`, `MovieIndexer`, `MovieUpsertService`)는 MockK 단위 테스트 대신 Testcontainers 통합 테스트로 검증한다. 목으로 바꾸면 gRPC 쿼리 빌더 호출 같은 구현 세부만 검증하게 되고, RRF·payload 필터·upsert 동작은 실제 저장소로만 확인할 수 있다.

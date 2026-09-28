@@ -19,6 +19,7 @@ class CineseekApplicationTests {
     }
 
     @Test
-    fun contextLoads() {
+    fun `애플리케이션 컨텍스트가 뜬다`() {
+        // 컨텍스트 로딩 실패 시 테스트가 실패한다 — 별도 검증 없음
     }
 }

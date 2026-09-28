@@ -8,6 +8,7 @@ import com.whsanha55.cineseek.movie.vo.TmdbCastMember
 import com.whsanha55.cineseek.movie.vo.TmdbGenre
 import com.whsanha55.cineseek.movie.vo.TmdbMovie
 import com.whsanha55.cineseek.movie.vo.TmdbPerson
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
@@ -23,7 +24,6 @@ import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
-import kotlin.test.assertEquals
 
 /** MovieUpsertService — pipeline.upsert_pg 이식 검증 (신규/재 upsert, 자식 교체) */
 @DataJpaTest
@@ -77,27 +77,33 @@ class MovieUpsertServiceTest {
 
     @Test
     fun `신규 영화 upsert — 메타·장르·감독·출연진 저장`() {
+        // when
         val movieId = service.upsert(tmdbMovie())
 
+        // then
         val found = movieRepository.findByTmdbId(155L)!!
-        assertEquals("다크 나이트", found.title)
-        assertEquals(2008, found.releaseYear)
-        assertEquals(NOW, found.overviewUpdatedAt)
-        assertEquals(NOW, found.createdAt)
-        assertEquals(setOf(80L, 28L), found.genres.map { it.genreId }.toSet())
-        assertEquals(listOf("크리스토퍼 놀란"), movieDirectorRepository.findAllByMovieId(movieId).map { it.name })
-        assertEquals(listOf("크리스찬 베일"), movieCastRepository.findAllByMovieId(movieId).map { it.name })
+        assertThat(found.title).isEqualTo("다크 나이트")
+        assertThat(found.releaseYear).isEqualTo(2008)
+        assertThat(found.overviewUpdatedAt).isEqualTo(NOW)
+        assertThat(found.createdAt).isEqualTo(NOW)
+        assertThat(found.genres.map { it.genreId }).containsExactlyInAnyOrder(80L, 28L)
+        assertThat(movieDirectorRepository.findAllByMovieId(movieId).map { it.name }).containsExactly("크리스토퍼 놀란")
+        assertThat(movieCastRepository.findAllByMovieId(movieId).map { it.name }).containsExactly("크리스찬 베일")
     }
 
     @Test
     fun `재 upsert — 같은 movie_id에 갱신, 자식 교체, 출연진은 상위 10명만`() {
+        // given
         val manyCast = (1..12).map { TmdbCastMember(it.toLong(), "배우$it", "역할$it", it - 1) }
         val first = service.upsert(tmdbMovie())
+
+        // when
         val second = service.upsert(tmdbMovie(title = "다크 나이트 디럭스", cast = manyCast))
 
-        assertEquals(first, second) // 같은 movie_id — idempotent
-        assertEquals("다크 나이트 디럭스", movieRepository.findByTmdbId(155L)!!.title)
-        assertEquals(10, movieCastRepository.findAllByMovieId(second).size) // 상위 10 제한
-        assertEquals(1L, movieDirectorRepository.count()) // 지우고 다시 삽입 — 1명 유지
+        // then
+        assertThat(second).isEqualTo(first) // 같은 movie_id — idempotent
+        assertThat(movieRepository.findByTmdbId(155L)!!.title).isEqualTo("다크 나이트 디럭스")
+        assertThat(movieCastRepository.findAllByMovieId(second)).hasSize(10) // 상위 10 제한
+        assertThat(movieDirectorRepository.count()).isEqualTo(1L) // 지우고 다시 삽입 — 1명 유지
     }
 }

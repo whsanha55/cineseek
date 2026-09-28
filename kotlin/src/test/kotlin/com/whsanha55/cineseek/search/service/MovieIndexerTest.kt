@@ -10,12 +10,12 @@ import com.whsanha55.cineseek.search.vo.IndexedMovie
 import com.whsanha55.cineseek.search.vo.MoviePayload
 import io.qdrant.client.QdrantClient
 import io.qdrant.client.QdrantGrpcClient
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
-import kotlin.test.assertEquals
 
 /** MovieIndexer — 실제 Qdrant 컨테이너 + 임베딩 스텁으로 컬렉션 재생성·upsert 검증 */
 class MovieIndexerTest {
@@ -51,6 +51,7 @@ class MovieIndexerTest {
 
     @Test
     fun `reindex가 컬렉션을 재생성하고 포인트를 upsert한다 — 재실행해도 idempotent`() {
+        // given
         stubEmbed()
         val movies = (1L..3L).map {
             IndexedMovie(
@@ -60,11 +61,15 @@ class MovieIndexerTest {
             )
         }
 
+        // when
         indexer.reindex(movies)
-        assertEquals(3L, qdrantClient.countAsync("movies").get())
-
+        val firstCount = qdrantClient.countAsync("movies").get()
         indexer.reindex(movies) // 재생성 → 재upsert — 포인트 중복 없음
-        assertEquals(3L, qdrantClient.countAsync("movies").get())
+        val secondCount = qdrantClient.countAsync("movies").get()
+
+        // then
+        assertThat(firstCount).isEqualTo(3L)
+        assertThat(secondCount).isEqualTo(3L)
     }
 
     /** dense 1024(bge-m3 차원) 스텁 — 요청 3텍스트에 대해 항목 3개 반환 */

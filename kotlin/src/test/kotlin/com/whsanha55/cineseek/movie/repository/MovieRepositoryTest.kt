@@ -6,6 +6,7 @@ import com.whsanha55.cineseek.movie.entity.GenreEntity
 import com.whsanha55.cineseek.movie.entity.MovieCastEntity
 import com.whsanha55.cineseek.movie.entity.MovieDirectorEntity
 import com.whsanha55.cineseek.movie.entity.MovieEntity
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
@@ -17,8 +18,6 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.math.BigDecimal
 import java.time.LocalDate
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 /**
  * 엔티티-스키마 일치(ddl-auto: validate) + 저장/조회/명시적 삭제 검증.
@@ -47,8 +46,8 @@ class MovieRepositoryTest {
 
     @Test
     fun `영화 저장 후 tmdbId로 조회 — 장르 조인과 자식 라운드트립`() {
+        // given
         val genre = genreRepository.save(GenreEntity(genreId = 80, name = "Crime", nameKo = "범죄"))
-
         val saved = movieRepository.save(
             MovieEntity(
                 tmdbId = 155L,
@@ -71,31 +70,34 @@ class MovieRepositoryTest {
             ),
         )
 
-        val found = assertNotNull(movieRepository.findByTmdbId(155L))
-
-        assertEquals("다크 나이트", found.title)
-        assertEquals(setOf(genre), found.genres)
-        assertEquals(2008, found.releaseYear)
-        assertNotNull(found.createdAt)
-
+        // when
+        val found = movieRepository.findByTmdbId(155L)!!
         val directors = movieDirectorRepository.findAllByMovieId(movieId)
-        assertEquals(listOf("크리스토퍼 놀란"), directors.map { it.name })
-
         val cast = movieCastRepository.findAllByMovieId(movieId).single()
-        assertEquals("브루스 웨인", cast.character)
-        assertEquals(0, cast.castOrder)
+
+        // then
+        assertThat(found.title).isEqualTo("다크 나이트")
+        assertThat(found.genres).containsExactly(genre)
+        assertThat(found.releaseYear).isEqualTo(2008)
+        assertThat(found.createdAt).isNotNull()
+        assertThat(directors.map { it.name }).containsExactly("크리스토퍼 놀란")
+        assertThat(cast.character).isEqualTo("브루스 웨인")
+        assertThat(cast.castOrder).isEqualTo(0)
     }
 
     @Test
     fun `deleteAllByMovieId가 자식을 명시적으로 삭제한다`() {
+        // given
         val movieId = movieRepository.save(MovieEntity(tmdbId = 155L, title = "다크 나이트")).movieId!!
         movieDirectorRepository.save(MovieDirectorEntity(movieId = movieId, personId = 525L, name = "크리스토퍼 놀란"))
         movieCastRepository.save(MovieCastEntity(movieId = movieId, personId = 3895L, name = "크리스찬 베일"))
 
+        // when
         movieDirectorRepository.deleteAllByMovieId(movieId)
         movieCastRepository.deleteAllByMovieId(movieId)
 
-        assertEquals(0L, movieDirectorRepository.count())
-        assertEquals(0L, movieCastRepository.count())
+        // then
+        assertThat(movieDirectorRepository.count()).isZero()
+        assertThat(movieCastRepository.count()).isZero()
     }
 }

@@ -6,12 +6,10 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import com.whsanha55.cineseek.external.tmdb.config.TmdbProperties
 import com.whsanha55.cineseek.movie.vo.TmdbGenre
 import com.whsanha55.cineseek.movie.vo.TmdbPerson
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.math.BigDecimal
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 /** TMDB 클라이언트 테스트 — WireMock 스텁 (discover 조기 종료, detail+credits 매핑) */
 class TmdbClientTest {
@@ -34,6 +32,7 @@ class TmdbClientTest {
 
     @Test
     fun `discover 페이지를 순회하고 빈 페이지에서 조기 종료한다`() {
+        // given
         wiremock.stubFor(
             WireMock.get(WireMock.urlPathEqualTo("/discover/movie")).withQueryParam("page", WireMock.equalTo("1"))
                 .willReturn(WireMock.okJson("""{"results":[{"id":155},{"id":27205}]}""")),
@@ -43,9 +42,11 @@ class TmdbClientTest {
                 .willReturn(WireMock.okJson("""{"results":[]}""")),
         )
 
+        // when
         val ids = client.fetchTmdbIds(pages = 5)
 
-        assertEquals(listOf(155L, 27205L), ids)
+        // then
+        assertThat(ids).containsExactly(155L, 27205L)
         wiremock.verify(2, WireMock.getRequestedFor(WireMock.urlPathEqualTo("/discover/movie")))
         wiremock.verify(
             WireMock.getRequestedFor(WireMock.urlPathEqualTo("/discover/movie"))
@@ -57,6 +58,7 @@ class TmdbClientTest {
 
     @Test
     fun `detail과 credits를 도메인으로 매핑한다 — 감독은 job이 Director인 크루만`() {
+        // given
         wiremock.stubFor(
             WireMock.get(WireMock.urlPathEqualTo("/movie/155")).willReturn(
                 WireMock.okJson(
@@ -82,27 +84,34 @@ class TmdbClientTest {
             ),
         )
 
+        // when
         val m = client.fetchDetail(155L)!!
 
-        assertEquals("다크 나이트", m.title)
-        assertEquals("The Dark Knight", m.originalTitle)
-        assertEquals("2008-07-16", m.releaseDate)
-        assertEquals(BigDecimal("8.5"), m.voteAverage)
-        assertEquals(listOf(TmdbGenre(80, "범죄"), TmdbGenre(28, "액션")), m.genres)
-        assertEquals(listOf(TmdbPerson(525, "크리스토퍼 놀란")), m.directors)
-        assertEquals(2, m.cast.size)
-        assertEquals("브루스 웨인", m.cast.first().character)
+        // then
+        assertThat(m.title).isEqualTo("다크 나이트")
+        assertThat(m.originalTitle).isEqualTo("The Dark Knight")
+        assertThat(m.releaseDate).isEqualTo("2008-07-16")
+        assertThat(m.voteAverage).isEqualByComparingTo("8.5")
+        assertThat(m.genres).containsExactly(TmdbGenre(80, "범죄"), TmdbGenre(28, "액션"))
+        assertThat(m.directors).containsExactly(TmdbPerson(525, "크리스토퍼 놀란"))
+        assertThat(m.cast).hasSize(2)
+        assertThat(m.cast.first().character).isEqualTo("브루스 웨인")
     }
 
     @Test
     fun `overview가 없으면 null을 반환하고 credits까지 가지 않는다`() {
+        // given
         wiremock.stubFor(
             WireMock.get(WireMock.urlPathEqualTo("/movie/155")).willReturn(
                 WireMock.okJson("""{"id":155,"title":"줄거리 없는 영화","overview":""}"""),
             ),
         )
 
-        assertNull(client.fetchDetail(155L))
+        // when
+        val result = client.fetchDetail(155L)
+
+        // then
+        assertThat(result).isNull()
         wiremock.verify(0, WireMock.getRequestedFor(WireMock.urlPathEqualTo("/movie/155/credits")))
     }
 }

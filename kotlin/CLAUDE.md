@@ -32,7 +32,8 @@
 - 테스트 클래스명은 대상 + `Test` (`MovieRepositoryTest`). 테스트 메서드는 백틱 한국어 문장 (`fun \`영화 저장 후 tmdbId로 조회\``)
 - DB가 필요한 테스트는 Testcontainers PG + `@ServiceConnection` — 로컬 PG 의존 없음
 - `@DataJpaTest` + `@AutoConfigureTestDatabase(replace = NONE)` → Flyway가 스키마 만들고 `ddl-auto: validate`가 엔티티와 대조
-- assertion은 kotlin.test (별도 assertion 라이브러리 안 씀)
+- 도구·구조는 `docs/convention/backend/kotlin/test.md`를 따른다 (AssertJ, MockK·`@MockkBean`, given/when/then). Mockito는 빌드에서 제외돼 있다
+- Qdrant·PG가 걸린 서비스는 컨테이너 통합 테스트로 검증한다 (`docs/convention/LOCAL.md`)
 
 ## 패키지 구조
 
