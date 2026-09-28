@@ -4,12 +4,14 @@ import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import com.whsanha55.cineseek.external.tmdb.config.TmdbProperties
+import com.whsanha55.cineseek.global.exception.ExternalApiException
 import com.whsanha55.cineseek.movie.vo.TmdbGenre
 import com.whsanha55.cineseek.movie.vo.TmdbPerson
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /** TMDB 클라이언트 테스트 — WireMock 스텁 (discover 조기 종료, detail+credits 매핑) */
 class TmdbClientTest {
@@ -113,5 +115,19 @@ class TmdbClientTest {
         // then
         assertThat(result).isNull()
         wiremock.verify(0, WireMock.getRequestedFor(WireMock.urlPathEqualTo("/movie/155/credits")))
+    }
+
+    @Test
+    fun `TMDB가 5xx를 응답하면 ExternalApiException이 발생한다`() {
+        // given
+        wiremock.stubFor(
+            WireMock.get(WireMock.urlPathEqualTo("/discover/movie")).willReturn(WireMock.serviceUnavailable()),
+        )
+
+        // when
+        val exception = assertThrows<ExternalApiException> { client.fetchTmdbIds(pages = 1) }
+
+        // then
+        assertThat(exception.message).contains("target=tmdb")
     }
 }

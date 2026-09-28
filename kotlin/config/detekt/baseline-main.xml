@@ -7,7 +7,6 @@
     <ID>LongParameterList:ReindexJob.kt:ReindexJob</ID>
     <ID>MagicNumber:ReindexJob.kt:ReindexJob$3</ID>
     <ID>MagicNumber:ReindexJob.kt:ReindexJob$5</ID>
-    <ID>ReturnCount:TmdbClient.kt:TmdbClient$fun fetchDetail: TmdbMovie?</ID>
     <ID>SerialVersionUIDInSerializableClass:MovieCastEntity.kt:MovieCastId : Serializable</ID>
     <ID>SerialVersionUIDInSerializableClass:MovieDirectorEntity.kt:MovieDirectorId : Serializable</ID>
     <ID>SpreadOperator:CineseekApplication.kt:(*args)</ID>

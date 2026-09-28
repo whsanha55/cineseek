@@ -1,6 +1,7 @@
 package com.whsanha55.cineseek.search
 
 import com.ninjasquad.springmockk.MockkBean
+import com.whsanha55.cineseek.global.exception.ExternalApiException
 import com.whsanha55.cineseek.search.service.SearchService
 import com.whsanha55.cineseek.search.vo.SearchResult
 import io.mockk.every
@@ -91,6 +92,21 @@ class SearchControllerTest {
             status { isInternalServerError() }
             jsonPath("$.code") { value("INTERNAL_ERROR") }
             jsonPath("$.detail") { value("잠시 후 다시 시도해주세요.") }
+        }
+    }
+
+    @Test
+    fun `외부 API 장애는 503 EXTERNAL_API_ERROR로 응답한다`() {
+        // given
+        every { searchService.search(any<String>(), any(), any(), any()) } throws ExternalApiException("qdrant")
+
+        // when
+        val result = mockMvc.get("/cineseek/search") { param("q", "탈출") }
+
+        // then
+        result.andExpect {
+            status { isServiceUnavailable() }
+            jsonPath("$.code") { value("EXTERNAL_API_ERROR") }
         }
     }
 }

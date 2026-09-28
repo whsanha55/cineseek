@@ -2,6 +2,7 @@ package com.whsanha55.cineseek.search.service
 
 import com.whsanha55.cineseek.external.embedding.client.EmbeddingClient
 import com.whsanha55.cineseek.external.qdrant.config.QdrantProperties
+import com.whsanha55.cineseek.global.exception.ExternalApiException
 import com.whsanha55.cineseek.search.vo.Embedding
 import com.whsanha55.cineseek.search.vo.SearchResult
 import io.qdrant.client.ConditionFactory
@@ -11,6 +12,7 @@ import io.qdrant.client.VectorInputFactory
 import io.qdrant.client.WithPayloadSelectorFactory
 import io.qdrant.client.grpc.Points
 import org.springframework.stereotype.Service
+import java.util.concurrent.ExecutionException
 
 /**
  * 하이브리드(dense+sparse RRF) 검색 — search.py 이식.
@@ -55,7 +57,12 @@ class SearchService(
             .setWithPayload(WithPayloadSelectorFactory.enable(true))
             .build()
 
-        return qdrantClient.queryAsync(request).get().map { it.toSearchResult() }
+        val points = try {
+            qdrantClient.queryAsync(request).get()
+        } catch (e: ExecutionException) {
+            throw ExternalApiException(QDRANT, e)
+        }
+        return points.map { it.toSearchResult() }
     }
 
     private fun prefetch(query: Points.Query, using: String, filter: Points.Filter?): Points.PrefetchQuery {
@@ -92,6 +99,7 @@ class SearchService(
     )
 
     companion object {
+        private const val QDRANT = "qdrant"
         private const val PREFETCH_LIMIT = 20L // dense/sparse 각각 상위 20개 후보 (search.py와 동일)
     }
 }

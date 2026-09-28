@@ -6,6 +6,7 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import com.whsanha55.cineseek.external.embedding.client.EmbeddingClient
 import com.whsanha55.cineseek.external.embedding.config.EmbeddingProperties
 import com.whsanha55.cineseek.external.qdrant.config.QdrantProperties
+import com.whsanha55.cineseek.global.exception.ExternalApiException
 import io.qdrant.client.PointIdFactory
 import io.qdrant.client.QdrantClient
 import io.qdrant.client.QdrantGrpcClient
@@ -18,8 +19,10 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
+import java.time.Duration
 
 /**
  * SearchService 통합 테스트 — 실제 Qdrant 컨테이너(dense 4차원 + sparse) + WireMock 임베딩 스텁.
@@ -84,6 +87,24 @@ class SearchServiceTest {
         assertThat(byGenre.map { it.title }).containsExactly("영화A", "영화C")
         assertThat(byYear.map { it.title }).containsExactly("영화A", "영화C")
         assertThat(byBoth.map { it.title }).containsExactly("영화C")
+    }
+
+    @Test
+    fun `Qdrant에 연결할 수 없으면 ExternalApiException이 발생한다`() {
+        // given
+        val unreachable = QdrantClient(
+            QdrantGrpcClient.newBuilder("localhost", 1, false).withTimeout(Duration.ofSeconds(1)).build(),
+        )
+        val failingService = SearchService(
+            unreachable,
+            EmbeddingClient(EmbeddingProperties(baseUrl = embedStub.baseUrl(), batchSize = 64)),
+            QdrantProperties(grpcUrl = "unused", collection = "movies"),
+        )
+
+        // when & then
+        unreachable.use {
+            assertThrows<ExternalApiException> { failingService.search("쿼리", null, null, 5) }
+        }
     }
 
     private fun createCollection() {

@@ -56,5 +56,6 @@
 
 - DTO는 `data class` (엔티티만 일반 class 예외). 외부 와이어 DTO는 `external/{target}/dto/`에 `internal`로 두고, 클라이언트가 내부 타입(`vo/`)으로 변환해 반환한다
 - 외부 HTTP 클라이언트는 `RestClient.builder()` 직접 구성 — Boot 4는 `RestClient.Builder` 자동구성 빈이 없다. 대상이 uvicorn(HTTP/1.1)이면 HTTP/1.1로 고정한다 (h2c 시도가 RST_STREAM을 유발)
+- 외부 호출(TMDB·임베딩·Qdrant)은 대상별 timeout을 properties로 받고, 실패(HTTP 오류·타임아웃·gRPC 오류)는 `ExternalApiException`으로 바꿔 503 `EXTERNAL_API_ERROR`로 응답한다. 배치(`MovieIndexer`)는 실패하면 그대로 중단한다
 - 배치 실행(`--cineseek.job=eval` 등)은 `@ConditionalOnProperty(prefix="cineseek", name=["job"])` + `ApplicationRunner` + `exitProcess(0)`
 - Qdrant는 gRPC(`io.qdrant:client`)만 사용. 주의: 클라이언트 POM이 grpc 의존성을 runtime scope로 선언하므로 `grpc-protobuf`·`grpc-stub`을 implementation으로 직접 추가해야 컴파일된다

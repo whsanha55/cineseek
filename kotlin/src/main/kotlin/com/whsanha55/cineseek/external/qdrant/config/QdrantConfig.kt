@@ -12,6 +12,9 @@ class QdrantConfig {
     @Bean
     fun qdrantClient(properties: QdrantProperties): QdrantClient {
         val (host, port) = properties.grpcUrl.split(":")
-        return QdrantClient(QdrantGrpcClient.newBuilder(host, port.toInt(), false).build())
+        val grpcClient = QdrantGrpcClient.newBuilder(host, port.toInt(), false)
+            .withTimeout(properties.timeout)
+            .build()
+        return QdrantClient(grpcClient)
     }
 }

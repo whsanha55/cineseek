@@ -20,7 +20,10 @@ private val log = KotlinLogging.logger {}
 class GlobalExceptionHandler : ResponseEntityExceptionHandler() {
 
     @ExceptionHandler(BaseException::class)
-    fun handleBaseException(e: BaseException): ProblemDetail = problemOf(e.errorCode)
+    fun handleBaseException(e: BaseException): ProblemDetail {
+        log.warn(e) { "처리된 예외. code=${e.errorCode}" }
+        return problemOf(e.errorCode)
+    }
 
     @ExceptionHandler(Exception::class)
     fun handleUnknown(e: Exception): ProblemDetail {
