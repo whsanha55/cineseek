@@ -9,11 +9,11 @@ import jakarta.persistence.Table
 @Entity
 @Table(name = "genre")
 class Genre(
-	@Id
-	val genreId: Long,
+    @Id
+    val genreId: Long,
 
-	@Column(nullable = false)
-	var name: String,
+    @Column(nullable = false)
+    var name: String,
 
-	var nameKo: String? = null,
+    var nameKo: String? = null,
 )

@@ -15,20 +15,17 @@ import java.io.Serializable
 @IdClass(MovieDirectorId::class)
 @Table(name = "movie_director")
 class MovieDirector(
-	@Id
-	val movieId: Long,
+    @Id
+    val movieId: Long,
 
-	@Id
-	val personId: Long,
+    @Id
+    val personId: Long,
 
-	@Column(nullable = false)
-	var name: String,
+    @Column(nullable = false)
+    var name: String,
 )
 
 /**
  * movie_director 복합키 — 엔티티와 달리 data class + Serializable (JPA 복합키 요구)
  */
-data class MovieDirectorId(
-	val movieId: Long = 0,
-	val personId: Long = 0,
-) : Serializable
+data class MovieDirectorId(val movieId: Long = 0, val personId: Long = 0) : Serializable

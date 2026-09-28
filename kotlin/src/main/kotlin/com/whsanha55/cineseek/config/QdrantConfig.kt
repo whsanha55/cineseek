@@ -9,9 +9,9 @@ import org.springframework.context.annotation.Configuration
 @Configuration
 class QdrantConfig {
 
-	@Bean
-	fun qdrantClient(properties: QdrantProperties): QdrantClient {
-		val (host, port) = properties.grpcUrl.split(":")
-		return QdrantClient(QdrantGrpcClient.newBuilder(host, port.toInt(), false).build())
-	}
+    @Bean
+    fun qdrantClient(properties: QdrantProperties): QdrantClient {
+        val (host, port) = properties.grpcUrl.split(":")
+        return QdrantClient(QdrantGrpcClient.newBuilder(host, port.toInt(), false).build())
+    }
 }

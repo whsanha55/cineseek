@@ -11,14 +11,14 @@ import org.testcontainers.junit.jupiter.Testcontainers
 @Testcontainers
 class CineseekApplicationTests {
 
-	companion object {
-		@Container
-		@ServiceConnection
-		@JvmStatic
-		val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:17")
-	}
+    companion object {
+        @Container
+        @ServiceConnection
+        @JvmStatic
+        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:17")
+    }
 
-	@Test
-	fun contextLoads() {
-	}
+    @Test
+    fun contextLoads() {
+    }
 }

@@ -9,5 +9,5 @@ import org.springframework.boot.runApplication
 class CineseekApplication
 
 fun main(args: Array<String>) {
-	runApplication<CineseekApplication>(*args)
+    runApplication<CineseekApplication>(*args)
 }

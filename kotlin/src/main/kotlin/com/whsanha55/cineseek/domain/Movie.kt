@@ -21,41 +21,41 @@ import java.time.LocalDate
 @Entity
 @Table(name = "movie")
 class Movie(
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	val movieId: Long = 0,
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val movieId: Long = 0,
 
-	@Column(nullable = false, unique = true)
-	val tmdbId: Long,
+    @Column(nullable = false, unique = true)
+    val tmdbId: Long,
 
-	@Column(nullable = false)
-	var title: String,
+    @Column(nullable = false)
+    var title: String,
 
-	var originalTitle: String? = null,
-	var overview: String? = null,
-	var releaseDate: LocalDate? = null,
-	var releaseYear: Int? = null,
-	var runtime: Int? = null,
-	var voteAverage: BigDecimal? = null,
-	var voteCount: Int? = null,
-	var posterPath: String? = null,
-	var backdropPath: String? = null,
-	var originalLanguage: String? = null,
-	var overviewUpdatedAt: Instant? = null,
+    var originalTitle: String? = null,
+    var overview: String? = null,
+    var releaseDate: LocalDate? = null,
+    var releaseYear: Int? = null,
+    var runtime: Int? = null,
+    var voteAverage: BigDecimal? = null,
+    var voteCount: Int? = null,
+    var posterPath: String? = null,
+    var backdropPath: String? = null,
+    var originalLanguage: String? = null,
+    var overviewUpdatedAt: Instant? = null,
 
-	@ManyToMany
-	@JoinTable(
-		name = "movie_genre",
-		joinColumns = [JoinColumn(name = "movie_id")],
-		inverseJoinColumns = [JoinColumn(name = "genre_id")],
-	)
-	val genres: MutableSet<Genre> = mutableSetOf(),
+    @ManyToMany
+    @JoinTable(
+        name = "movie_genre",
+        joinColumns = [JoinColumn(name = "movie_id")],
+        inverseJoinColumns = [JoinColumn(name = "genre_id")],
+    )
+    val genres: MutableSet<Genre> = mutableSetOf(),
 
-	@CreationTimestamp
-	@Column(nullable = false)
-	var createdAt: Instant? = null,
+    @CreationTimestamp
+    @Column(nullable = false)
+    var createdAt: Instant? = null,
 
-	@UpdateTimestamp
-	@Column(nullable = false)
-	var updatedAt: Instant? = null,
+    @UpdateTimestamp
+    @Column(nullable = false)
+    var updatedAt: Instant? = null,
 )
