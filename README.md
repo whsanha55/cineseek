@@ -68,3 +68,9 @@ cd kotlin && SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 - [`docs/UI-PLAN.md`](docs/UI-PLAN.md) — UI 기능 기획 + 디자인 시스템 계획
 - [`kotlin/CLAUDE.md`](kotlin/CLAUDE.md) — Kotlin 코드 컨벤션
 - [`python/README.md`](python/README.md) — 임베딩 서비스 계약(`/embed`)
+
+<!-- convention:start -->
+## Convention
+
+이 프로젝트는 [whsanha55/conventions](https://github.com/whsanha55/conventions) (`04a627c`)를 따른다. 문서는 `docs/convention/`에 있고, 프로젝트 예외는 `docs/convention/LOCAL.md`에 적는다.
+<!-- convention:end -->
