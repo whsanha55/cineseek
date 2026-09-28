@@ -23,12 +23,12 @@ class MovieCastEntity(
     val personId: Long,
 
     @Column(nullable = false)
-    var name: String,
+    val name: String,
 
     @Column(name = "character")
-    var character: String? = null,
+    val character: String? = null,
 
-    var castOrder: Int? = null,
+    val castOrder: Int? = null,
 )
 
 /**

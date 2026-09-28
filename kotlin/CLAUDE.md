@@ -5,16 +5,18 @@
 ## JPA 엔티티
 
 - 클래스명은 `*Entity` (`MovieEntity`), 파일명도 같다. 복합키는 `*Id` (`MovieCastId`)
-- 일반 `class`를 쓴다 (`data class` ❌ — equals/hashCode가 지연 로딩과 충돌). PK는 `val`, 가변 필드는 `var`
+- 일반 `class`를 쓴다 (`data class` ❌ — equals/hashCode가 지연 로딩과 충돌). 생성 시 호출은 named argument
+- 바뀌지 않는 값은 생성자 `val`. 바뀌는 값은 본문 `var` + `protected set`으로 막고, 도메인 메서드(`updateFrom`, `replaceGenres`)로만 바꾼다
 - 설명 주석은 KDoc(`/** ... */`). `//` 한 줄 주석은 쓰지 않는다
 - `@Table(name)`은 항상 명시
 - 컬럼명은 naming strategy 자동 변환(camelCase → snake_case)에 맡긴다. `@Column(name=...)`은 자동 변환이 안 되는 특이사항(예약어 등)만
 - NOT NULL 컬럼에만 `@Column(nullable = false)`
 - UNIQUE 제약도 `@Column(unique = true)`로 표시
 - nullable 컬럼 → `T? = null` 생성자 기본값
-- 자동 생성 PK: `@GeneratedValue(strategy = GenerationType.IDENTITY)` + `val id: Long = 0`
+- 자동 생성 PK: 본문에 `@GeneratedValue(strategy = GenerationType.IDENTITY)` + `var movieId: Long? = null` + `protected set`. 저장 후 꺼낼 때는 `requireNotNull`
 - 타입 매핑: TIMESTAMPTZ → `Instant`, DATE → `LocalDate`, NUMERIC → `BigDecimal`
-- 생성/수정 시각: `@CreationTimestamp`/`@UpdateTimestamp` + `var createdAt: Instant? = null` (Kotlin 타입은 nullable, Hibernate가 flush 때 채움. Spring Data auditing 안 씀)
+- 생성/수정 시각: `BaseEntity`(`global/base/`)를 상속한다. `JpaConfig`의 `Clock` 기반 auditing이 채운다. `@DataJpaTest`는 `@Import(JpaConfig::class, ClockConfig::class)`가 필요하다
+- `BaseEntity`는 `open class`로 선언한다 — detekt 분석은 allOpen 플러그인을 모른다
 - 주석·문서는 한국어 (포맷은 `.editorconfig`·ktlint를 따른다)
 
 ### 연관관계

@@ -5,7 +5,6 @@
     <ID>IgnoredReturnValue:MovieIndexer.kt:MovieIndexer$get()</ID>
     <ID>LongParameterList:MovieEntity.kt:MovieEntity</ID>
     <ID>LongParameterList:ReindexJob.kt:ReindexJob</ID>
-    <ID>MagicNumber:MovieUpsertService.kt:MovieUpsertService$4</ID>
     <ID>MagicNumber:ReindexJob.kt:ReindexJob$3</ID>
     <ID>MagicNumber:ReindexJob.kt:ReindexJob$5</ID>
     <ID>ReturnCount:TmdbClient.kt:TmdbClient$fun fetchDetail: TmdbMovie?</ID>

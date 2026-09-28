@@ -1,5 +1,7 @@
 package com.whsanha55.cineseek.movie.repository
 
+import com.whsanha55.cineseek.global.config.ClockConfig
+import com.whsanha55.cineseek.global.config.JpaConfig
 import com.whsanha55.cineseek.movie.entity.GenreEntity
 import com.whsanha55.cineseek.movie.entity.MovieCastEntity
 import com.whsanha55.cineseek.movie.entity.MovieDirectorEntity
@@ -9,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
+import org.springframework.context.annotation.Import
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -22,6 +25,7 @@ import kotlin.test.assertNotNull
  * Flyway가 컨테이너 PG에 V1 스키마를 만들고, Hibernate validate가 엔티티와 대조한다
  */
 @DataJpaTest
+@Import(JpaConfig::class, ClockConfig::class)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
 class MovieRepositoryTest {
@@ -53,11 +57,18 @@ class MovieRepositoryTest {
                 releaseDate = LocalDate.of(2008, 7, 16),
                 releaseYear = 2008,
                 voteAverage = BigDecimal("8.5"),
-            ).apply { genres += genre },
+            ).apply { replaceGenres(listOf(genre)) },
         )
-        movieDirectorRepository.save(MovieDirectorEntity(saved.movieId, 525L, "크리스토퍼 놀란"))
+        val movieId = saved.movieId!!
+        movieDirectorRepository.save(MovieDirectorEntity(movieId = movieId, personId = 525L, name = "크리스토퍼 놀란"))
         movieCastRepository.save(
-            MovieCastEntity(saved.movieId, 3895L, "크리스찬 베일", character = "브루스 웨인", castOrder = 0),
+            MovieCastEntity(
+                movieId = movieId,
+                personId = 3895L,
+                name = "크리스찬 베일",
+                character = "브루스 웨인",
+                castOrder = 0,
+            ),
         )
 
         val found = assertNotNull(movieRepository.findByTmdbId(155L))
@@ -65,23 +76,24 @@ class MovieRepositoryTest {
         assertEquals("다크 나이트", found.title)
         assertEquals(setOf(genre), found.genres)
         assertEquals(2008, found.releaseYear)
+        assertNotNull(found.createdAt)
 
-        val directors = movieDirectorRepository.findAllByMovieId(found.movieId)
+        val directors = movieDirectorRepository.findAllByMovieId(movieId)
         assertEquals(listOf("크리스토퍼 놀란"), directors.map { it.name })
 
-        val cast = movieCastRepository.findAllByMovieId(found.movieId).single()
+        val cast = movieCastRepository.findAllByMovieId(movieId).single()
         assertEquals("브루스 웨인", cast.character)
         assertEquals(0, cast.castOrder)
     }
 
     @Test
     fun `deleteAllByMovieId가 자식을 명시적으로 삭제한다`() {
-        val movie = movieRepository.save(MovieEntity(tmdbId = 155L, title = "다크 나이트"))
-        movieDirectorRepository.save(MovieDirectorEntity(movie.movieId, 525L, "크리스토퍼 놀란"))
-        movieCastRepository.save(MovieCastEntity(movie.movieId, 3895L, "크리스찬 베일"))
+        val movieId = movieRepository.save(MovieEntity(tmdbId = 155L, title = "다크 나이트")).movieId!!
+        movieDirectorRepository.save(MovieDirectorEntity(movieId = movieId, personId = 525L, name = "크리스토퍼 놀란"))
+        movieCastRepository.save(MovieCastEntity(movieId = movieId, personId = 3895L, name = "크리스찬 베일"))
 
-        movieDirectorRepository.deleteAllByMovieId(movie.movieId)
-        movieCastRepository.deleteAllByMovieId(movie.movieId)
+        movieDirectorRepository.deleteAllByMovieId(movieId)
+        movieCastRepository.deleteAllByMovieId(movieId)
 
         assertEquals(0L, movieDirectorRepository.count())
         assertEquals(0L, movieCastRepository.count())

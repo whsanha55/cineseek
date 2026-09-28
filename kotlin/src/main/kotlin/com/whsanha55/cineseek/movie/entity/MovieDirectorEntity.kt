@@ -22,7 +22,7 @@ class MovieDirectorEntity(
     val personId: Long,
 
     @Column(nullable = false)
-    var name: String,
+    val name: String,
 )
 
 /**

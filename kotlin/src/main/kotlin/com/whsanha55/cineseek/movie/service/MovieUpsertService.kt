@@ -1,5 +1,6 @@
 package com.whsanha55.cineseek.movie.service
 
+import com.whsanha55.cineseek.movie.entity.GenreEntity
 import com.whsanha55.cineseek.movie.entity.MovieCastEntity
 import com.whsanha55.cineseek.movie.entity.MovieDirectorEntity
 import com.whsanha55.cineseek.movie.entity.MovieEntity
@@ -29,59 +30,56 @@ class MovieUpsertService(
 
     @Transactional
     fun upsert(m: TmdbMovie): Long {
+        val now = Instant.now(clock)
         val saved = movieRepository.findByTmdbId(m.tmdbId)
-            ?.apply { updateFrom(m) }
-            ?: movieRepository.save(m.toEntity())
+            ?.apply { updateFrom(m, now) }
+            ?: movieRepository.save(m.toEntity(now))
+        val movieId = requireNotNull(saved.movieId) { "저장 후 movieId가 없다. tmdbId=${m.tmdbId}" }
 
         // 장르 — 마스터는 ON CONFLICT DO NOTHING과 동일하게 이름 갱신 없음
-        saved.genres.clear()
-        m.genres.forEach { g ->
-            val genre = genreRepository.findById(g.genreId)
-                .orElseGet { genreRepository.save(com.whsanha55.cineseek.movie.entity.GenreEntity(g.genreId, g.name)) }
-            saved.genres += genre
-        }
+        saved.replaceGenres(
+            m.genres.map { g ->
+                genreRepository.findById(g.genreId)
+                    .orElseGet { genreRepository.save(GenreEntity(genreId = g.genreId, name = g.name)) }
+            },
+        )
         movieRepository.save(saved)
 
         // 자식 — 기존 것을 지우고 다시 채운다 (명시적 삭제, 출연진은 상위 10명)
-        movieDirectorRepository.deleteAllByMovieId(saved.movieId)
-        movieCastRepository.deleteAllByMovieId(saved.movieId)
-        movieDirectorRepository.saveAll(m.directors.map { MovieDirectorEntity(saved.movieId, it.personId, it.name) })
+        movieDirectorRepository.deleteAllByMovieId(movieId)
+        movieCastRepository.deleteAllByMovieId(movieId)
+        movieDirectorRepository.saveAll(
+            m.directors.map { MovieDirectorEntity(movieId = movieId, personId = it.personId, name = it.name) },
+        )
         movieCastRepository.saveAll(
             m.cast.take(CAST_LIMIT).map {
-                MovieCastEntity(saved.movieId, it.personId, it.name, it.character, it.castOrder)
+                MovieCastEntity(
+                    movieId = movieId,
+                    personId = it.personId,
+                    name = it.name,
+                    character = it.character,
+                    castOrder = it.castOrder,
+                )
             },
         )
-        return saved.movieId
+        return movieId
     }
 
-    private fun TmdbMovie.toEntity() = MovieEntity(
+    private fun TmdbMovie.toEntity(now: Instant) = MovieEntity(
         tmdbId = tmdbId,
         title = title,
         originalTitle = originalTitle,
         overview = overview,
-        releaseDate = releaseDate?.takeIf { it.isNotBlank() }?.let(java.time.LocalDate::parse),
-        releaseYear = releaseDate?.take(4)?.toIntOrNull(),
+        releaseDate = releaseLocalDate(),
+        releaseYear = releaseYear(),
         runtime = runtime,
         voteAverage = voteAverage,
         voteCount = voteCount,
         posterPath = posterPath,
         backdropPath = backdropPath,
         originalLanguage = originalLanguage,
-        overviewUpdatedAt = Instant.now(clock),
+        overviewUpdatedAt = now,
     )
-
-    /** python DO UPDATE SET 절과 같은 필드만 갱신 */
-    private fun MovieEntity.updateFrom(m: TmdbMovie) {
-        title = m.title
-        overview = m.overview
-        releaseDate = m.releaseDate?.takeIf { it.isNotBlank() }?.let(java.time.LocalDate::parse)
-        releaseYear = m.releaseDate?.take(4)?.toIntOrNull()
-        runtime = m.runtime
-        voteAverage = m.voteAverage
-        voteCount = m.voteCount
-        posterPath = m.posterPath
-        overviewUpdatedAt = Instant.now(clock)
-    }
 
     companion object {
         private const val CAST_LIMIT = 10 // python: cast[:10]

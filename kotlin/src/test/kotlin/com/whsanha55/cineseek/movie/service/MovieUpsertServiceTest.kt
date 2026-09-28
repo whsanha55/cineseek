@@ -1,5 +1,6 @@
 package com.whsanha55.cineseek.movie.service
 
+import com.whsanha55.cineseek.global.config.JpaConfig
 import com.whsanha55.cineseek.movie.repository.MovieCastRepository
 import com.whsanha55.cineseek.movie.repository.MovieDirectorRepository
 import com.whsanha55.cineseek.movie.repository.MovieRepository
@@ -27,7 +28,7 @@ import kotlin.test.assertEquals
 /** MovieUpsertService — pipeline.upsert_pg 이식 검증 (신규/재 upsert, 자식 교체) */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(MovieUpsertService::class, MovieUpsertServiceTest.FixedClockConfig::class)
+@Import(MovieUpsertService::class, JpaConfig::class, MovieUpsertServiceTest.FixedClockConfig::class)
 @Testcontainers
 class MovieUpsertServiceTest {
 
@@ -82,6 +83,7 @@ class MovieUpsertServiceTest {
         assertEquals("다크 나이트", found.title)
         assertEquals(2008, found.releaseYear)
         assertEquals(NOW, found.overviewUpdatedAt)
+        assertEquals(NOW, found.createdAt)
         assertEquals(setOf(80L, 28L), found.genres.map { it.genreId }.toSet())
         assertEquals(listOf("크리스토퍼 놀란"), movieDirectorRepository.findAllByMovieId(movieId).map { it.name })
         assertEquals(listOf("크리스찬 베일"), movieCastRepository.findAllByMovieId(movieId).map { it.name })

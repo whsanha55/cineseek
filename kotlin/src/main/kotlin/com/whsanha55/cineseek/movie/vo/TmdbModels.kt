@@ -1,6 +1,7 @@
 package com.whsanha55.cineseek.movie.vo
 
 import java.math.BigDecimal
+import java.time.LocalDate
 
 /** TMDB detail(ko-KR) + credits — upsert에 필요한 것만 담은 도메인 모델 */
 data class TmdbMovie(
@@ -18,7 +19,15 @@ data class TmdbMovie(
     val genres: List<TmdbGenre>,
     val directors: List<TmdbPerson>,
     val cast: List<TmdbCastMember>,
-)
+) {
+    fun releaseLocalDate(): LocalDate? = releaseDate?.takeIf { it.isNotBlank() }?.let(LocalDate::parse)
+
+    fun releaseYear(): Int? = releaseDate?.take(YEAR_LENGTH)?.toIntOrNull()
+
+    companion object {
+        private const val YEAR_LENGTH = 4
+    }
+}
 
 data class TmdbGenre(
     val genreId: Long,

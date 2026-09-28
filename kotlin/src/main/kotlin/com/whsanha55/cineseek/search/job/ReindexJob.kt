@@ -71,10 +71,11 @@ class ReindexJob(
     /** PG에서 payload를 만들어 색인 입력 조립 — SoT 기준 */
     private fun buildIndexedMovies(): List<IndexedMovie> = movieRepository.findAll().mapNotNull { movie ->
         val overview = movie.overview ?: return@mapNotNull null // 임베딩 불가 → 스킵
-        val directors = movieDirectorRepository.findAllByMovieId(movie.movieId)
-        val cast = movieCastRepository.findAllByMovieId(movie.movieId)
+        val movieId = requireNotNull(movie.movieId) { "조회한 영화에 movieId가 없다. tmdbId=${movie.tmdbId}" }
+        val directors = movieDirectorRepository.findAllByMovieId(movieId)
+        val cast = movieCastRepository.findAllByMovieId(movieId)
         IndexedMovie(
-            movieId = movie.movieId,
+            movieId = movieId,
             overview = overview,
             payload = MoviePayload(
                 title = movie.title,
