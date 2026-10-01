@@ -1,4 +1,4 @@
-# 서버: SQL 로그 끄기. 수집 페이지 수는 운영 기본값(50)을 그대로 쓴다.
+# 서버: SQL 로그 끄기. 수집은 기준별 250페이지(명작+최신 합쳐 약 1만 편 후보)
 spring:
   jpa:
     show-sql: false
@@ -6,3 +6,9 @@ spring:
 logging:
   level:
     org.hibernate.SQL: warn
+
+cineseek:
+  tmdb:
+    pages: ${TMDB_PAGES:250}
+  embedding:
+    batch-size: 16  # 서버 CPU bge-m3로 64개면 read-timeout(120s)을 넘길 수 있다 — 16개 ≈ 40s

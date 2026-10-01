@@ -53,7 +53,7 @@ class MovieQueryService(
         return MovieDetail(movie.toCard(), movie.runtime, movie.overview, directors, cast)
     }
 
-    /** 탐색 목록. ponytail: count 쿼리 없이 전건 조회 후 슬라이스 — 수집 상한(~1000건) 기준, 커지면 Pageable로 */
+    /** 탐색 목록 — offset은 limit의 배수(page * limit)로 들어온다 */
     fun explore(
         genreId: Long?,
         sort: ExploreSortEnum,
@@ -63,15 +63,17 @@ class MovieQueryService(
         castId: Long? = null,
     ): MoviePage {
         val minVoteCount = if (sort == ExploreSortEnum.RATING) MIN_VOTES_FOR_RATING else null
-        val movies = movieRepository.findAll(exploreSpec(genreId, minVoteCount, directorId, castId), sortOrder(sort))
-        val slice = movies.drop(offset)
-        val ids = slice.take(limit).map { requireNotNull(it.movieId) }
+        val page = movieRepository.findAll(
+            exploreSpec(genreId, minVoteCount, directorId, castId),
+            PageRequest.of(offset / limit, limit, sortOrder(sort)),
+        )
+        val ids = page.content.map { requireNotNull(it.movieId) }
         val cards = cards(ids)
         return MoviePage(
             items = ids.mapNotNull { cards[it] },
             limit = limit,
             offset = offset,
-            hasNext = slice.size > limit,
+            hasNext = page.hasNext(),
         )
     }
 

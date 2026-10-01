@@ -33,7 +33,7 @@ class TmdbClientTest {
     }
 
     @Test
-    fun `discover 페이지를 순회하고 빈 페이지에서 조기 종료한다`() {
+    fun `수집 기준별로 discover를 순회해 합치고 빈 페이지에서 조기 종료한다`() {
         // given
         wiremock.stubFor(
             WireMock.get(WireMock.urlPathEqualTo("/discover/movie")).withQueryParam("page", WireMock.equalTo("1"))
@@ -47,9 +47,20 @@ class TmdbClientTest {
         // when
         val ids = client.fetchTmdbIds(pages = 5)
 
-        // then
+        // then — 기준 3개 × (1페이지 + 빈 2페이지). 같은 id는 한 번만
         assertThat(ids).containsExactly(155L, 27205L)
-        wiremock.verify(2, WireMock.getRequestedFor(WireMock.urlPathEqualTo("/discover/movie")))
+        wiremock.verify(6, WireMock.getRequestedFor(WireMock.urlPathEqualTo("/discover/movie")))
+        wiremock.verify(
+            2,
+            WireMock.getRequestedFor(WireMock.urlPathEqualTo("/discover/movie"))
+                .withQueryParam("sort_by", WireMock.equalTo("vote_count.desc")),
+        )
+        wiremock.verify(
+            2,
+            WireMock.getRequestedFor(WireMock.urlPathEqualTo("/discover/movie"))
+                .withQueryParam("sort_by", WireMock.equalTo("vote_average.desc"))
+                .withQueryParam("vote_count.gte", WireMock.equalTo("1000")),
+        )
         wiremock.verify(
             WireMock.getRequestedFor(WireMock.urlPathEqualTo("/discover/movie"))
                 .withQueryParam("sort_by", WireMock.equalTo("popularity.desc"))

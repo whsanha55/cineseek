@@ -52,27 +52,46 @@ class MovieIndexerTest {
     }
 
     @Test
-    fun `reindex가 컬렉션을 재생성하고 포인트를 upsert한다 — 재실행해도 idempotent`() {
+    fun `재실행하면 줄거리가 같은 영화는 다시 임베딩하지 않는다`() {
         // given
         stubEmbed()
-        val movies = (1L..3L).map {
-            IndexedMovie(
-                it,
-                "줄거리 $it",
-                MoviePayload("영화$it", 2000, 8.0, listOf(28L), listOf(100L + it), listOf(200L + it)),
-            )
-        }
+        val movies = (1L..3L).map { movie(it, "줄거리 $it") }
 
         // when
-        indexer.reindex(movies)
-        val firstCount = qdrantClient.countAsync("movies").get()
-        indexer.reindex(movies) // 재생성 → 재upsert — 포인트 중복 없음
-        val secondCount = qdrantClient.countAsync("movies").get()
+        val first = indexer.index(movies)
+        val second = indexer.index(movies)
 
         // then
-        assertThat(firstCount).isEqualTo(3L)
-        assertThat(secondCount).isEqualTo(3L)
+        assertThat(first).isEqualTo(3)
+        assertThat(second).isZero()
+        assertThat(qdrantClient.countAsync("movies").get()).isEqualTo(3L)
+        embedStub.verify(1, WireMock.postRequestedFor(WireMock.urlPathEqualTo("/embed")))
     }
+
+    @Test
+    fun `줄거리가 바뀐 영화만 다시 임베딩하고 나머지는 payload만 갱신한다`() {
+        // given
+        stubEmbed()
+        indexer.index(listOf(movie(1L, "줄거리 1"), movie(2L, "줄거리 2")))
+        val updated = listOf(movie(1L, "줄거리 1", rating = 9.5), movie(2L, "바뀐 줄거리 2"))
+
+        // when
+        val embedded = indexer.index(updated)
+        val point1 = qdrantClient
+            .retrieveAsync("movies", listOf(PointIdFactory.id(1L)), true, false, null)
+            .get()
+            .single()
+
+        // then
+        assertThat(embedded).isEqualTo(1)
+        assertThat(point1.payloadMap["rating"]?.doubleValue).isEqualTo(9.5)
+    }
+
+    private fun movie(id: Long, overview: String, rating: Double = 8.0) = IndexedMovie(
+        id,
+        overview,
+        MoviePayload("영화$id", 2000, rating, listOf(28L), listOf(100L + id), listOf(200L + id)),
+    )
 
     @Test
     fun `payload에 필터용 id 필드가 내려간다`() {
@@ -82,7 +101,7 @@ class MovieIndexerTest {
         val movie = IndexedMovie(1L, "줄거리", payload)
 
         // when
-        indexer.reindex(listOf(movie))
+        indexer.index(listOf(movie))
         val point = qdrantClient
             .retrieveAsync("movies", listOf(PointIdFactory.id(1L)), true, false, null)
             .get()
