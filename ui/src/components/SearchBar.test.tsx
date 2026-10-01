@@ -30,4 +30,10 @@ describe("SearchBar", () => {
 		await user.type(screen.getByRole("searchbox"), "{Enter}");
 		expect(onEmptySubmit).toHaveBeenCalledOnce();
 	});
+
+	it("hero 크기도 아이콘 자리 왼쪽 패딩을 유지한다", () => {
+		// px-* 가 tailwind-merge로 pl-11을 지우면 아이콘과 텍스트가 겹친다
+		renderBar({ size: "hero" });
+		expect(screen.getByRole("searchbox")).toHaveClass("pl-11");
+	});
 });
