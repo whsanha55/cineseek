@@ -29,7 +29,11 @@ class TmdbClient(private val properties: TmdbProperties) {
         .build()
 
     /** discover 페이지 순회 → tmdb id 목록. 빈 페이지가 나오면 조기 종료 (python과 동일) */
-    fun fetchTmdbIds(pages: Int = properties.pages): List<Long> = buildList {
+    /** 수집 기준별로 discover 페이지를 순회하고 합쳐서 중복을 제거한다. 기준마다 빈 페이지에서 조기 종료 */
+    fun fetchTmdbIds(pages: Int = properties.pages): List<Long> =
+        DISCOVER_SOURCES.flatMap { params -> fetchDiscover(params, pages) }.distinct()
+
+    private fun fetchDiscover(params: Map<String, String>, pages: Int): List<Long> = buildList {
         for (page in 1..pages) {
             val body = call {
                 restClient.get()
@@ -37,9 +41,8 @@ class TmdbClient(private val properties: TmdbProperties) {
                         builder.path("/discover/movie")
                             .queryParam("language", properties.language)
                             .queryParam("page", page)
-                            .queryParam("sort_by", "popularity.desc")
-                            .queryParam("vote_count.gte", 20)
-                            .build()
+                        params.forEach { (key, value) -> builder.queryParam(key, value) }
+                        builder.build()
                     }
                     .retrieve()
                     .body(DiscoverBody::class.java)
@@ -98,6 +101,13 @@ class TmdbClient(private val properties: TmdbProperties) {
     )
 
     companion object {
+        /** 수집 기준 — 명작(투표 수 순, 투표 1000+ 고평점 순) + 최신 화제작(인기 순) */
+        private val DISCOVER_SOURCES = listOf(
+            mapOf("sort_by" to "vote_count.desc"),
+            mapOf("sort_by" to "vote_average.desc", "vote_count.gte" to "1000"),
+            mapOf("sort_by" to "popularity.desc", "vote_count.gte" to "20"),
+        )
+
         private const val DIRECTOR_JOB = "Director"
         private const val TARGET = "tmdb"
     }

@@ -49,8 +49,8 @@ class ReindexJob(
         log.info { "PG 적재 완료. stored=${stored.size}" }
 
         val indexed = buildIndexedMovies()
-        indexer.reindex(indexed)
-        log.info { "재색인 완료. PG movie=${stored.size}, 색인 대상=${indexed.size}" }
+        val embedded = indexer.index(indexed)
+        log.info { "재색인 완료. PG movie=${stored.size}, 색인 대상=${indexed.size}, 임베딩=$embedded" }
         exitProcess(0) // 배치 성격 — 출력 후 종료
     }
 

@@ -10,16 +10,20 @@ import io.qdrant.client.QdrantClient
 import io.qdrant.client.ValueFactory
 import io.qdrant.client.VectorFactory
 import io.qdrant.client.VectorsFactory
+import io.qdrant.client.WithPayloadSelectorFactory
+import io.qdrant.client.WithVectorsSelectorFactory
 import io.qdrant.client.grpc.Collections
 import io.qdrant.client.grpc.JsonWithInt
 import io.qdrant.client.grpc.Points
 import org.springframework.stereotype.Component
+import java.security.MessageDigest
 
 private val log = KotlinLogging.logger {}
 
 /**
- * Qdrant 파생 인덱스 관리 — 컬렉션 재생성(dense 1024 cosine + sparse) + 배치 upsert.
- * PG=SoT → 재색인마다 컬렉션을 지우고 다시 만든다 (pipeline.ensure_collection 이식)
+ * Qdrant 파생 인덱스 관리 — 증분 색인. 컬렉션(dense 1024 cosine + sparse)이 없을 때만 만든다.
+ * 줄거리 해시(payload overview_hash)가 다른 영화만 임베딩하고, 같은 영화는 payload만 덮어쓴다.
+ * 임베딩은 묶음마다 바로 upsert한다 — 중간에 끊겨도 재실행하면 남은 영화만 이어서 처리된다
  */
 @Component
 class MovieIndexer(
@@ -28,36 +32,52 @@ class MovieIndexer(
     private val embeddingClient: EmbeddingClient,
 ) {
 
-    fun reindex(movies: List<IndexedMovie>) {
+    /** @return 이번에 임베딩한 영화 수 */
+    fun index(movies: List<IndexedMovie>): Int {
         ensureCollection()
+        val stored = storedHashes()
+        val (unchanged, changed) = movies.partition { stored[it.movieId] == hash(it.overview) }
 
-        val embeddings = embeddingClient.embed(movies.map { it.overview })
-        val points = movies.mapIndexed { i, movie ->
-            Points.PointStruct.newBuilder()
-                .setId(PointIdFactory.id(movie.movieId)) // movie_id(PG PK)를 포인트 id로
-                .setVectors(
-                    VectorsFactory.namedVectors(
-                        mapOf(
-                            "dense" to VectorFactory.vector(embeddings[i].dense),
-                            "sparse" to VectorFactory.vector(
-                                embeddings[i].sparse.values,
-                                embeddings[i].sparse.indices.map(Long::toInt),
+        unchanged.forEach { movie ->
+            qdrantClient.overwritePayloadAsync(
+                qdrantProperties.collection,
+                movie.toPayload(),
+                PointIdFactory.id(movie.movieId),
+                true,
+                null,
+                null,
+            ).get()
+        }
+        log.info { "payload만 갱신. unchanged=${unchanged.size}, 임베딩 대상=${changed.size}" }
+
+        changed.chunked(UPSERT_BATCH).forEachIndexed { i, batch ->
+            val embeddings = embeddingClient.embed(batch.map { it.overview })
+            val points = batch.mapIndexed { j, movie ->
+                Points.PointStruct.newBuilder()
+                    .setId(PointIdFactory.id(movie.movieId)) // movie_id(PG PK)를 포인트 id로
+                    .setVectors(
+                        VectorsFactory.namedVectors(
+                            mapOf(
+                                "dense" to VectorFactory.vector(embeddings[j].dense),
+                                "sparse" to VectorFactory.vector(
+                                    embeddings[j].sparse.values,
+                                    embeddings[j].sparse.indices.map(Long::toInt),
+                                ),
                             ),
                         ),
-                    ),
-                )
-                .putAllPayload(movie.payload.toGrpc())
-                .build()
+                    )
+                    .putAllPayload(movie.toPayload())
+                    .build()
+            }
+            qdrantClient.upsertAsync(qdrantProperties.collection, points).get()
+            log.info { "임베딩 upsert. ${minOf((i + 1) * UPSERT_BATCH, changed.size)}/${changed.size}" }
         }
-        points.chunked(UPSERT_BATCH).forEach { batch ->
-            qdrantClient.upsertAsync(qdrantProperties.collection, batch).get()
-        }
+        return changed.size
     }
 
-    /** PG=SoT → 재색인 시 재생성 */
     private fun ensureCollection() {
         if (qdrantClient.collectionExistsAsync(qdrantProperties.collection).get()) {
-            qdrantClient.deleteCollectionAsync(qdrantProperties.collection).get()
+            return
         }
         qdrantClient.createCollectionAsync(
             Collections.CreateCollection.newBuilder()
@@ -78,8 +98,32 @@ class MovieIndexer(
                 )
                 .build(),
         ).get()
-        log.info { "컬렉션 재생성(dense+sparse). collection=${qdrantProperties.collection}" }
+        log.info { "컬렉션 생성(dense+sparse). collection=${qdrantProperties.collection}" }
     }
+
+    /** 저장된 포인트별 줄거리 해시 — 해시가 없는 포인트(이전 방식 색인)는 다시 임베딩된다 */
+    private fun storedHashes(): Map<Long, String> = buildMap {
+        var offset: Points.PointId? = null
+        do {
+            val request = Points.ScrollPoints.newBuilder()
+                .setCollectionName(qdrantProperties.collection)
+                .setLimit(SCROLL_LIMIT)
+                .setWithPayload(WithPayloadSelectorFactory.include(listOf(OVERVIEW_HASH)))
+                .setWithVectors(WithVectorsSelectorFactory.enable(false))
+            offset?.let(request::setOffset)
+            val response = qdrantClient.scrollAsync(request.build()).get()
+            response.resultList.forEach { point ->
+                point.payloadMap[OVERVIEW_HASH]?.stringValue?.let { put(point.id.num, it) }
+            }
+            offset = if (response.hasNextPageOffset()) response.nextPageOffset else null
+        } while (offset != null)
+    }
+
+    private fun IndexedMovie.toPayload(): Map<String, JsonWithInt.Value> =
+        payload.toGrpc() + (OVERVIEW_HASH to ValueFactory.value(hash(overview)))
+
+    private fun hash(text: String): String =
+        MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).toHexString()
 
     private fun MoviePayload.toGrpc(): Map<String, JsonWithInt.Value> = buildMap {
         title?.let { put("title", ValueFactory.value(it)) }
@@ -92,6 +136,8 @@ class MovieIndexer(
 
     companion object {
         private const val DENSE_DIM = 1024L // bge-m3
-        private const val UPSERT_BATCH = 256 // Qdrant 단일 요청 한계 방지 (python과 동일)
+        private const val UPSERT_BATCH = 256 // 임베딩·upsert 묶음 — 묶음마다 저장돼 진행이 보존된다
+        private const val SCROLL_LIMIT = 1000
+        private const val OVERVIEW_HASH = "overview_hash"
     }
 }
