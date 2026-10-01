@@ -7,4 +7,6 @@ enum class ErrorCodeEnum(val status: HttpStatus, val message: String) {
     NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 리소스를 찾을 수 없습니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "잠시 후 다시 시도해주세요."),
     EXTERNAL_API_ERROR(HttpStatus.SERVICE_UNAVAILABLE, "잠시 후 다시 시도해주세요."),
+    MOVIE_NOT_FOUND(HttpStatus.NOT_FOUND, "영화를 찾을 수 없습니다."),
+    PERSON_NOT_FOUND(HttpStatus.NOT_FOUND, "인물을 찾을 수 없습니다."),
 }

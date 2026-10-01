@@ -85,9 +85,9 @@ class MovieIndexer(
         title?.let { put("title", ValueFactory.value(it)) }
         releaseYear?.let { put("release_year", ValueFactory.value(it.toLong())) }
         rating?.let { put("rating", ValueFactory.value(it)) }
-        put("genres", ValueFactory.list(genres.map { ValueFactory.value(it) }))
-        put("directors", ValueFactory.list(directors.map { ValueFactory.value(it) }))
-        put("cast", ValueFactory.list(cast.map { ValueFactory.value(it) }))
+        put("genre_ids", ValueFactory.list(genreIds.map { ValueFactory.value(it) }))
+        put("director_ids", ValueFactory.list(directorIds.map { ValueFactory.value(it) }))
+        put("cast_ids", ValueFactory.list(castIds.map { ValueFactory.value(it) }))
     }
 
     companion object {
