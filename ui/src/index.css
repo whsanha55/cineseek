@@ -35,7 +35,7 @@
 	--radius-card: var(--radius);
 	--radius-chip: var(--radius-full);
 
-	/* 폰트 크기 스케일 (rem, 16px 기준) — UI-PLAN §6.2 타이포그래피 */
+	/* 폰트 크기 스케일 (rem, 16px 기준) */
 	--text-xs: 0.75rem;
 	--text-xs--line-height: 1rem;
 	--text-sm: 0.875rem;

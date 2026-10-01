@@ -11,7 +11,7 @@ interface PosterImageProps {
 
 /**
  * TMDB 포스터 — lazy load. 없음·로드 실패(CDN 에러·404)는 제목 이니셜 플레이스홀더로.
- * onError 1회 처리 후 플래그를 세워 무한 재시도를 막는다 (UI-PLAN §5.3)
+ * onError 1회 처리 후 플래그를 세워 무한 재시도를 막는다
  */
 export function PosterImage({ title, posterPath, size = "w342", className }: PosterImageProps) {
 	const [failed, setFailed] = useState(false);

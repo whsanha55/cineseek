@@ -45,7 +45,7 @@ services:
         condition: service_started
       embed:
         condition: service_healthy
-    healthcheck:   # 단순 depends_on은 시작 순서만 보장 — 요청 가능 상태를 검사 (UI-PLAN §7). 이미지에 curl/wget이 없어 bash /dev/tcp로 포트 확인
+    healthcheck:   # 단순 depends_on은 시작 순서만 보장 — 요청 가능 상태를 검사. 이미지에 curl/wget이 없어 bash /dev/tcp로 포트 확인
       test: ["CMD", "bash", "-c", "</dev/tcp/localhost/8080 || exit 1"]
       interval: 10s
       timeout: 5s
