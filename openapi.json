@@ -1,0 +1,813 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "OpenAPI definition",
+    "version": "v0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost",
+      "description": "Generated server url"
+    }
+  ],
+  "tags": [
+    {
+      "name": "검색",
+      "description": "줄거리 의미 검색 (dense + sparse 하이브리드) · 유사 영화"
+    },
+    {
+      "name": "영화",
+      "description": "상세 · 탐색 · 장르 · 인물 조회 (PG 기준)"
+    }
+  ],
+  "paths": {
+    "/cineseek/search": {
+      "get": {
+        "tags": [
+          "검색"
+        ],
+        "summary": "자연어로 영화 검색",
+        "operationId": "search",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "검색어 (줄거리 묘사)",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "검색어 (줄거리 묘사)",
+              "example": "감옥에서 탈출하는 이야기",
+              "minLength": 1
+            },
+            "example": "감옥에서 탈출하는 이야기"
+          },
+          {
+            "name": "genreId",
+            "in": "query",
+            "description": "장르 id (반복 파라미터, OR)",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "description": "장르 id (반복 파라미터, OR)",
+              "example": [
+                80
+              ],
+              "items": {
+                "type": "integer",
+                "format": "int64",
+                "description": "장르 id (반복 파라미터, OR)",
+                "example": [
+                  80
+                ]
+              }
+            },
+            "example": [
+              80
+            ]
+          },
+          {
+            "name": "yearMin",
+            "in": "query",
+            "description": "개봉 연도 하한",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "개봉 연도 하한",
+              "example": 2000
+            },
+            "example": 2000
+          },
+          {
+            "name": "yearMax",
+            "in": "query",
+            "description": "개봉 연도 상한",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "개봉 연도 상한",
+              "example": 2020
+            },
+            "example": 2020
+          },
+          {
+            "name": "ratingMin",
+            "in": "query",
+            "description": "평점 하한 (0~10)",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "double",
+              "description": "평점 하한 (0~10)",
+              "example": 7.5
+            },
+            "example": 7.5
+          },
+          {
+            "name": "directorId",
+            "in": "query",
+            "description": "감독 person id",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "description": "감독 person id",
+              "example": 525
+            },
+            "example": 525
+          },
+          {
+            "name": "castId",
+            "in": "query",
+            "description": "배우 person id",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "description": "배우 person id",
+              "example": 3895
+            },
+            "example": 3895
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "결과 수 (1~50)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "결과 수 (1~50)",
+              "example": 20,
+              "maximum": 50,
+              "minimum": 1
+            },
+            "example": 20
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "건너뛸 결과 수",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "건너뛸 결과 수",
+              "example": 0,
+              "minimum": 0
+            },
+            "example": 0
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cineseek/people": {
+      "get": {
+        "tags": [
+          "영화"
+        ],
+        "summary": "감독·배우 자동완성",
+        "operationId": "people",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "이름 접두어",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "이름 접두어",
+              "example": "봉",
+              "minLength": 1
+            },
+            "example": "봉"
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "description": "역할 (director | cast)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "역할 (director | cast)",
+              "example": "director",
+              "pattern": "director|cast"
+            },
+            "example": "director"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeopleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cineseek/people/{id}": {
+      "get": {
+        "tags": [
+          "영화"
+        ],
+        "summary": "인물 이름 조회 (필터 칩 라벨 복원용)",
+        "operationId": "person",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "description": "역할 (director | cast)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "역할 (director | cast)",
+              "example": "director",
+              "pattern": "director|cast"
+            },
+            "example": "director"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonItemResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cineseek/movies": {
+      "get": {
+        "tags": [
+          "영화"
+        ],
+        "summary": "장르·인물 조건으로 영화 탐색",
+        "operationId": "explore",
+        "parameters": [
+          {
+            "name": "genreId",
+            "in": "query",
+            "description": "장르 id",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "description": "장르 id",
+              "example": 28
+            },
+            "example": 28
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "정렬 (rating | release | vote_count)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "정렬 (rating | release | vote_count)",
+              "example": "rating",
+              "pattern": "rating|release|vote_count"
+            },
+            "example": "rating"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "페이지 (0부터)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "페이지 (0부터)",
+              "example": 0,
+              "minimum": 0
+            },
+            "example": 0
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "페이지 크기 (1~50)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "페이지 크기 (1~50)",
+              "example": 20,
+              "maximum": 50,
+              "minimum": 1
+            },
+            "example": 20
+          },
+          {
+            "name": "directorId",
+            "in": "query",
+            "description": "감독 person id",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "description": "감독 person id",
+              "example": 525
+            },
+            "example": 525
+          },
+          {
+            "name": "castId",
+            "in": "query",
+            "description": "배우 person id",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "description": "배우 person id",
+              "example": 3895
+            },
+            "example": 3895
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovieListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cineseek/movies/{id}": {
+      "get": {
+        "tags": [
+          "영화"
+        ],
+        "summary": "영화 상세",
+        "operationId": "detail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovieDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cineseek/movies/{id}/similar": {
+      "get": {
+        "tags": [
+          "검색"
+        ],
+        "summary": "줄거리가 비슷한 영화",
+        "operationId": "similar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "결과 수 (1~20)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "결과 수 (1~20)",
+              "example": 8,
+              "maximum": 20,
+              "minimum": 1
+            },
+            "example": 8
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cineseek/genres": {
+      "get": {
+        "tags": [
+          "영화"
+        ],
+        "summary": "장르 목록",
+        "operationId": "genres",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenresResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GenreResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "TMDB 장르 id",
+            "example": 28
+          },
+          "name": {
+            "type": "string"
+          },
+          "nameKo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "PageResponse": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasNext": {
+            "type": "boolean"
+          },
+          "total": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "미제공 — 하이브리드 검색 전체 count 비용"
+          }
+        }
+      },
+      "SearchItemResponse": {
+        "type": "object",
+        "properties": {
+          "movieId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": {
+            "type": "string"
+          },
+          "originalTitle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "releaseYear": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "rating": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "voteCount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "posterPath": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenreResponse"
+            }
+          },
+          "score": {
+            "type": "number",
+            "format": "double",
+            "description": "검색은 RRF 점수, 유사 영화는 코사인 유사도",
+            "example": 0.032
+          }
+        }
+      },
+      "SearchResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "검색 결과 (점수 내림차순)",
+            "items": {
+              "$ref": "#/components/schemas/SearchItemResponse"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageResponse"
+          }
+        }
+      },
+      "PeopleResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonItemResponse"
+            }
+          }
+        }
+      },
+      "PersonItemResponse": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "knownFor": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MovieCardResponse": {
+        "type": "object",
+        "properties": {
+          "movieId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": {
+            "type": "string"
+          },
+          "originalTitle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "releaseYear": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "rating": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "TMDB 평점 (0~10)",
+            "example": 8.7
+          },
+          "voteCount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "posterPath": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenreResponse"
+            }
+          }
+        }
+      },
+      "MovieListResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MovieCardResponse"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageResponse"
+          }
+        }
+      },
+      "CastMemberResponse": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "character": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "MovieDetailResponse": {
+        "type": "object",
+        "properties": {
+          "movieId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": {
+            "type": "string"
+          },
+          "originalTitle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "releaseYear": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "runtime": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "rating": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "voteCount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "posterPath": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "overview": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenreResponse"
+            }
+          },
+          "directors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonResponse"
+            }
+          },
+          "cast": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CastMemberResponse"
+            }
+          }
+        }
+      },
+      "PersonResponse": {
+        "type": "object",
+        "properties": {
+          "personId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "GenresResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GenreResponse"
+            }
+          }
+        }
+      }
+    }
+  }
+}

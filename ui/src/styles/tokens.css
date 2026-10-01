@@ -1,0 +1,44 @@
+/*
+ * 디자인 토큰 원천 — UI-PLAN §6.2.
+ * 원시값(hex, px)은 이 파일에만 존재한다. 컴포넌트는 의미 토큰만 참조 (UI6)
+ */
+
+:root {
+	/* 색 (라이트) — 뉴트럴은 살짝 차가운 회색, 강조색은 하나 */
+	--background: #ffffff;
+	--surface: #f7f7f8;
+	--foreground: #18181b;
+	--muted-foreground: #71717a;
+	--border: #e4e4e7;
+	--primary: #2563eb;
+	--primary-foreground: #ffffff;
+	--rating: #f59e0b;
+	--destructive: #dc2626;
+
+	/* shadcn 호환 alias — 컴포넌트 복사 시 수정 최소화 (UI-PLAN §6.2) */
+	--card: var(--background);
+	--card-foreground: var(--foreground);
+	--popover: var(--background);
+	--popover-foreground: var(--foreground);
+	--secondary: var(--surface);
+	--secondary-foreground: var(--foreground);
+	--muted: var(--surface);
+	--accent: var(--surface);
+	--accent-foreground: var(--foreground);
+	--input: var(--border);
+	--ring: var(--primary);
+
+	/* 반경 */
+	--radius: 8px;
+	--radius-full: 9999px;
+
+	/* 레이아웃 상수 */
+	--content-max: 1200px;
+	--scrim: rgb(0 0 0 / 0.4); /* 시트·오버레이 뒷면 */
+
+	/* 그림자 — 옅게 1단계만 */
+	--shadow-sm: 0 1px 3px rgb(0 0 0 / 0.07), 0 4px 12px rgb(0 0 0 / 0.05);
+
+	/* 모션 */
+	--motion-fast: 150ms ease-out;
+}

@@ -81,9 +81,9 @@ class ReindexJob(
                 title = movie.title,
                 releaseYear = movie.releaseYear,
                 rating = movie.voteAverage?.toDouble(),
-                genres = movie.genres.map { it.name },
-                directors = directors.map { it.name }.take(3),
-                cast = cast.sortedBy { it.castOrder }.map { it.name }.take(5),
+                genreIds = movie.genres.map { it.genreId },
+                directorIds = directors.map { it.personId }.take(3),
+                castIds = cast.sortedBy { it.castOrder }.map { it.personId }.take(5),
             ),
         )
     }

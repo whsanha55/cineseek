@@ -8,8 +8,10 @@ import com.whsanha55.cineseek.external.embedding.config.EmbeddingProperties
 import com.whsanha55.cineseek.external.qdrant.config.QdrantProperties
 import com.whsanha55.cineseek.search.vo.IndexedMovie
 import com.whsanha55.cineseek.search.vo.MoviePayload
+import io.qdrant.client.PointIdFactory
 import io.qdrant.client.QdrantClient
 import io.qdrant.client.QdrantGrpcClient
+import io.qdrant.client.grpc.JsonWithInt
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -57,7 +59,7 @@ class MovieIndexerTest {
             IndexedMovie(
                 it,
                 "줄거리 $it",
-                MoviePayload("영화$it", 2000, 8.0, listOf("액션"), listOf("감독$it"), listOf("배우$it")),
+                MoviePayload("영화$it", 2000, 8.0, listOf(28L), listOf(100L + it), listOf(200L + it)),
             )
         }
 
@@ -71,6 +73,29 @@ class MovieIndexerTest {
         assertThat(firstCount).isEqualTo(3L)
         assertThat(secondCount).isEqualTo(3L)
     }
+
+    @Test
+    fun `payload에 필터용 id 필드가 내려간다`() {
+        // given
+        stubEmbed()
+        val payload = MoviePayload("영화", 2000, 8.0, listOf(28L), listOf(100L), listOf(200L, 201L))
+        val movie = IndexedMovie(1L, "줄거리", payload)
+
+        // when
+        indexer.reindex(listOf(movie))
+        val point = qdrantClient
+            .retrieveAsync("movies", listOf(PointIdFactory.id(1L)), true, false, null)
+            .get()
+            .single()
+
+        // then
+        assertThat(point.payloadMap.ids("genre_ids")).containsExactly(28L)
+        assertThat(point.payloadMap.ids("director_ids")).containsExactly(100L)
+        assertThat(point.payloadMap.ids("cast_ids")).containsExactly(200L, 201L)
+    }
+
+    private fun Map<String, JsonWithInt.Value>.ids(key: String) =
+        get(key)?.listValue?.valuesList?.map { it.integerValue }
 
     /** dense 1024(bge-m3 차원) 스텁 — 요청 3텍스트에 대해 항목 3개 반환 */
     private fun stubEmbed() {

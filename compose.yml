@@ -45,6 +45,20 @@ services:
         condition: service_started
       embed:
         condition: service_healthy
+    healthcheck:   # 단순 depends_on은 시작 순서만 보장 — 요청 가능 상태를 검사 (UI-PLAN §7). 이미지에 curl/wget이 없어 bash /dev/tcp로 포트 확인
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/8080 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  # UI — Vite 정적 빌드를 nginx로 서빙, /cineseek는 api:8080으로 프록시 (같은 출처 — CORS 불필요)
+  ui:
+    build:
+      context: ./ui
+    depends_on:
+      api:
+        condition: service_started   # UI를 API까지 지연시키지 않는다 — 실패 중엔 ErrorState
 
 volumes:
   gonamu_qdrant_data:

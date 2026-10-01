@@ -1,0 +1,25 @@
+# 서버 덮어쓰기 (prod profile) — 공용 infra postgres(external network) 사용, UI만 127.0.0.1로 노출 (앞단은 Caddy)
+services:
+  qdrant:
+    restart: unless-stopped
+
+  embed:
+    restart: unless-stopped
+
+  api:
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      PG_HOST: postgres   # infra 네트워크의 공용 postgres 서비스명
+    networks:
+      - default
+      - infra
+
+  ui:
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:20040:80"
+
+networks:
+  infra:
+    external: true

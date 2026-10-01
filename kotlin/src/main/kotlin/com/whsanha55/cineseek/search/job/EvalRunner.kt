@@ -1,7 +1,8 @@
 package com.whsanha55.cineseek.search.job
 
 import com.whsanha55.cineseek.external.embedding.client.EmbeddingClient
-import com.whsanha55.cineseek.search.service.SearchService
+import com.whsanha55.cineseek.search.facade.SearchFacade
+import com.whsanha55.cineseek.search.vo.SearchFilter
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
@@ -18,15 +19,17 @@ private val log = KotlinLogging.logger {}
  */
 @Component
 @ConditionalOnProperty(prefix = "cineseek", name = ["job"], havingValue = "eval")
-class EvalRunner(private val searchService: SearchService, private val embeddingClient: EmbeddingClient) :
+class EvalRunner(private val searchFacade: SearchFacade, private val embeddingClient: EmbeddingClient) :
     ApplicationRunner {
 
     override fun run(args: ApplicationArguments) {
         val embeddings = embeddingClient.embed(QUERIES) // python처럼 한 번의 배치로
         QUERIES.forEachIndexed { i, query ->
-            val lines = searchService.search(embeddings[i], null, null, TOP_K).mapIndexed { j, r ->
+            val lines = searchFacade.search(embeddings[i], SearchFilter(limit = TOP_K)).items.mapIndexed { j, r ->
                 val score = String.format(Locale.ROOT, "%.3f", r.score)
-                "  ${j + 1}. ${r.title} (${r.releaseYear})  score=$score  genres=${r.genres}"
+                "  ${j + 1}. ${r.card.title} (${r.card.releaseYear})  score=$score  genres=${r.card.genres.map {
+                    it.name
+                }}"
             }
             log.info { "▶ $query\n" + lines.joinToString("\n") }
         }

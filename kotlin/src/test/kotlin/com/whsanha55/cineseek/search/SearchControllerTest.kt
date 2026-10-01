@@ -2,9 +2,14 @@ package com.whsanha55.cineseek.search
 
 import com.ninjasquad.springmockk.MockkBean
 import com.whsanha55.cineseek.global.exception.ExternalApiException
-import com.whsanha55.cineseek.search.service.SearchService
-import com.whsanha55.cineseek.search.vo.SearchResult
+import com.whsanha55.cineseek.movie.vo.GenreItem
+import com.whsanha55.cineseek.movie.vo.MovieCard
+import com.whsanha55.cineseek.search.facade.SearchFacade
+import com.whsanha55.cineseek.search.vo.ScoredMovieCard
+import com.whsanha55.cineseek.search.vo.SearchFilter
+import com.whsanha55.cineseek.search.vo.SearchItems
 import io.mockk.every
+import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
@@ -17,18 +22,19 @@ class SearchControllerTest {
 
     @Autowired lateinit var mockMvc: MockMvc
 
-    @MockkBean lateinit var searchService: SearchService
+    @MockkBean lateinit var searchFacade: SearchFacade
 
     @Test
-    fun `검색하면 결과와 X-Request-Id 헤더를 응답한다`() {
+    fun `검색하면 카드와 페이지 메타, X-Request-Id 헤더를 응답한다`() {
         // given
-        every { searchService.search("탈출", "범죄", 2000, 3) } returns
-            listOf(SearchResult("쇼생크 탈출", 1994L, 8.7, 0.9f, listOf("범죄"), listOf("프랭크 다라본트")))
+        val filter = SearchFilter(genreIds = listOf(80L, 18L), yearMin = 2000, limit = 3)
+        every { searchFacade.search("탈출", filter) } returns
+            SearchItems(listOf(ScoredMovieCard(card(), 0.032)), limit = 3, offset = 0, hasNext = true)
 
         // when
         val result = mockMvc.get("/cineseek/search") {
             param("q", "탈출")
-            param("genre", "범죄")
+            param("genreId", "80", "18")
             param("yearMin", "2000")
             param("limit", "3")
             header("X-Request-Id", "req-1")
@@ -38,13 +44,31 @@ class SearchControllerTest {
         result.andExpect {
             status { isOk() }
             header { string("X-Request-Id", "req-1") }
-            jsonPath("$.query") { value("탈출") }
-            jsonPath("$.filter.genre") { value("범죄") }
-            jsonPath("$.count") { value(1) }
-            jsonPath("$.results[0].title") { value("쇼생크 탈출") }
-            jsonPath("$.results[0].releaseYear") { value(1994) }
-            jsonPath("$.results[0].score") { value(0.9) }
-            jsonPath("$.results[0].directors[0]") { value("프랭크 다라본트") }
+            jsonPath("$.items[0].movieId") { value(1) }
+            jsonPath("$.items[0].title") { value("쇼생크 탈출") }
+            jsonPath("$.items[0].originalTitle") { value(nullValue()) }
+            jsonPath("$.items[0].genres[0].id") { value(80) }
+            jsonPath("$.items[0].genres[0].nameKo") { value("범죄") }
+            jsonPath("$.items[0].score") { value(0.032) }
+            jsonPath("$.page.limit") { value(3) }
+            jsonPath("$.page.hasNext") { value(true) }
+            jsonPath("$.page.total") { value(nullValue()) }
+        }
+    }
+
+    @Test
+    fun `유사 영화는 페이지네이션 없이 응답한다`() {
+        // given
+        every { searchFacade.similar(1L, 8) } returns listOf(ScoredMovieCard(card(), 0.95))
+
+        // when
+        val result = mockMvc.get("/cineseek/movies/1/similar")
+
+        // then
+        result.andExpect {
+            status { isOk() }
+            jsonPath("$.items[0].score") { value(0.95) }
+            jsonPath("$.page.hasNext") { value(false) }
         }
     }
 
@@ -82,7 +106,7 @@ class SearchControllerTest {
     @Test
     fun `예상하지 못한 예외는 500 INTERNAL_ERROR로 응답하고 내부 메시지를 숨긴다`() {
         // given
-        every { searchService.search(any<String>(), any(), any(), any()) } throws IllegalStateException("qdrant down")
+        every { searchFacade.search(any<String>(), any()) } throws IllegalStateException("qdrant down")
 
         // when
         val result = mockMvc.get("/cineseek/search") { param("q", "탈출") }
@@ -98,7 +122,7 @@ class SearchControllerTest {
     @Test
     fun `외부 API 장애는 503 EXTERNAL_API_ERROR로 응답한다`() {
         // given
-        every { searchService.search(any<String>(), any(), any(), any()) } throws ExternalApiException("qdrant")
+        every { searchFacade.search(any<String>(), any()) } throws ExternalApiException("qdrant")
 
         // when
         val result = mockMvc.get("/cineseek/search") { param("q", "탈출") }
@@ -109,4 +133,15 @@ class SearchControllerTest {
             jsonPath("$.code") { value("EXTERNAL_API_ERROR") }
         }
     }
+
+    private fun card() = MovieCard(
+        movieId = 1L,
+        title = "쇼생크 탈출",
+        originalTitle = null,
+        releaseYear = 1994,
+        rating = 8.7,
+        voteCount = 27000,
+        posterPath = "/example.jpg",
+        genres = listOf(GenreItem(80L, "Crime", "범죄")),
+    )
 }

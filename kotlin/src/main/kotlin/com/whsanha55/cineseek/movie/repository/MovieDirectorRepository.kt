@@ -2,7 +2,11 @@ package com.whsanha55.cineseek.movie.repository
 
 import com.whsanha55.cineseek.movie.entity.MovieDirectorEntity
 import com.whsanha55.cineseek.movie.entity.MovieDirectorId
+import com.whsanha55.cineseek.movie.vo.PersonNameView
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 
 interface MovieDirectorRepository : JpaRepository<MovieDirectorEntity, MovieDirectorId> {
 
@@ -11,4 +15,21 @@ interface MovieDirectorRepository : JpaRepository<MovieDirectorEntity, MovieDire
 
     /** upsert 시 기존 자식을 지운다 — cascade 없음, 삭제는 항상 이렇게 명시적으로 */
     fun deleteAllByMovieId(movieId: Long)
+
+    /** 감독 자동완성 — 접두어 일치, 이름 정렬. 작품 수만큼 행이 있어 distinct */
+    @Query(
+        "select distinct d.personId as personId, d.name as name from MovieDirectorEntity d " +
+            "where lower(d.name) like lower(concat(:prefix, '%')) order by d.name",
+    )
+    fun searchByPrefix(@Param("prefix") prefix: String, pageable: Pageable): List<PersonNameView>
+
+    /** knownFor — 해당 감독의 최근 작품 제목 (부모 참조 없이 movieId로 entity join) */
+    @Query(
+        "select m.title from MovieEntity m join MovieDirectorEntity d on d.movieId = m.movieId " +
+            "where d.personId = :personId order by m.releaseYear desc nulls last",
+    )
+    fun findTopMovieTitles(@Param("personId") personId: Long, pageable: Pageable): List<String>
+
+    /** 칩 라벨 복원 — 같은 사람의 아무 대표 행 하나 */
+    fun findFirstByPersonId(personId: Long): MovieDirectorEntity?
 }

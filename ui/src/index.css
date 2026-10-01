@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+@import "./styles/tokens.css";
+
+/*
+ * Tailwind v4 — tokens.css의 변수를 유틸리티 이름으로 연결.
+ * bg-background, text-muted-foreground, border-border 등 의미 이름만 컴포넌트에서 허용 (UI6)
+ */
+@theme inline {
+	--color-background: var(--background);
+	--color-surface: var(--surface);
+	--color-foreground: var(--foreground);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-border: var(--border);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-rating: var(--rating);
+	--color-destructive: var(--destructive);
+
+	/* shadcn alias */
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+
+	--font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+	--radius-card: var(--radius);
+	--radius-chip: var(--radius-full);
+
+	/* 폰트 크기 스케일 (rem, 16px 기준) — UI-PLAN §6.2 타이포그래피 */
+	--text-xs: 0.75rem;
+	--text-xs--line-height: 1rem;
+	--text-sm: 0.875rem;
+	--text-sm--line-height: 1.25rem;
+	--text-base: 1rem;
+	--text-base--line-height: 1.5rem;
+	--text-lg: 1.125rem;
+	--text-lg--line-height: 1.75rem;
+	--text-2xl: 1.5rem;
+	--text-2xl--line-height: 2rem;
+	--text-4xl: 2.25rem;
+	--text-4xl--line-height: 2.5rem;
+
+	--shadow-sm: var(--shadow-sm);
+}
+
+@layer base {
+	html {
+		font-family: var(--font-sans);
+		color: var(--foreground);
+		background: var(--background);
+	}
+
+	/* 포커스 링 — --primary 2px (§6.4) */
+	:focus-visible {
+		outline: 2px solid var(--primary);
+		outline-offset: 2px;
+	}
+
+	/* 숫자(연도·평점) — tabular-nums */
+	.tnum {
+		font-variant-numeric: tabular-nums;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}
