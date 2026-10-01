@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: jjong
       POSTGRES_DB: cineseek
     ports:
-      - "5432:5432"   # IDE에서 직접 실행할 때 쓰는 노출 (호스트 5432가 비어 있을 때만)
+      - "${PG_HOST_PORT:-5432}:5432"   # IDE에서 직접 실행할 때 쓰는 노출 (호스트 5432가 비어 있을 때만)
     volumes:
       - gonamu_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -35,6 +35,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  ui:
+    ports:
+      - "5173:80"   # 브라우저에서 보는 로컬 UI (nginx 정적 + /cineseek 프록시)
 
 volumes:
   gonamu_pgdata:
