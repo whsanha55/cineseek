@@ -17,6 +17,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
+import java.util.concurrent.Semaphore
 import kotlin.system.exitProcess
 
 private val log = KotlinLogging.logger {}
@@ -53,15 +54,31 @@ class ReindexJob(
         exitProcess(0) // 배치 성격 — 출력 후 종료
     }
 
-    /** 가상 스레드로 detail + credits 병렬 수집 — 단건 실패는 건너뛴다 (python fetch_detail_safe) */
-    private fun fetchDetailsParallel(ids: List<Long>): List<TmdbMovie> =
-        Executors.newVirtualThreadPerTaskExecutor().use { executor ->
-            executor.invokeAll(ids.map { id -> Callable { runCatching { tmdbClient.fetchDetail(id) } } })
+    /**
+     * 가상 스레드로 detail + credits 병렬 수집 — 단건 실패는 건너뛴다 (python fetch_detail_safe).
+     * 동시 요청은 Semaphore로 제한한다 — 무제한이면 TMDB rate limit(429)에 대부분 막힌다
+     */
+    private fun fetchDetailsParallel(ids: List<Long>): List<TmdbMovie> {
+        val permits = Semaphore(FETCH_CONCURRENCY)
+        return Executors.newVirtualThreadPerTaskExecutor().use { executor ->
+            executor.invokeAll(
+                ids.map { id ->
+                    Callable {
+                        permits.acquire()
+                        try {
+                            runCatching { tmdbClient.fetchDetail(id) }
+                        } finally {
+                            permits.release()
+                        }
+                    }
+                },
+            )
         }.mapNotNull { future ->
             future.get()
                 .onFailure { log.warn(it) { "수집 스킵" } }
                 .getOrNull()
         }
+    }
 
     /** 한 건이 실패해도 나머지는 계속 (영화 한 건당 트랜잭션) */
     private fun upsertSafe(m: TmdbMovie): Long? = runCatching { upsertService.upsert(m) }
@@ -86,5 +103,9 @@ class ReindexJob(
                 castIds = cast.sortedBy { it.castOrder }.map { it.personId }.take(5),
             ),
         )
+    }
+
+    companion object {
+        private const val FETCH_CONCURRENCY = 4 // 영화 1건 = 요청 2개(detail, credits)
     }
 }
