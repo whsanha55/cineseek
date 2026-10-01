@@ -1,5 +1,5 @@
 /*
- * 디자인 토큰 원천 — UI-PLAN §6.2.
+ * 디자인 토큰 원천.
  * 원시값(hex, px)은 이 파일에만 존재한다. 컴포넌트는 의미 토큰만 참조 (UI6)
  */
 
@@ -15,7 +15,7 @@
 	--rating: #f59e0b;
 	--destructive: #dc2626;
 
-	/* shadcn 호환 alias — 컴포넌트 복사 시 수정 최소화 (UI-PLAN §6.2) */
+	/* shadcn 호환 alias — 컴포넌트 복사 시 수정 최소화 */
 	--card: var(--background);
 	--card-foreground: var(--foreground);
 	--popover: var(--background);

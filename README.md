@@ -10,7 +10,7 @@ cineseek/
 ├── kotlin/             API + 수집/색인 파이프라인 + 평가 (Spring Boot 4, Java 25)
 ├── python/             임베딩 서비스 — POST /embed 하나만 (FastAPI + FlagEmbedding, bge-m3)
 ├── ui/                 프론트엔드 — React + Vite SPA, nginx 정적 서빙 + /cineseek 프록시
-├── docs/               기획·계획 문서
+├── docs/               eval 기준 결과, 코드 컨벤션
 ├── compose.yml         공통 서비스 정의 (qdrant, embed, api, ui)
 └── compose.local.yml   로컬 덮어쓰기 (전용 postgres, 포트 노출, local profile)
 ```
@@ -55,7 +55,7 @@ pnpm test       # Vitest (URL 상태·관련도·TMDB URL·컴포넌트)
 pnpm build      # tsc + 프로덕션 빌드 (/_ds는 운영 번들에서 제외)
 ```
 
-- 확정 검색·필터 상태는 전부 URL 쿼리가 원천이다 (UI-PLAN §3)
+- 확정 검색·필터 상태는 전부 URL 쿼리가 원천이다
 - 개발용 디자인 카탈로그: `http://localhost:5173/_ds`
 
 ## 환경변수
@@ -78,11 +78,15 @@ cd kotlin && SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 
 테스트는 Testcontainers를 쓰므로 Docker만 떠 있으면 된다: `cd kotlin && ./gradlew test`
 
+## 설계 불변식
+
+- PostgreSQL이 진실의 원천(SoT)이다. Qdrant는 파생 인덱스라 언제든 PG에서 다시 만들 수 있어야 한다 (재색인 idempotent)
+- Qdrant 포인트 id = `movie_id`(PG PK). payload에는 필터용 값만 두고, 표시 필드는 PG에서 조립한다
+- 검색 경로에는 외부 API 의존이 없다 — 임베딩은 로컬 bge-m3
+
 ## 문서
 
-- [`docs/CONCEPT.md`](docs/CONCEPT.md) — 서비스 개념·아키텍처
-- [`docs/PLAN.md`](docs/PLAN.md) — Python → Kotlin 전환 계획과 진행 상황
-- [`docs/UI-PLAN.md`](docs/UI-PLAN.md) — UI 기능 기획 + 디자인 시스템 계획
+- 기획·할 일은 [GitHub Issues](https://github.com/whsanha55/cineseek/issues)에서 관리한다 (우선순위 라벨 `P0`~`P3`, 보류 아이디어는 `backlog`)
 - [`kotlin/CLAUDE.md`](kotlin/CLAUDE.md) — Kotlin 코드 컨벤션
 - [`python/README.md`](python/README.md) — 임베딩 서비스 계약(`/embed`)
 

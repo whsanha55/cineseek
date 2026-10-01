@@ -1,6 +1,6 @@
 /**
  * 백엔드 응답 타입 재수출 — 형태는 schema.d.ts(openapi-typescript 생성)가 원천.
- * 수기 도형 선언 금지 (UI-PLAN §5.4). springdoc이 required를 표시하지 않아
+ * 수기 도형 선언 금지. springdoc이 required를 표시하지 않아
  * 전 필드가 옵셔널로 생성되므로 RequiredDeep으로 undefined만 제거한다
  * (null은 그대로 — rating: null 계약 유지)
  */
