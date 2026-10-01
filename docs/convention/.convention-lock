@@ -1,4 +1,4 @@
 source=https://github.com/whsanha55/conventions
-sha=04a627cdb8ac9587a15513c7096e3f25c329033d
-synced_at=2026-09-28T06:13:31Z
+sha=45b4edcb3ba031b6184468b385bdd1343aaa0204
+synced_at=2026-09-28T07:11:25Z
 targets=README.md common backend/common backend/kotlin
