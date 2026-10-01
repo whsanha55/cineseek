@@ -70,7 +70,7 @@ export function SearchBar({ size, initialQuery = "", onEmptySubmit }: SearchBarP
 				className={cn(
 					"w-full rounded-[var(--radius-chip)] border border-border bg-background pl-11 text-foreground shadow-[var(--shadow-sm)]",
 					"placeholder:text-muted-foreground focus:border-primary",
-					size === "hero" ? "h-14 px-5 text-base" : "h-10 pr-4 text-sm",
+					size === "hero" ? "h-14 pr-5 text-base" : "h-10 pr-4 text-sm",
 				)}
 			/>
 		</form>
