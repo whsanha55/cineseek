@@ -17,7 +17,9 @@ conventions/
 │       ├── spring.md      # 패키지, 레이어, Entity, 트랜잭션, 외부 연동
 │       ├── test.md        # 테스트
 │       └── tooling/       # ktlint, detekt, Gradle 설정
-├── frontend/              # 추후 작성
+├── frontend/
+│   ├── common/            # 디자인 시스템, API 연동
+│   └── typescript/        # TypeScript + React, 테스트, tooling
 └── skills/
     └── convention-sync/   # 프로젝트에 컨벤션을 가져오고 최신화하는 Claude Code 스킬
 ```
