@@ -99,6 +99,30 @@ class SearchServiceTest {
     }
 
     @Test
+    fun `runtimeMin runtimeMax voteCountMin voteCountMax 필터가 payload에 적용된다`() {
+        // when
+        val byRuntimeMin = service.search("쿼리", SearchFilter(runtimeMin = 120, limit = 5))
+        val byRuntimeMax = service.search("쿼리", SearchFilter(runtimeMax = 120, limit = 5))
+        val byVoteCountMin = service.search("쿼리", SearchFilter(voteCountMin = 100, limit = 5))
+        val byVoteCountMax = service.search("쿼리", SearchFilter(voteCountMax = 500, limit = 5))
+
+        // then
+        assertThat(byRuntimeMin.hits.map { it.movieId }).containsExactly(1L, 3L)
+        assertThat(byRuntimeMax.hits.map { it.movieId }).containsExactly(2L, 3L)
+        assertThat(byVoteCountMin.hits.map { it.movieId }).containsExactly(1L, 2L)
+        assertThat(byVoteCountMax.hits.map { it.movieId }).containsExactly(2L, 3L)
+    }
+
+    @Test
+    fun `ratingMin과 voteCountMin voteCountMax 조합이 소수 평론가형 영화만 반환한다`() {
+        // when
+        val page = service.search("쿼리", SearchFilter(ratingMin = 7.5, voteCountMin = 50, voteCountMax = 500, limit = 5))
+
+        // then
+        assertThat(page.hits.map { it.movieId }).containsExactly(3L)
+    }
+
+    @Test
     fun `directorId castId 필터가 payload에 적용된다`() {
         // when
         val byDirector = service.search("쿼리", SearchFilter(directorId = 100L, limit = 5))
@@ -182,9 +206,31 @@ class SearchServiceTest {
 
     private fun upsertFixtures() {
         val points = listOf(
-            point(1L, listOf(1f, 0f, 0f, 0f), listOf(1), 2000, 8.5, listOf(28L), listOf(100L), listOf(200L, 201L)),
-            point(2L, listOf(0f, 1f, 0f, 0f), listOf(2), 1995, 7.0, listOf(53L), listOf(101L), listOf(202L)),
-            point(3L, listOf(0f, 0f, 1f, 0f), listOf(3), 2010, 9.0, listOf(28L, 53L), listOf(100L), listOf(200L)),
+            point(
+                1L,
+                listOf(1f, 0f, 0f, 0f),
+                listOf(1),
+                2000,
+                8.5,
+                listOf(28L),
+                listOf(100L),
+                listOf(200L, 201L),
+                142,
+                25000,
+            ),
+            point(2L, listOf(0f, 1f, 0f, 0f), listOf(2), 1995, 7.0, listOf(53L), listOf(101L), listOf(202L), 95, 120),
+            point(
+                3L,
+                listOf(0f, 0f, 1f, 0f),
+                listOf(3),
+                2010,
+                9.0,
+                listOf(28L, 53L),
+                listOf(100L),
+                listOf(200L),
+                120,
+                80,
+            ),
         )
         qdrantClient.upsertAsync("movies", points).get()
     }
@@ -198,6 +244,8 @@ class SearchServiceTest {
         genreIds: List<Long>,
         directorIds: List<Long>,
         castIds: List<Long>,
+        runtime: Int? = null,
+        voteCount: Int? = null,
     ): Points.PointStruct = Points.PointStruct.newBuilder()
         .setId(PointIdFactory.id(id))
         .setVectors(
@@ -210,13 +258,15 @@ class SearchServiceTest {
             ),
         )
         .putAllPayload(
-            mapOf(
-                "release_year" to ValueFactory.value(releaseYear.toLong()),
-                "rating" to ValueFactory.value(rating),
-                "genre_ids" to ValueFactory.list(genreIds.map { ValueFactory.value(it) }),
-                "director_ids" to ValueFactory.list(directorIds.map { ValueFactory.value(it) }),
-                "cast_ids" to ValueFactory.list(castIds.map { ValueFactory.value(it) }),
-            ),
+            buildMap {
+                put("release_year", ValueFactory.value(releaseYear.toLong()))
+                put("rating", ValueFactory.value(rating))
+                put("genre_ids", ValueFactory.list(genreIds.map { ValueFactory.value(it) }))
+                put("director_ids", ValueFactory.list(directorIds.map { ValueFactory.value(it) }))
+                put("cast_ids", ValueFactory.list(castIds.map { ValueFactory.value(it) }))
+                runtime?.let { put("runtime", ValueFactory.value(it.toLong())) }
+                voteCount?.let { put("vote_count", ValueFactory.value(it.toLong())) }
+            },
         )
         .build()
 

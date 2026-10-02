@@ -21,6 +21,7 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
+import java.math.BigDecimal
 
 /**
  * 읽기 전용 영화 조회 — 상세·탐색·장르·인물. 검색·유사 결과의 카드 조립(cards)도 여기서 한다.
@@ -53,7 +54,14 @@ class MovieQueryService(
         return MovieDetail(movie.toCard(), movie.runtime, movie.overview, directors, cast)
     }
 
-    /** 탐색 목록 — offset은 limit의 배수(page * limit)로 들어온다 */
+    /**
+     * 탐색 목록 — offset은 limit의 배수(page * limit)로 들어온다.
+     *
+     * 평점순 정렬은 투표 몇 표짜리 작품이 상위에 오지 않도록 [MIN_VOTES_FOR_RATING] 암시 하한을 건다.
+     * 호출자가 [voteCountMin]을 명시하면 명시값이 우선하고 암시 하한은 적용하지 않는다 —
+     * 명시값과 암시 하한을 둘 다 걸면 "투표 50~500" 숨은 명작 조건이 `1000 이상 AND 500 이하`로
+     * 충돌해 항상 빈 결과가 되기 때문이다. [voteCountMin]이 null이면 기존대로 암시 하한을 적용한다
+     */
     fun explore(
         genreId: Long?,
         sort: ExploreSortEnum,
@@ -61,10 +69,13 @@ class MovieQueryService(
         limit: Int,
         directorId: Long? = null,
         castId: Long? = null,
+        ratingMin: Double? = null,
+        voteCountMin: Int? = null,
+        voteCountMax: Int? = null,
     ): MoviePage {
-        val minVoteCount = if (sort == ExploreSortEnum.RATING) MIN_VOTES_FOR_RATING else null
+        val minVoteCount = voteCountMin ?: if (sort == ExploreSortEnum.RATING) MIN_VOTES_FOR_RATING else null
         val page = movieRepository.findAll(
-            exploreSpec(genreId, minVoteCount, directorId, castId),
+            exploreSpec(genreId, minVoteCount, voteCountMax, directorId, castId, ratingMin),
             PageRequest.of(offset / limit, limit, sortOrder(sort)),
         )
         val ids = page.content.map { requireNotNull(it.movieId) }
@@ -123,26 +134,34 @@ class MovieQueryService(
     }
 
     /** 인물 필터는 부모 참조 없이 movieId 서브쿼리로 비교한다 (컨벤션: 자식은 movieId로 명시적으로) */
-    private fun exploreSpec(genreId: Long?, minVoteCount: Int?, directorId: Long?, castId: Long?) =
-        Specification<MovieEntity> { root, query, cb ->
-            val predicates = buildList {
-                genreId?.let { add(cb.equal(root.join<MovieEntity, GenreEntity>("genres").get<Long>("genreId"), it)) }
-                minVoteCount?.let { add(cb.greaterThanOrEqualTo(root.get("voteCount"), it)) }
-                directorId?.let { pid ->
-                    val sub = query.subquery(Long::class.java)
-                    val d = sub.from(MovieDirectorEntity::class.java)
-                    sub.select(d.get("movieId")).where(cb.equal(d.get<Long>("personId"), pid))
-                    add(root.get<Long>("movieId").`in`(sub))
-                }
-                castId?.let { pid ->
-                    val sub = query.subquery(Long::class.java)
-                    val c = sub.from(MovieCastEntity::class.java)
-                    sub.select(c.get("movieId")).where(cb.equal(c.get<Long>("personId"), pid))
-                    add(root.get<Long>("movieId").`in`(sub))
-                }
+    private fun exploreSpec(
+        genreId: Long?,
+        minVoteCount: Int?,
+        maxVoteCount: Int?,
+        directorId: Long?,
+        castId: Long?,
+        ratingMin: Double?,
+    ) = Specification<MovieEntity> { root, query, cb ->
+        val predicates = buildList {
+            genreId?.let { add(cb.equal(root.join<MovieEntity, GenreEntity>("genres").get<Long>("genreId"), it)) }
+            minVoteCount?.let { add(cb.greaterThanOrEqualTo(root.get("voteCount"), it)) }
+            maxVoteCount?.let { add(cb.lessThanOrEqualTo(root.get("voteCount"), it)) }
+            ratingMin?.let { add(cb.greaterThanOrEqualTo(root.get("voteAverage"), BigDecimal.valueOf(it))) }
+            directorId?.let { pid ->
+                val sub = query.subquery(Long::class.java)
+                val d = sub.from(MovieDirectorEntity::class.java)
+                sub.select(d.get("movieId")).where(cb.equal(d.get<Long>("personId"), pid))
+                add(root.get<Long>("movieId").`in`(sub))
             }
-            cb.and(*predicates.toTypedArray())
+            castId?.let { pid ->
+                val sub = query.subquery(Long::class.java)
+                val c = sub.from(MovieCastEntity::class.java)
+                sub.select(c.get("movieId")).where(cb.equal(c.get<Long>("personId"), pid))
+                add(root.get<Long>("movieId").`in`(sub))
+            }
         }
+        cb.and(*predicates.toTypedArray())
+    }
 
     private fun MovieEntity.toCard() = MovieCard(
         movieId = requireNotNull(movieId),

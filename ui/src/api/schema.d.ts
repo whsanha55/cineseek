@@ -279,6 +279,26 @@ export interface operations {
                  */
                 ratingMin?: number;
                 /**
+                 * @description 러닝타임 하한 (분)
+                 * @example 90
+                 */
+                runtimeMin?: number;
+                /**
+                 * @description 러닝타임 상한 (분)
+                 * @example 150
+                 */
+                runtimeMax?: number;
+                /**
+                 * @description 투표 수 하한 — 숨은 명작 탐색용
+                 * @example 50
+                 */
+                voteCountMin?: number;
+                /**
+                 * @description 투표 수 상한 — 숨은 명작 탐색용
+                 * @example 500
+                 */
+                voteCountMax?: number;
+                /**
                  * @description 감독 person id
                  * @example 525
                  */
@@ -408,6 +428,21 @@ export interface operations {
                  * @example 3895
                  */
                 castId?: number;
+                /**
+                 * @description 평점 하한 (0~10)
+                 * @example 7.5
+                 */
+                ratingMin?: number;
+                /**
+                 * @description 최소 투표 수 — 명시하면 평점순 암시 하한(1000) 대신 적용
+                 * @example 50
+                 */
+                voteCountMin?: number;
+                /**
+                 * @description 최대 투표 수 (숨은 명작 탐색용)
+                 * @example 500
+                 */
+                voteCountMax?: number;
             };
             header?: never;
             path?: never;

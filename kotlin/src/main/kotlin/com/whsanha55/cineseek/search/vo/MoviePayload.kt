@@ -8,4 +8,8 @@ data class MoviePayload(
     val genreIds: List<Long>,
     val directorIds: List<Long>, // 상위 3명
     val castIds: List<Long>, // 상위 5명
+    /** 러닝타임(분) */
+    val runtime: Int? = null,
+    /** 숨은 명작 걸러내기용 투표 수 */
+    val voteCount: Int? = null,
 )

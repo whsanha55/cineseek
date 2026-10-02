@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+	HIDDEN_GEM_PRESET,
+	isHiddenGem,
 	parseExploreState,
 	parseSearchState,
 	searchToExploreState,
@@ -17,6 +19,10 @@ describe("parseSearchState", () => {
 			ratingMin: null,
 			directorId: null,
 			castId: null,
+			runtimeMin: null,
+			runtimeMax: null,
+			voteCountMin: null,
+			voteCountMax: null,
 			limit: 20,
 		});
 	});
@@ -45,6 +51,24 @@ describe("parseSearchState", () => {
 		expect(s.yearMin).toBe(2020);
 		expect(s.yearMax).toBe(2000);
 	});
+
+	it("러닝타임은 0~600으로 클램프한다", () => {
+		const s = parseSearchState(new URLSearchParams("runtimeMin=90&runtimeMax=601"));
+		expect(s.runtimeMin).toBe(90);
+		expect(s.runtimeMax).toBe(600);
+		expect(parseSearchState(new URLSearchParams("runtimeMin=-5")).runtimeMin).toBe(0);
+	});
+
+	it("voteCount는 양수만 통과한다 — 음수·0은 버린다", () => {
+		const s = parseSearchState(new URLSearchParams("voteCountMin=50&voteCountMax=0"));
+		expect(s.voteCountMin).toBe(50);
+		expect(s.voteCountMax).toBeNull();
+		expect(parseSearchState(new URLSearchParams("voteCountMin=-1")).voteCountMin).toBeNull();
+	});
+
+	it("ratingMin은 소수(7.5)를 허용한다 — 숨은 명작 프리셋", () => {
+		expect(parseSearchState(new URLSearchParams("ratingMin=7.5")).ratingMin).toBe(7.5);
+	});
 });
 
 describe("serializeSearchState", () => {
@@ -57,6 +81,10 @@ describe("serializeSearchState", () => {
 			ratingMin: null,
 			directorId: null,
 			castId: null,
+			runtimeMin: null,
+			runtimeMax: null,
+			voteCountMin: null,
+			voteCountMax: null,
 			limit: 20,
 		});
 		expect(out.toString()).toBe("q=%EC%9A%B0%EC%A3%BC");
@@ -65,6 +93,17 @@ describe("serializeSearchState", () => {
 	it("다중 genreId는 반복 파라미터로 직렬화한다", () => {
 		const out = serializeSearchState(parseSearchState(new URLSearchParams("genreId=28&genreId=53")));
 		expect(out.getAll("genreId")).toEqual(["28", "53"]);
+	});
+
+	it("runtime·voteCount는 null이면 생략, 값이 있으면 싣는다", () => {
+		const withValues = parseSearchState(
+			new URLSearchParams("runtimeMin=60&voteCountMin=50&voteCountMax=500"),
+		);
+		expect(serializeSearchState(withValues).toString()).toBe(
+			"runtimeMin=60&voteCountMin=50&voteCountMax=500",
+		);
+		const empty = parseSearchState(new URLSearchParams(""));
+		expect(serializeSearchState(empty).toString()).toBe("");
 	});
 });
 
@@ -79,6 +118,32 @@ describe("explore 상태", () => {
 	it("잘못된 sort는 기본값(rating)으로", () => {
 		expect(parseExploreState(new URLSearchParams("sort=popular")).sort).toBe("rating");
 	});
+
+	it("ratingMin·voteCount를 파싱하고 null이면 생략한다", () => {
+		const state = parseExploreState(
+			new URLSearchParams("ratingMin=7.5&voteCountMin=50&voteCountMax=500"),
+		);
+		expect(state).toMatchObject({ ratingMin: 7.5, voteCountMin: 50, voteCountMax: 500 });
+		expect(serializeExploreState(state).toString()).toBe(
+			"ratingMin=7.5&voteCountMin=50&voteCountMax=500",
+		);
+		expect(parseExploreState(new URLSearchParams("ratingMin=99&voteCountMin=0")).ratingMin).toBeNull();
+	});
+});
+
+describe("isHiddenGem", () => {
+	it("프리셋 3값과 정확히 일치할 때만 true", () => {
+		expect(isHiddenGem(HIDDEN_GEM_PRESET)).toBe(true);
+		expect(
+			isHiddenGem({ ratingMin: 7.5, voteCountMin: 50, voteCountMax: 500 }),
+		).toBe(true);
+	});
+
+	it("일부만 겹치면 false — ratingMin만 있을 때·값이 다를 때", () => {
+		expect(isHiddenGem({ ratingMin: 7.5, voteCountMin: null, voteCountMax: null })).toBe(false);
+		expect(isHiddenGem({ ratingMin: 7, voteCountMin: 50, voteCountMax: 500 })).toBe(false);
+		expect(isHiddenGem({ ratingMin: null, voteCountMin: null, voteCountMax: null })).toBe(false);
+	});
 });
 
 describe("searchToExploreState", () => {
@@ -91,6 +156,16 @@ describe("searchToExploreState", () => {
 			limit: 20,
 			directorId: 525,
 			castId: null,
+			ratingMin: 7,
+			voteCountMin: null,
+			voteCountMax: null,
 		});
+	});
+
+	it("ratingMin·voteCount를 이관한다 — 검색에서 숨은 명작을 켠 채 검색어를 지우면 /explore에서 유지", () => {
+		const s = parseSearchState(
+			new URLSearchParams("ratingMin=7.5&voteCountMin=50&voteCountMax=500"),
+		);
+		expect(searchToExploreState(s)).toMatchObject(HIDDEN_GEM_PRESET);
 	});
 });

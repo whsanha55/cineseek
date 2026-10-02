@@ -107,6 +107,61 @@ class MovieQueryServiceTest {
     }
 
     @Test
+    fun `explore 숨은 명작 — 평점·투표 수 범위를 명시하면 암시 하한 1000 대신 명시값을 쓴다`() {
+        // given — 투표 200표 고평점(숨은 명작)과 2000표 고평점 대작
+        val action = genreRepository.findById(28L).orElseThrow()
+        val hiddenGem = save(
+            MovieEntity(
+                tmdbId = 761_053L,
+                title = "숨은 명작",
+                overview = "표는 적지만 평가가 좋은 영화",
+                releaseDate = LocalDate.of(1995, 10, 20),
+                releaseYear = 1995,
+                voteAverage = BigDecimal("7.8"),
+                voteCount = 200,
+            ),
+            action,
+        )
+        save(
+            MovieEntity(
+                tmdbId = 696_374L,
+                title = "흥행 대작",
+                overview = "표가 많고 평가도 좋은 영화",
+                releaseDate = LocalDate.of(2023, 7, 19),
+                releaseYear = 2023,
+                voteAverage = BigDecimal("8.2"),
+                voteCount = 2000,
+            ),
+            action,
+        )
+
+        // when
+        val page = service.explore(
+            null,
+            ExploreSortEnum.RATING,
+            offset = 0,
+            limit = 10,
+            ratingMin = 7.5,
+            voteCountMin = 50,
+            voteCountMax = 500,
+        )
+
+        // then — 명시 하한 50이 암시 하한 1000을 대체하고, 2000표 대작과 999~3000표 기존 fixture는 상한 500에 걸려 빠진다
+        assertThat(page.items.map { it.movieId }).containsExactly(hiddenGem)
+    }
+
+    @Test
+    fun `explore voteCountMin 없이 ratingMin만 쓰면 소수 투표 고평점 작품이 섞인다`() {
+        // when
+        val byRelease = service.explore(null, ExploreSortEnum.RELEASE, offset = 0, limit = 10, ratingMin = 7.5)
+        val byRating = service.explore(null, ExploreSortEnum.RATING, offset = 0, limit = 10, ratingMin = 7.5)
+
+        // then — 평점순이 아니면 암시 하한이 없어 매트릭스(9.0, 999표)가 그대로 섞이고, 평점순은 기존대로 암시 하한 1000을 유지한다
+        assertThat(byRelease.items.map { it.movieId }).containsExactly(laLaLand, darkKnight, matrix)
+        assertThat(byRating.items.map { it.movieId }).containsExactly(darkKnight, laLaLand)
+    }
+
+    @Test
     fun `detail — 출연진은 castOrder 상위 5명, 감독 포함`() {
         // when
         val detail = service.detail(darkKnight)

@@ -24,6 +24,26 @@ data class SearchRequest(
     @field:Schema(description = "평점 하한 (0~10)", example = "7.5")
     val ratingMin: Double? = null,
 
+    @field:Schema(description = "러닝타임 하한 (분)", example = "90")
+    @field:Min(0)
+    @field:Max(MAX_RUNTIME)
+    val runtimeMin: Int? = null,
+
+    @field:Schema(description = "러닝타임 상한 (분)", example = "150")
+    @field:Min(0)
+    @field:Max(MAX_RUNTIME)
+    val runtimeMax: Int? = null,
+
+    @field:Schema(description = "투표 수 하한 — 숨은 명작 탐색용", example = "50")
+    @field:Min(0)
+    @field:Max(MAX_VOTE_COUNT)
+    val voteCountMin: Int? = null,
+
+    @field:Schema(description = "투표 수 상한 — 숨은 명작 탐색용", example = "500")
+    @field:Min(0)
+    @field:Max(MAX_VOTE_COUNT)
+    val voteCountMax: Int? = null,
+
     @field:Schema(description = "감독 person id", example = "525")
     val directorId: Long? = null,
 
@@ -44,6 +64,10 @@ data class SearchRequest(
         yearMin = yearMin,
         yearMax = yearMax,
         ratingMin = ratingMin,
+        runtimeMin = runtimeMin,
+        runtimeMax = runtimeMax,
+        voteCountMin = voteCountMin,
+        voteCountMax = voteCountMax,
         directorId = directorId,
         castId = castId,
         limit = limit,
@@ -53,6 +77,8 @@ data class SearchRequest(
     companion object {
         const val DEFAULT_LIMIT = 20
         const val MAX_LIMIT = 50L
+        const val MAX_RUNTIME = 1000L
+        const val MAX_VOTE_COUNT = 1_000_000L
     }
 }
 

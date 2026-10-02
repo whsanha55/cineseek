@@ -35,6 +35,10 @@ class MovieEntity(
     val backdropPath: String? = null,
     val originalLanguage: String? = null,
     overviewUpdatedAt: Instant? = null,
+    moodTags: String? = null,
+    moodDesc: String? = null,
+    moodModel: String? = null,
+    moodTaggedAt: Instant? = null,
 ) : BaseEntity() {
 
     @Id
@@ -70,6 +74,18 @@ class MovieEntity(
     var overviewUpdatedAt: Instant? = overviewUpdatedAt
         protected set
 
+    var moodTags: String? = moodTags
+        protected set
+
+    var moodDesc: String? = moodDesc
+        protected set
+
+    var moodModel: String? = moodModel
+        protected set
+
+    var moodTaggedAt: Instant? = moodTaggedAt
+        protected set
+
     @ManyToMany
     @JoinTable(
         name = "movie_genre",
@@ -89,6 +105,14 @@ class MovieEntity(
         voteCount = tmdb.voteCount
         posterPath = tmdb.posterPath
         overviewUpdatedAt = now
+    }
+
+    /** LLM 분위기 태그 저장 — updateFrom(TMDB 재수집)이 건드리지 않는 필드다 */
+    fun applyMood(tags: String, desc: String, model: String, now: Instant) {
+        moodTags = tags
+        moodDesc = desc
+        moodModel = model
+        moodTaggedAt = now
     }
 
     fun replaceGenres(newGenres: Collection<GenreEntity>) {

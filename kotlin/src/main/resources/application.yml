@@ -12,6 +12,11 @@ spring:
     open-in-view: false  # 트랜잭션 밖 지연 로딩 금지 — 필요한 연관은 fetch join·@EntityGraph로 한 번에
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 100  # 자식(director·cast, 복합키) insert 배치 — movie는 IDENTITY라 배치 불가
+        order_inserts: true
 
 logging:
   pattern:
@@ -23,6 +28,10 @@ cineseek:
     batch-size: 64          # /embed 요청 분할 단위 (계약: 1회 최대 64개)
   index:
     upsert-batch-size: 256  # Qdrant upsert 단위
+  llm:
+    base-url: ${LLM_BASE_URL:https://api.openai.com/v1}  # OpenAI 호환 엔드포인트 루트
+    api-key: ${LLM_API_KEY:}  # 비어 있으면 분위기 태깅 배치를 건너뛴다 (컨테이너 주입은 compose env_file)
+    model: ${LLM_MODEL:gpt-4o-mini}
   tmdb:
     base-url: https://api.themoviedb.org/3
     access-token: ${TMDB_ACCESS_TOKEN:}

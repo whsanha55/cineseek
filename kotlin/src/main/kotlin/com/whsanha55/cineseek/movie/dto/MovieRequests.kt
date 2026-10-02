@@ -2,6 +2,8 @@ package com.whsanha55.cineseek.movie.dto
 
 import com.whsanha55.cineseek.movie.enums.ExploreSortEnum
 import io.swagger.v3.oas.annotations.media.Schema
+import jakarta.validation.constraints.DecimalMax
+import jakarta.validation.constraints.DecimalMin
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
@@ -30,12 +32,28 @@ data class MovieExploreRequest(
 
     @field:Schema(description = "배우 person id", example = "3895")
     val castId: Long? = null,
+
+    @field:Schema(description = "평점 하한 (0~10)", example = "7.5")
+    @field:DecimalMin("0.0")
+    @field:DecimalMax("10.0")
+    val ratingMin: Double? = null,
+
+    @field:Schema(description = "최소 투표 수 — 명시하면 평점순 암시 하한(1000) 대신 적용", example = "50")
+    @field:Min(0)
+    @field:Max(MAX_VOTE_COUNT)
+    val voteCountMin: Int? = null,
+
+    @field:Schema(description = "최대 투표 수 (숨은 명작 탐색용)", example = "500")
+    @field:Min(0)
+    @field:Max(MAX_VOTE_COUNT)
+    val voteCountMax: Int? = null,
 ) {
     fun sortEnum() = ExploreSortEnum.fromParam(sort)
 
     companion object {
         const val DEFAULT_LIMIT = 20
         const val MAX_LIMIT = 50L
+        const val MAX_VOTE_COUNT = 1_000_000L
     }
 }
 

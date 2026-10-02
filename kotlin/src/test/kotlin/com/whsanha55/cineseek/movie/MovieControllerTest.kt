@@ -87,6 +87,28 @@ class MovieControllerTest {
     }
 
     @Test
+    fun `탐색은 평점·투표 수 필터를 서비스에 전달한다`() {
+        // given
+        every {
+            movieQueryService.explore(null, ExploreSortEnum.RATING, 0, 20, null, null, 7.5, 50, 500)
+        } returns MoviePage(items = listOf(card()), limit = 20, offset = 0, hasNext = false)
+
+        // when
+        val result = mockMvc.get("/cineseek/movies") {
+            param("ratingMin", "7.5")
+            param("voteCountMin", "50")
+            param("voteCountMax", "500")
+        }
+
+        // then
+        result.andExpect {
+            status { isOk() }
+            jsonPath("$.items[0].movieId") { value(1) }
+            jsonPath("$.page.offset") { value(0) }
+        }
+    }
+
+    @Test
     fun `잘못된 sort는 400으로 응답한다`() {
         // when
         val result = mockMvc.get("/cineseek/movies") { param("sort", "popular") }

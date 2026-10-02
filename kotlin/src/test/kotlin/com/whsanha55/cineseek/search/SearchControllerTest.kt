@@ -57,6 +57,30 @@ class SearchControllerTest {
     }
 
     @Test
+    fun `runtime과 voteCount 파라미터가 필터로 전달된다`() {
+        // given
+        val filter = SearchFilter(runtimeMin = 90, runtimeMax = 180, voteCountMin = 50, voteCountMax = 500)
+        every { searchFacade.search("다큐멘터리", filter) } returns
+            SearchItems(listOf(ScoredMovieCard(card(), 0.021)), limit = 20, offset = 0, hasNext = false)
+
+        // when
+        val result = mockMvc.get("/cineseek/search") {
+            param("q", "다큐멘터리")
+            param("runtimeMin", "90")
+            param("runtimeMax", "180")
+            param("voteCountMin", "50")
+            param("voteCountMax", "500")
+        }
+
+        // then
+        result.andExpect {
+            status { isOk() }
+            jsonPath("$.items[0].movieId") { value(1) }
+            jsonPath("$.page.hasNext") { value(false) }
+        }
+    }
+
+    @Test
     fun `유사 영화는 페이지네이션 없이 응답한다`() {
         // given
         every { searchFacade.similar(1L, 8) } returns listOf(ScoredMovieCard(card(), 0.95))

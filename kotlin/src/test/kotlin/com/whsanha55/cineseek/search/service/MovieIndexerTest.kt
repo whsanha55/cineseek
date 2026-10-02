@@ -11,6 +11,7 @@ import com.whsanha55.cineseek.search.vo.MoviePayload
 import io.qdrant.client.PointIdFactory
 import io.qdrant.client.QdrantClient
 import io.qdrant.client.QdrantGrpcClient
+import io.qdrant.client.ValueFactory
 import io.qdrant.client.grpc.JsonWithInt
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
+import java.security.MessageDigest
 
 /** MovieIndexer — 실제 Qdrant 컨테이너 + 임베딩 스텁으로 컬렉션 재생성·upsert 검증 */
 class MovieIndexerTest {
@@ -52,10 +54,10 @@ class MovieIndexerTest {
     }
 
     @Test
-    fun `재실행하면 줄거리가 같은 영화는 다시 임베딩하지 않는다`() {
+    fun `재실행하면 임베딩 입력이 같은 영화는 다시 임베딩하지 않는다`() {
         // given
         stubEmbed()
-        val movies = (1L..3L).map { movie(it, "줄거리 $it") }
+        val movies = (1L..3L).map { movie(it, "임베딩 입력 $it") }
 
         // when
         val first = indexer.index(movies)
@@ -69,11 +71,11 @@ class MovieIndexerTest {
     }
 
     @Test
-    fun `줄거리가 바뀐 영화만 다시 임베딩하고 나머지는 payload만 갱신한다`() {
+    fun `임베딩 입력이 바뀐 영화만 다시 임베딩하고 나머지는 payload만 갱신한다`() {
         // given
         stubEmbed()
-        indexer.index(listOf(movie(1L, "줄거리 1"), movie(2L, "줄거리 2")))
-        val updated = listOf(movie(1L, "줄거리 1", rating = 9.5), movie(2L, "바뀐 줄거리 2"))
+        indexer.index(listOf(movie(1L, "임베딩 입력 1"), movie(2L, "임베딩 입력 2")))
+        val updated = listOf(movie(1L, "임베딩 입력 1", rating = 9.5), movie(2L, "바뀐 임베딩 입력 2"))
 
         // when
         val embedded = indexer.index(updated)
@@ -87,9 +89,9 @@ class MovieIndexerTest {
         assertThat(point1.payloadMap["rating"]?.doubleValue).isEqualTo(9.5)
     }
 
-    private fun movie(id: Long, overview: String, rating: Double = 8.0) = IndexedMovie(
+    private fun movie(id: Long, embeddingInput: String, rating: Double = 8.0) = IndexedMovie(
         id,
-        overview,
+        embeddingInput,
         MoviePayload("영화$id", 2000, rating, listOf(28L), listOf(100L + id), listOf(200L + id)),
     )
 
@@ -98,7 +100,7 @@ class MovieIndexerTest {
         // given
         stubEmbed()
         val payload = MoviePayload("영화", 2000, 8.0, listOf(28L), listOf(100L), listOf(200L, 201L))
-        val movie = IndexedMovie(1L, "줄거리", payload)
+        val movie = IndexedMovie(1L, "임베딩 입력", payload)
 
         // when
         indexer.index(listOf(movie))
@@ -115,6 +117,63 @@ class MovieIndexerTest {
 
     private fun Map<String, JsonWithInt.Value>.ids(key: String) =
         get(key)?.listValue?.valuesList?.map { it.integerValue }
+
+    @Test
+    fun `payload에 runtime과 vote_count가 내려간다`() {
+        // given
+        stubEmbed()
+        val payload =
+            MoviePayload("영화", 2000, 8.0, listOf(28L), listOf(100L), listOf(200L), runtime = 142, voteCount = 25000)
+        indexer.index(listOf(IndexedMovie(1L, "임베딩 입력", payload)))
+
+        // when
+        val point = qdrantClient
+            .retrieveAsync("movies", listOf(PointIdFactory.id(1L)), true, false, null)
+            .get()
+            .single()
+
+        // then
+        assertThat(point.payloadMap["runtime"]?.integerValue).isEqualTo(142L)
+        assertThat(point.payloadMap["vote_count"]?.integerValue).isEqualTo(25000L)
+    }
+
+    @Test
+    fun `해시 키는 input_hash로 저장되고 이전 방식 overview_hash 포인트는 다시 임베딩된다`() {
+        // given
+        stubEmbed()
+        val movies = listOf(movie(1L, "임베딩 입력 1"), movie(2L, "임베딩 입력 2"))
+        indexer.index(movies)
+        overwriteWithOldHashKey(movies[1])
+
+        // when
+        val embedded = indexer.index(movies)
+        val points = qdrantClient
+            .retrieveAsync("movies", listOf(PointIdFactory.id(1L), PointIdFactory.id(2L)), true, false, null)
+            .get()
+            .associateBy { it.id.num }
+
+        // then
+        assertThat(embedded).isEqualTo(1) // input_hash가 없는 포인트 2만 재임베딩
+        points.values.forEach { point ->
+            assertThat(point.payloadMap).containsKey("input_hash")
+            assertThat(point.payloadMap).doesNotContainKey("overview_hash")
+        }
+    }
+
+    /** 포인트 2의 payload를 이전 방식(overview_hash 키, 해시 값은 새 입력과 동일)으로 바꾼다 — 벡터는 그대로 */
+    private fun overwriteWithOldHashKey(movie: IndexedMovie) {
+        qdrantClient.overwritePayloadAsync(
+            "movies",
+            mapOf("overview_hash" to ValueFactory.value(sha256(movie.embeddingInput))),
+            PointIdFactory.id(movie.movieId),
+            true,
+            null,
+            null,
+        ).get()
+    }
+
+    private fun sha256(text: String): String =
+        MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).toHexString()
 
     /** dense 1024(bge-m3 차원) 스텁 — 요청 3텍스트에 대해 항목 3개 반환 */
     private fun stubEmbed() {

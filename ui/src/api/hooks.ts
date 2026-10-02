@@ -24,6 +24,10 @@ export function useSearch(state: SearchState, enabled = true) {
 				ratingMin: state.ratingMin,
 				directorId: state.directorId,
 				castId: state.castId,
+				runtimeMin: state.runtimeMin,
+				runtimeMax: state.runtimeMax,
+				voteCountMin: state.voteCountMin,
+				voteCountMax: state.voteCountMax,
 				limit: state.limit,
 			}),
 	});
@@ -52,6 +56,9 @@ export interface ExploreQuery {
 	limit: number;
 	directorId: number | null;
 	castId: number | null;
+	ratingMin: number | null;
+	voteCountMin: number | null;
+	voteCountMax: number | null;
 }
 
 export function useExplore(query: ExploreQuery) {
@@ -65,6 +72,9 @@ export function useExplore(query: ExploreQuery) {
 				limit: query.limit,
 				directorId: query.directorId,
 				castId: query.castId,
+				ratingMin: query.ratingMin,
+				voteCountMin: query.voteCountMin,
+				voteCountMax: query.voteCountMax,
 			}),
 	});
 }

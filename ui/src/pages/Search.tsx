@@ -61,6 +61,10 @@ export function Search() {
 						ratingMin: null,
 						directorId: null,
 						castId: null,
+						runtimeMin: null,
+						runtimeMax: null,
+						voteCountMin: null,
+						voteCountMax: null,
 					})
 				}
 			/>
@@ -79,6 +83,10 @@ export function Search() {
 							ratingMin: null,
 							directorId: null,
 							castId: null,
+							runtimeMin: null,
+							runtimeMax: null,
+							voteCountMin: null,
+							voteCountMax: null,
 						})
 					}
 					onResetAll={() => patch({ ...DEFAULT_SEARCH_STATE, q: state.q })}
