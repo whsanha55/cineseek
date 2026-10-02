@@ -11,6 +11,8 @@ interface MovieRepository :
 
     fun findByTmdbId(tmdbId: Long): MovieEntity?
 
+    fun findAllByTmdbIdIn(tmdbIds: Collection<Long>): List<MovieEntity>
+
     /** 색인 시 genres 즉시 로딩 (트랜잭션 밖 payload 조립용) */
     @EntityGraph(attributePaths = ["genres"])
     override fun findAll(): List<MovieEntity>
