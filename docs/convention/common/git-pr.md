@@ -85,7 +85,7 @@ hotfix/WLT-7-settlement-timeout
 
 ## 5. PR 본문
 
-[`tooling/pull_request_template.md`](tooling/pull_request_template.md)를 프로젝트의 `.github/pull_request_template.md`로 둔다.
+아래 양식을 따른다.
 
 ```markdown
 ## 변경 내용

@@ -1,4 +1,4 @@
-source=https://github.com/whsanha55/conventions
-sha=45b4edcb3ba031b6184468b385bdd1343aaa0204
-synced_at=2026-09-28T07:11:25Z
+source=https://github.com/whsanha55/claude-code-skills
+sha=ba8c5c782590f132a38868bdc4e71971d3517d83
+synced_at=2026-10-02T01:40:39Z
 targets=README.md common backend/common backend/kotlin

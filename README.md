@@ -93,5 +93,5 @@ cd kotlin && SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 <!-- convention:start -->
 ## Convention
 
-이 프로젝트는 [whsanha55/conventions](https://github.com/whsanha55/conventions) (`45b4edc`)를 따른다. 문서는 `docs/convention/`에 있고, 프로젝트 예외는 `docs/convention/LOCAL.md`에 적는다.
+이 프로젝트는 개인 컨벤션 [whsanha55/claude-code-skills/conventions](https://github.com/whsanha55/claude-code-skills/tree/main/conventions)를 따른다. 문서는 `docs/convention/`에 있고, 프로젝트 예외는 `docs/convention/LOCAL.md`에 적는다.
 <!-- convention:end -->
