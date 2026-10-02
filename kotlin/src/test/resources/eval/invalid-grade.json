@@ -1,0 +1,9 @@
+[
+  {
+    "query": "감옥에서 탈출하는 이야기",
+    "type": "PLOT",
+    "labels": [
+      { "tmdbId": 278, "title": "쇼생크 탈출", "grade": 3 }
+    ]
+  }
+]
