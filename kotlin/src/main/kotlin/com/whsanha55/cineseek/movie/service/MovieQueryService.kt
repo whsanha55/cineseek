@@ -162,6 +162,6 @@ class MovieQueryService(
         private const val CAST_DETAIL_LIMIT = 5
         private const val PEOPLE_LIMIT = 10
         private const val KNOWN_FOR_LIMIT = 2
-        private const val MIN_VOTES_FOR_RATING = 100 // 평점순에서 투표 몇 표짜리 영화가 상위에 오지 않게
+        private const val MIN_VOTES_FOR_RATING = 1000 // 평점순에서 투표 몇 표짜리 영화가 상위에 오지 않게
     }
 }

@@ -78,7 +78,7 @@ class MovieQueryServiceTest {
         val first = service.explore(null, ExploreSortEnum.RATING, offset = 0, limit = 1)
         val all = service.explore(null, ExploreSortEnum.RATING, offset = 0, limit = 10)
 
-        // then — 매트릭스(9.0, 50표)는 MIN_VOTES 미만이라 빠진다
+        // then — 매트릭스(9.0, 999표)는 MIN_VOTES(1000) 미만이라 빠진다
         assertThat(first.items.map { it.movieId }).containsExactly(darkKnight)
         assertThat(first.hasNext).isTrue()
         assertThat(all.items.map { it.movieId }).containsExactly(darkKnight, laLaLand)
@@ -92,7 +92,7 @@ class MovieQueryServiceTest {
 
         // then
         assertThat(byGenre.items.map { it.movieId }).containsExactly(darkKnight, matrix)
-        assertThat(byVotes.items.map { it.voteCount }).containsExactly(3000, 1000, 50)
+        assertThat(byVotes.items.map { it.voteCount }).containsExactly(3000, 1000, 999)
     }
 
     @Test
@@ -142,7 +142,7 @@ class MovieQueryServiceTest {
         assertThrows<MovieException> { service.person(999_999L, "director") }
     }
 
-    /** 매트릭스(originalTitle 없음, 투표 50) · 다크나이트(8.5/3000표) · 라라랜드(8.0/1000표). 놀란은 두 작품 */
+    /** 매트릭스(originalTitle 없음, 투표 999) · 다크나이트(8.5/3000표) · 라라랜드(8.0/1000표). 놀란은 두 작품 */
     private fun seed() {
         val action = genreRepository.save(GenreEntity(genreId = 28L, name = "Action", nameKo = "액션"))
         val romance = genreRepository.save(GenreEntity(genreId = 10749L, name = "Romance", nameKo = "로맨스"))
@@ -155,7 +155,7 @@ class MovieQueryServiceTest {
                 releaseDate = LocalDate.of(1999, 3, 31),
                 releaseYear = 1999,
                 voteAverage = BigDecimal("9.0"),
-                voteCount = 50,
+                voteCount = 999,
             ),
             action,
         )
