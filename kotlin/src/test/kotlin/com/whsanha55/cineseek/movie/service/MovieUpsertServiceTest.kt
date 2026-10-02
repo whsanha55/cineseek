@@ -106,4 +106,22 @@ class MovieUpsertServiceTest {
         assertThat(movieCastRepository.findAllByMovieId(second)).hasSize(10) // 상위 10 제한
         assertThat(movieDirectorRepository.count()).isEqualTo(1L) // 지우고 다시 삽입 — 1명 유지
     }
+
+    @Test
+    fun `mood 태그 저장 후 재 upsert — TMDB 갱신이 mood 필드를 건드리지 않는다`() {
+        // given
+        service.upsert(tmdbMovie())
+        movieRepository.findByTmdbId(155L)!!.applyMood("다크,긴장,히어로", "치열한 대결", "gpt-4o-mini/abc12345", NOW)
+
+        // when
+        service.upsert(tmdbMovie(title = "다크 나이트 디럭스"))
+
+        // then
+        val found = movieRepository.findByTmdbId(155L)!!
+        assertThat(found.title).isEqualTo("다크 나이트 디럭스") // TMDB 필드는 갱신
+        assertThat(found.moodTags).isEqualTo("다크,긴장,히어로")
+        assertThat(found.moodDesc).isEqualTo("치열한 대결")
+        assertThat(found.moodModel).isEqualTo("gpt-4o-mini/abc12345")
+        assertThat(found.moodTaggedAt).isEqualTo(NOW)
+    }
 }

@@ -5,9 +5,11 @@ import com.whsanha55.cineseek.external.tmdb.config.TmdbProperties
 import com.whsanha55.cineseek.movie.repository.MovieCastRepository
 import com.whsanha55.cineseek.movie.repository.MovieDirectorRepository
 import com.whsanha55.cineseek.movie.repository.MovieRepository
+import com.whsanha55.cineseek.movie.service.MovieMoodTagger
 import com.whsanha55.cineseek.movie.service.MovieUpsertService
 import com.whsanha55.cineseek.movie.vo.TmdbMovie
 import com.whsanha55.cineseek.search.service.MovieIndexer
+import com.whsanha55.cineseek.search.vo.EmbeddingText
 import com.whsanha55.cineseek.search.vo.IndexedMovie
 import com.whsanha55.cineseek.search.vo.MoviePayload
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -35,6 +37,7 @@ class ReindexJob(
     private val movieRepository: MovieRepository,
     private val movieDirectorRepository: MovieDirectorRepository,
     private val movieCastRepository: MovieCastRepository,
+    private val moodTagger: MovieMoodTagger,
     private val indexer: MovieIndexer,
 ) : ApplicationRunner {
 
@@ -47,6 +50,9 @@ class ReindexJob(
 
         val stored = movies.mapNotNull { upsertSafe(it) }
         log.info { "PG 적재 완료. stored=${stored.size}" }
+
+        val tagged = moodTagger.tagAll()
+        log.info { "분위기 태그. tagged=$tagged" }
 
         val indexed = buildIndexedMovies()
         val embedded = indexer.index(indexed)
@@ -85,7 +91,7 @@ class ReindexJob(
         .onFailure { log.warn(it) { "upsert 스킵. tmdbId=${m.tmdbId}" } }
         .getOrNull()
 
-    /** PG에서 payload를 만들어 색인 입력 조립 — SoT 기준 */
+    /** PG에서 임베딩 입력(EmbeddingText)과 payload를 조립 — SoT 기준. 장르명은 nameKo 우선 */
     private fun buildIndexedMovies(): List<IndexedMovie> = movieRepository.findAll().mapNotNull { movie ->
         val overview = movie.overview ?: return@mapNotNull null // 임베딩 불가 → 스킵
         val movieId = requireNotNull(movie.movieId) { "조회한 영화에 movieId가 없다. tmdbId=${movie.tmdbId}" }
@@ -93,7 +99,14 @@ class ReindexJob(
         val cast = movieCastRepository.findAllByMovieId(movieId)
         IndexedMovie(
             movieId = movieId,
-            overview = overview,
+            embeddingInput = EmbeddingText.assemble(
+                title = movie.title,
+                originalTitle = movie.originalTitle,
+                genreNames = movie.genres.map { it.nameKo ?: it.name },
+                moodTags = movie.moodTags?.split(", ")?.filter { it.isNotBlank() } ?: emptyList(),
+                moodDesc = movie.moodDesc,
+                overview = overview,
+            ),
             payload = MoviePayload(
                 title = movie.title,
                 releaseYear = movie.releaseYear,
@@ -101,6 +114,8 @@ class ReindexJob(
                 genreIds = movie.genres.map { it.genreId },
                 directorIds = directors.map { it.personId }.take(3),
                 castIds = cast.sortedBy { it.castOrder }.map { it.personId }.take(5),
+                runtime = movie.runtime,
+                voteCount = movie.voteCount,
             ),
         )
     }

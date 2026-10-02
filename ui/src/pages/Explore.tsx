@@ -1,10 +1,12 @@
 import { useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useExplore, useGenres, usePerson } from "../api/hooks";
+import { HiddenGemToggle } from "../components/HiddenGemToggle";
 import { MovieGrid, MovieGridSkeleton } from "../components/MovieGrid";
 import { EmptyState, ErrorState } from "../components/StateViews";
 import { Select } from "../components/ui/select";
 import {
+	isHiddenGem,
 	parseExploreState,
 	serializeExploreState,
 	type ExploreSort,
@@ -70,18 +72,21 @@ export function Explore() {
 						</button>
 					))}
 				</div>
-				<Select
-					aria-label="정렬"
-					className="w-32"
-					value={state.sort}
-					onChange={(e) => patch({ sort: e.target.value as ExploreSort })}
-				>
-					{SORT_OPTIONS.map((o) => (
-						<option key={o.value} value={o.value}>
-							{o.label}
-						</option>
-					))}
-				</Select>
+				<div className="flex shrink-0 items-center gap-2">
+					<HiddenGemToggle active={isHiddenGem(state)} onChange={patch} />
+					<Select
+						aria-label="정렬"
+						className="w-32"
+						value={state.sort}
+						onChange={(e) => patch({ sort: e.target.value as ExploreSort })}
+					>
+						{SORT_OPTIONS.map((o) => (
+							<option key={o.value} value={o.value}>
+								{o.label}
+							</option>
+						))}
+					</Select>
+				</div>
 			</div>
 
 			{personLabel && (
@@ -91,6 +96,19 @@ export function Explore() {
 						type="button"
 						className="ml-2 underline hover:text-foreground"
 						onClick={() => patch({ directorId: null, castId: null })}
+					>
+						해제
+					</button>
+				</p>
+			)}
+
+			{isHiddenGem(state) && (
+				<p className="text-sm text-muted-foreground">
+					숨은 명작 — 평점 7.5+ · 투표 50~500
+					<button
+						type="button"
+						className="ml-2 underline hover:text-foreground"
+						onClick={() => patch({ ratingMin: null, voteCountMin: null, voteCountMax: null })}
 					>
 						해제
 					</button>

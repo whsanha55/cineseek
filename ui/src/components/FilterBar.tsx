@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
 import { useGenres, usePerson } from "../api/hooks";
-import type { SearchState } from "../lib/urlState";
+import { isHiddenGem, type SearchState } from "../lib/urlState";
 import { cn } from "../lib/cn";
 import { Button } from "./ui/button";
 import { Select } from "./ui/select";
 import { PersonAutocomplete } from "./PersonAutocomplete";
+import { HiddenGemToggle } from "./HiddenGemToggle";
 
 interface FilterBarProps {
 	state: SearchState;
@@ -15,6 +16,7 @@ interface FilterBarProps {
 }
 
 const RATING_STEPS = [6, 7, 8] as const;
+const RUNTIME_STEPS = [60, 90, 120, 150, 180] as const;
 
 function yearOptions(): number[] {
 	const thisYear = new Date().getFullYear();
@@ -63,7 +65,11 @@ export function FilterBar({ state, onChange, onReset }: FilterBarProps) {
 		(state.yearMax !== null ? 1 : 0) +
 		(state.ratingMin !== null ? 1 : 0) +
 		(state.directorId !== null ? 1 : 0) +
-		(state.castId !== null ? 1 : 0);
+		(state.castId !== null ? 1 : 0) +
+		(state.runtimeMin !== null ? 1 : 0) +
+		(state.runtimeMax !== null ? 1 : 0) +
+		(state.voteCountMin !== null ? 1 : 0) +
+		(state.voteCountMax !== null ? 1 : 0);
 
 	const controls = (
 		<>
@@ -131,6 +137,31 @@ export function FilterBar({ state, onChange, onReset }: FilterBarProps) {
 						</option>
 					))}
 				</Select>
+				<Select
+					aria-label="최소 러닝타임"
+					value={state.runtimeMin?.toString() ?? ""}
+					onChange={(e) => onChange({ runtimeMin: e.target.value ? Number(e.target.value) : null })}
+				>
+					<option value="">러닝타임 전체</option>
+					{RUNTIME_STEPS.map((r) => (
+						<option key={r} value={r}>
+							{r}분 이상
+						</option>
+					))}
+				</Select>
+				<Select
+					aria-label="최대 러닝타임"
+					value={state.runtimeMax?.toString() ?? ""}
+					onChange={(e) => onChange({ runtimeMax: e.target.value ? Number(e.target.value) : null })}
+				>
+					<option value="">이하 전체</option>
+					{RUNTIME_STEPS.map((r) => (
+						<option key={r} value={r}>
+							{r}분 이하
+						</option>
+					))}
+				</Select>
+				<HiddenGemToggle active={isHiddenGem(state)} onChange={onChange} />
 				<PersonAutocomplete
 					role="director"
 					label="감독 검색"
@@ -205,6 +236,24 @@ export function FilterBar({ state, onChange, onReset }: FilterBarProps) {
 					)}
 					{state.ratingMin !== null && (
 						<Chip label={`평점 ${state.ratingMin}+`} onRemove={() => onChange({ ratingMin: null })} />
+					)}
+					{state.runtimeMin !== null && (
+						<Chip label={`${state.runtimeMin}분 이상`} onRemove={() => onChange({ runtimeMin: null })} />
+					)}
+					{state.runtimeMax !== null && (
+						<Chip label={`${state.runtimeMax}분 이하`} onRemove={() => onChange({ runtimeMax: null })} />
+					)}
+					{state.voteCountMin !== null && (
+						<Chip
+							label={`${state.voteCountMin}표 이상`}
+							onRemove={() => onChange({ voteCountMin: null })}
+						/>
+					)}
+					{state.voteCountMax !== null && (
+						<Chip
+							label={`${state.voteCountMax}표 이하`}
+							onRemove={() => onChange({ voteCountMax: null })}
+						/>
 					)}
 					{state.directorId !== null && (
 						<Chip

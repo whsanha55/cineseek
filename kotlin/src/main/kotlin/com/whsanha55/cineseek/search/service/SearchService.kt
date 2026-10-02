@@ -142,6 +142,10 @@ class SearchService(
             filter.yearMin?.let { add(range("release_year", Points.Range.newBuilder().setGte(it.toDouble()))) }
             filter.yearMax?.let { add(range("release_year", Points.Range.newBuilder().setLte(it.toDouble()))) }
             filter.ratingMin?.let { add(range("rating", Points.Range.newBuilder().setGte(it))) }
+            filter.runtimeMin?.let { add(range("runtime", Points.Range.newBuilder().setGte(it.toDouble()))) }
+            filter.runtimeMax?.let { add(range("runtime", Points.Range.newBuilder().setLte(it.toDouble()))) }
+            filter.voteCountMin?.let { add(range("vote_count", Points.Range.newBuilder().setGte(it.toDouble()))) }
+            filter.voteCountMax?.let { add(range("vote_count", Points.Range.newBuilder().setLte(it.toDouble()))) }
             filter.directorId?.let { add(ConditionFactory.match("director_ids", it)) }
             filter.castId?.let { add(ConditionFactory.match("cast_ids", it)) }
         }

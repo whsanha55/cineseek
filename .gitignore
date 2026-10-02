@@ -5,3 +5,4 @@
 # Gradle / IDE 는 kotlin/.gitignore가 담당
 # Python(.venv 등)은 python/.gitignore가 담당
 .gstack/
+.jplan/

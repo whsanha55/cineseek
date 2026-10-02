@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost",
+      "url": "http://localhost:8080",
       "description": "Generated server url"
     }
   ],
@@ -104,6 +104,66 @@
               "example": 7.5
             },
             "example": 7.5
+          },
+          {
+            "name": "runtimeMin",
+            "in": "query",
+            "description": "러닝타임 하한 (분)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "러닝타임 하한 (분)",
+              "example": 90,
+              "maximum": 1000,
+              "minimum": 0
+            },
+            "example": 90
+          },
+          {
+            "name": "runtimeMax",
+            "in": "query",
+            "description": "러닝타임 상한 (분)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "러닝타임 상한 (분)",
+              "example": 150,
+              "maximum": 1000,
+              "minimum": 0
+            },
+            "example": 150
+          },
+          {
+            "name": "voteCountMin",
+            "in": "query",
+            "description": "투표 수 하한 — 숨은 명작 탐색용",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "투표 수 하한 — 숨은 명작 탐색용",
+              "example": 50,
+              "maximum": 1000000,
+              "minimum": 0
+            },
+            "example": 50
+          },
+          {
+            "name": "voteCountMax",
+            "in": "query",
+            "description": "투표 수 상한 — 숨은 명작 탐색용",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "투표 수 상한 — 숨은 명작 탐색용",
+              "example": 500,
+              "maximum": 1000000,
+              "minimum": 0
+            },
+            "example": 500
           },
           {
             "name": "directorId",
@@ -357,6 +417,51 @@
               "example": 3895
             },
             "example": 3895
+          },
+          {
+            "name": "ratingMin",
+            "in": "query",
+            "description": "평점 하한 (0~10)",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "double",
+              "description": "평점 하한 (0~10)",
+              "example": 7.5,
+              "maximum": 10.0,
+              "minimum": 0.0
+            },
+            "example": 7.5
+          },
+          {
+            "name": "voteCountMin",
+            "in": "query",
+            "description": "최소 투표 수 — 명시하면 평점순 암시 하한(1000) 대신 적용",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "최소 투표 수 — 명시하면 평점순 암시 하한(1000) 대신 적용",
+              "example": 50,
+              "maximum": 1000000,
+              "minimum": 0
+            },
+            "example": 50
+          },
+          {
+            "name": "voteCountMax",
+            "in": "query",
+            "description": "최대 투표 수 (숨은 명작 탐색용)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "최대 투표 수 (숨은 명작 탐색용)",
+              "example": 500,
+              "maximum": 1000000,
+              "minimum": 0
+            },
+            "example": 500
           }
         ],
         "responses": {

@@ -37,6 +37,9 @@ class MovieController(private val movieQueryService: MovieQueryService) {
                 limit = request.limit,
                 directorId = request.directorId,
                 castId = request.castId,
+                ratingMin = request.ratingMin,
+                voteCountMin = request.voteCountMin,
+                voteCountMax = request.voteCountMax,
             ),
         )
 
