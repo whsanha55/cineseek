@@ -19,7 +19,8 @@ class EmbeddingTextTest {
 
         assertThat(text).isEqualTo(
             "인셉션 (Inception) · 장르: 액션, SF · 분위기: 긴장감 있는, 몽환적인 · " +
-                "분위기 설명: 꿈속을 누비는 두뇌 게임 · 줄거리: 생각을 훔치는 특수요원의 마지막 작전",
+                "분위기 설명: 꿈속을 누비는 두뇌 게임 · 줄거리: 생각을 훔치는 특수요원의 마지막 작전 · " +
+                "분위기: 긴장감 있는, 몽환적인",
         )
     }
 
@@ -57,7 +58,7 @@ class EmbeddingTextTest {
             overview = "줄거리",
         )
 
-        assertThat(text).isEqualTo("인셉션 (Inception) · 분위기: 긴장감 있는 · 분위기 설명: 설명 · 줄거리: 줄거리")
+        assertThat(text).isEqualTo("인셉션 (Inception) · 분위기: 긴장감 있는 · 분위기 설명: 설명 · 줄거리: 줄거리 · 분위기: 긴장감 있는")
     }
 
     @Test
@@ -71,6 +72,6 @@ class EmbeddingTextTest {
     fun `분위기 태그만 있고 설명이 없으면 태그 섹션만 남긴다`() {
         val text = EmbeddingText.assemble("인셉션", null, emptyList(), listOf("힐링"), " ", "줄거리")
 
-        assertThat(text).isEqualTo("인셉션 · 분위기: 힐링 · 줄거리: 줄거리")
+        assertThat(text).isEqualTo("인셉션 · 분위기: 힐링 · 줄거리: 줄거리 · 분위기: 힐링")
     }
 }
