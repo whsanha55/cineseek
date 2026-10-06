@@ -92,7 +92,7 @@ class MovieUpsertServiceTest {
     }
 
     @Test
-    fun `재 upsert — 같은 movie_id에 갱신, 자식 교체, 출연진은 상위 10명만`() {
+    fun `재 upsert — 같은 movie_id에 갱신, 자식 교체, 출연진은 전체 저장`() {
         // given
         val manyCast = (1..12).map { TmdbCastMember(it.toLong(), "배우$it", "역할$it", it - 1) }
         val first = service.upsert(tmdbMovie())
@@ -103,8 +103,26 @@ class MovieUpsertServiceTest {
         // then
         assertThat(second).isEqualTo(first) // 같은 movie_id — idempotent
         assertThat(movieRepository.findByTmdbId(155L)!!.title).isEqualTo("다크 나이트 디럭스")
-        assertThat(movieCastRepository.findAllByMovieId(second)).hasSize(10) // 상위 10 제한
+        assertThat(movieCastRepository.findAllByMovieId(second)).hasSize(12) // 11번째 이후도 저장
         assertThat(movieDirectorRepository.count()).isEqualTo(1L) // 지우고 다시 삽입 — 1명 유지
+    }
+
+    @Test
+    fun `동일 인물 다중 배역 — 첫 배역만 저장해 (movie_id, person_id) 위반을 막는다`() {
+        // given — 같은 personId가 두 배역으로 내려온다
+        val duplicated = listOf(
+            TmdbCastMember(3895L, "크리스찬 베일", "브루스 웨인", 0),
+            TmdbCastMember(3895L, "크리스찬 베일", "배트맨 목소리", 5),
+            TmdbCastMember(3896L, "마이클 케인", "알프레드", 1),
+        )
+
+        // when
+        val movieId = service.upsert(tmdbMovie(cast = duplicated))
+
+        // then
+        val cast = movieCastRepository.findAllByMovieId(movieId)
+        assertThat(cast.map { it.personId }).containsExactly(3895L, 3896L) // 첫 배역(주연)만
+        assertThat(cast.first { it.personId == 3895L }.character).isEqualTo("브루스 웨인")
     }
 
     @Test

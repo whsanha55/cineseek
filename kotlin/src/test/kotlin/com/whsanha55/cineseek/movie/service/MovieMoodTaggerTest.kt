@@ -161,6 +161,25 @@ class MovieMoodTaggerTest {
     }
 
     @Test
+    fun `tagAll limit — 대상을 limit만큼만 가져간다`() {
+        // given
+        val ids = (1L..3L).map { id ->
+            mockk<MovieEntity>().also { every { it.movieId } returns id }
+        }
+        every { movieRepository.findRequiringMoodTag(any()) } returns ids
+        every { movieRepository.findAllById(any()) } returns emptyList() // 태깅 재료 없음 → 조기 스킵
+
+        // when
+        tagger.tagAll(limit = 2)
+
+        // then — 3번째 영화는 상한에 걸려 다루지 않는다
+        verify(exactly = 1) { movieRepository.findAllById(listOf(1L)) }
+        verify(exactly = 1) { movieRepository.findAllById(listOf(2L)) }
+        verify(exactly = 0) { movieRepository.findAllById(listOf(3L)) }
+        verify { llmClient wasNot Called }
+    }
+
+    @Test
     fun `version — 모델명과 프롬프트 해시 8자리를 담는다`() {
         // when
         val version = tagger.version()

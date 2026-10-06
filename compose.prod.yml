@@ -11,6 +11,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       PG_HOST: postgres   # infra 네트워크의 공용 postgres 서비스명
+      CINESEEK_COLLECT_ENABLED: "true"   # prod에서만 수집 스케줄러 활성 (공통 compose는 기본 false)
     networks:
       - default
       - infra

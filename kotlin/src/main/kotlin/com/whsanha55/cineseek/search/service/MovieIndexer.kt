@@ -32,10 +32,45 @@ class MovieIndexer(
     private val embeddingClient: EmbeddingClient,
 ) {
 
-    /** @return 이번에 임베딩한 영화 수 */
+    /** 전체 재색인(ReindexJob) — 컬렉션 전체를 scroll해 저장 해시와 비교한다. @return 이번에 임베딩한 영화 수 */
     fun index(movies: List<IndexedMovie>): Int {
         ensureCollection()
-        val stored = storedHashes()
+        return upsertByHash(movies, storedHashes())
+    }
+
+    /**
+     * 증분 색인(수집 틱) — 대상 포인트만 retrieveAsync로 조회해 저장 해시와 비교한다.
+     * 매 틱 전체 scroll을 하지 않기 위한 경로다. @return 이번에 임베딩한 영화 수
+     */
+    fun indexTouched(movies: List<IndexedMovie>): Int {
+        if (movies.isEmpty()) {
+            return 0
+        }
+        ensureCollection()
+        val points = qdrantClient
+            .retrieveAsync(
+                qdrantProperties.collection,
+                movies.map { PointIdFactory.id(it.movieId) },
+                true,
+                false,
+                null,
+            )
+            .get()
+        val stored = buildMap {
+            points.forEach { point -> point.payloadMap[INPUT_HASH]?.stringValue?.let { put(point.id.num, it) } }
+        }
+        return upsertByHash(movies, stored)
+    }
+
+    /** 컬렉션의 포인트 수 — 수집 통계(색인 미완료 = PG 영화 수 − 포인트 수)용. 컬렉션이 없으면 0 */
+    fun countPoints(): Long {
+        if (!qdrantClient.collectionExistsAsync(qdrantProperties.collection).get()) {
+            return 0L
+        }
+        return qdrantClient.countAsync(qdrantProperties.collection).get()
+    }
+
+    private fun upsertByHash(movies: List<IndexedMovie>, stored: Map<Long, String>): Int {
         val (unchanged, changed) = movies.partition { stored[it.movieId] == hash(it.embeddingInput) }
 
         unchanged.forEach { movie ->

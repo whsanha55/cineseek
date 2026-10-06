@@ -55,6 +55,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cineseek/people/{id}/filmography": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 배우 필모그래피 — 저장된 출연작을 최신순·평점순으로 */
+        get: operations["filmography"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cineseek/movies": {
         parameters: {
             query?: never;
@@ -238,6 +255,100 @@ export interface components {
         GenresResponse: {
             items?: components["schemas"]["GenreResponse"][];
         };
+        FilmographyPersonResponse: {
+            /**
+             * Format: int64
+             * @description TMDB person id
+             * @example 3895
+             */
+            personId?: number;
+            /**
+             * @description 이름
+             * @example 크리스찬 베일
+             */
+            name?: string;
+            /**
+             * @description TMDB 프로필 이미지 경로
+             * @example /fuTEtOeIwXiqtVpIoL0GyyWcnxh.jpg
+             */
+            profilePath?: string | null;
+            /**
+             * @description 필모그래피 수집 상태 (NONE | COLLECTING | COMPLETE)
+             * @example COMPLETE
+             * @enum {string}
+             */
+            filmoState?: "NONE" | "COLLECTING" | "COMPLETE";
+            /**
+             * Format: date-time
+             * @description 필모그래피 마지막 갱신 확인 시각
+             * @example 2026-10-01T00:00:00Z
+             */
+            filmoCheckedAt?: string | null;
+            /**
+             * Format: int64
+             * @description 총 출연 작품 수 (movie_cast 행 수)
+             * @example 47
+             */
+            totalWorks?: number;
+        };
+        FilmographyItemResponse: {
+            /**
+             * Format: int64
+             * @description 영화 id
+             * @example 155
+             */
+            movieId?: number;
+            /**
+             * @description 제목
+             * @example 다크 나이트
+             */
+            title?: string;
+            /**
+             * @description 원제
+             * @example The Dark Knight
+             */
+            originalTitle?: string | null;
+            /**
+             * Format: int32
+             * @description 개봉 연도
+             * @example 2008
+             */
+            releaseYear?: number | null;
+            /**
+             * Format: double
+             * @description TMDB 평점 (0~10)
+             * @example 8.5
+             */
+            rating?: number | null;
+            /**
+             * Format: int32
+             * @description TMDB 투표 수
+             * @example 30000
+             */
+            voteCount?: number | null;
+            /**
+             * @description 포스터 이미지 경로
+             * @example /qJ2tW6WMUDux911r6m7haRef0WH.jpg
+             */
+            posterPath?: string | null;
+            /** @description 장르 목록 */
+            genres?: components["schemas"]["GenreResponse"][];
+            /**
+             * @description 해당 배우의 배역명
+             * @example 브루스 웨인
+             */
+            character?: string | null;
+        };
+        FilmographyResponse: {
+            person?: components["schemas"]["FilmographyPersonResponse"];
+            items?: components["schemas"]["FilmographyItemResponse"][];
+            page?: components["schemas"]["PageResponse"];
+            /**
+             * @description 필모그래피 백그라운드 갱신이 대기/실행 중인지 — true면 잠시 후 다시 조회해 갱신된 목록을 받는다
+             * @example false
+             */
+            collecting?: boolean;
+        };
     };
     responses: never;
     parameters: never;
@@ -390,6 +501,49 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PersonItemResponse"];
+                };
+            };
+        };
+    };
+    filmography: {
+        parameters: {
+            query?: {
+                /**
+                 * @description 정렬 (release | rating) — 기본 최신 개봉순
+                 * @example release
+                 */
+                sort?: string;
+                /**
+                 * @description 페이지 (0부터)
+                 * @example 0
+                 */
+                page?: number;
+                /**
+                 * @description 페이지 크기 (1~50)
+                 * @example 20
+                 */
+                limit?: number;
+                /**
+                 * @description 제외할 영화 id — 영화 상세의 '주요 배우 다른 작품'에서 현재 영화 제외
+                 * @example 155
+                 */
+                excludeMovieId?: number;
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FilmographyResponse"];
                 };
             };
         };

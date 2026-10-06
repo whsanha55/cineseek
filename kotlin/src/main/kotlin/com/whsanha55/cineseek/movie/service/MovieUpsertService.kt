@@ -45,14 +45,15 @@ class MovieUpsertService(
         )
         movieRepository.save(saved)
 
-        // 자식 — 기존 것을 지우고 다시 채운다 (명시적 삭제, 출연진은 상위 10명)
+        // 자식 — 기존 것을 지우고 다시 채운다 (명시적 삭제, 출연진은 전체)
         movieDirectorRepository.deleteAllByMovieId(movieId)
         movieCastRepository.deleteAllByMovieId(movieId)
         movieDirectorRepository.saveAll(
             m.directors.map { MovieDirectorEntity(movieId = movieId, personId = it.personId, name = it.name) },
         )
         movieCastRepository.saveAll(
-            m.cast.take(CAST_LIMIT).map {
+            // 동일 인물 다중 배역은 첫 배역만 저장 — (movie_id, person_id) 복합키 위반 방지
+            m.cast.distinctBy { it.personId }.map {
                 MovieCastEntity(
                     movieId = movieId,
                     personId = it.personId,
@@ -78,10 +79,7 @@ class MovieUpsertService(
         posterPath = posterPath,
         backdropPath = backdropPath,
         originalLanguage = originalLanguage,
+        originCountry = originCountry,
         overviewUpdatedAt = now,
     )
-
-    companion object {
-        private const val CAST_LIMIT = 10 // python: cast[:10]
-    }
 }

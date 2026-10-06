@@ -38,12 +38,13 @@
 ## 패키지 구조
 
 - 도메인 우선 — `docs/convention/backend/kotlin/spring.md` 1절을 따른다:
-  - `global/config/` — 공용 HTTP(`http1RestClient()`)
+  - `global/config/` — 공용 HTTP(`http1RestClient()`), `@EnableScheduling`(SchedulingConfig)
   - `external/{tmdb,embedding,qdrant,llm}/` — 외부 시스템별 `client/`·`config/`(`@ConfigurationProperties`, 빈)·`dto/`(와이어 DTO). llm은 OpenAI 호환 chat completions(재색인 배치의 분위기 태깅 전용 — 검색 경로에 LLM 없음)
   - `movie/` — `entity/`(엔티티 + 복합키), `repository/`, `service/`(MovieUpsertService, MovieMoodTagger), `vo/`(TmdbMovie — TmdbClient가 변환해 넘기는 수집 모델)
-  - `search/` — `SearchController`, `service/`(SearchService, MovieIndexer), `dto/`(API 요청·응답 — `from()`으로 vo를 변환), `vo/`(Embedding, SearchResult, MoviePayload, IndexedMovie), `job/`
-  - 배치 Runner(`--cineseek.job=...`)는 도메인 아래 `job/`에 둔다 (ReindexJob, EvalRunner)
-- 의존 방향은 `search → movie` 한쪽만. movie는 search를 참조하지 않는다
+  - `collect/` — 수집 운영(작업 큐·스케줄러·모드 전환). `config/`(CollectProperties), `entity/`+`enums/`(CollectTask, CollectState), `repository/`, `service/`(CollectTaskService, CollectPipeline, CollectScheduler, CollectStatsService), `job/`(CollectReportRunner)
+  - `search/` — `SearchController`, `service/`(SearchService, MovieIndexer, IndexedMovieAssembler), `dto/`(API 요청·응답 — `from()`으로 vo를 변환), `vo/`(Embedding, SearchResult, MoviePayload, IndexedMovie), `job/`
+  - 배치 Runner(`--cineseek.job=...`)는 도메인 아래 `job/`에 둔다 (ReindexJob, EvalRunner, CollectReportRunner)
+- 의존 방향은 `collect → movie`, `collect → search`, `search → movie` 한쪽만. movie는 search·collect를 참조하지 않는다 — 사용자 조회가 수집을 트리거할 때는 movie가 선언한 포트(`movie/service/FilmographyRefreshRequester`)를 collect가 구현한다 (의존 반전)
 - 테스트 패키지는 대상 클래스의 패키지를 그대로 따른다
 
 ## Repository

@@ -6,8 +6,8 @@ data class MoviePayload(
     val releaseYear: Int?,
     val rating: Double?,
     val genreIds: List<Long>,
-    val directorIds: List<Long>, // 상위 3명
-    val castIds: List<Long>, // 상위 5명
+    val directorIds: List<Long>, // 전체
+    val castIds: List<Long>, // 전체 — PG movie_cast와 같은 출연 관계를 반영한다
     /** 러닝타임(분) */
     val runtime: Int? = null,
     /** 숨은 명작 걸러내기용 투표 수 */

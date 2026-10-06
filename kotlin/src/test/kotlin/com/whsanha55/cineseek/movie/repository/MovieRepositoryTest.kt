@@ -56,6 +56,7 @@ class MovieRepositoryTest {
                 releaseDate = LocalDate.of(2008, 7, 16),
                 releaseYear = 2008,
                 voteAverage = BigDecimal("8.5"),
+                originCountry = "US",
             ).apply { replaceGenres(listOf(genre)) },
         )
         val movieId = saved.movieId!!
@@ -79,6 +80,7 @@ class MovieRepositoryTest {
         assertThat(found.title).isEqualTo("다크 나이트")
         assertThat(found.genres).containsExactly(genre)
         assertThat(found.releaseYear).isEqualTo(2008)
+        assertThat(found.originCountry).isEqualTo("US")
         assertThat(found.createdAt).isNotNull()
         assertThat(directors.map { it.name }).containsExactly("크리스토퍼 놀란")
         assertThat(cast.character).isEqualTo("브루스 웨인")

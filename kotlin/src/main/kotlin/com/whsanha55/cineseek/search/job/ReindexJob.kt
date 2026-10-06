@@ -1,16 +1,11 @@
 package com.whsanha55.cineseek.search.job
 
 import com.whsanha55.cineseek.external.tmdb.client.TmdbClient
-import com.whsanha55.cineseek.movie.repository.MovieCastRepository
-import com.whsanha55.cineseek.movie.repository.MovieDirectorRepository
-import com.whsanha55.cineseek.movie.repository.MovieRepository
 import com.whsanha55.cineseek.movie.service.MovieMoodTagger
 import com.whsanha55.cineseek.movie.service.MovieUpsertService
 import com.whsanha55.cineseek.movie.vo.TmdbMovie
+import com.whsanha55.cineseek.search.service.IndexedMovieAssembler
 import com.whsanha55.cineseek.search.service.MovieIndexer
-import com.whsanha55.cineseek.search.vo.EmbeddingText
-import com.whsanha55.cineseek.search.vo.IndexedMovie
-import com.whsanha55.cineseek.search.vo.MoviePayload
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
@@ -31,9 +26,7 @@ private val log = KotlinLogging.logger {}
 class ReindexJob(
     private val tmdbClient: TmdbClient,
     private val upsertService: MovieUpsertService,
-    private val movieRepository: MovieRepository,
-    private val movieDirectorRepository: MovieDirectorRepository,
-    private val movieCastRepository: MovieCastRepository,
+    private val assembler: IndexedMovieAssembler,
     private val moodTagger: MovieMoodTagger,
     private val indexer: MovieIndexer,
 ) : ApplicationRunner {
@@ -51,7 +44,7 @@ class ReindexJob(
         val tagged = moodTagger.tagAll()
         log.info { "분위기 태그. tagged=$tagged" }
 
-        val indexed = buildIndexedMovies()
+        val indexed = assembler.assembleAll()
         val embedded = indexer.index(indexed)
         log.info { "재색인 완료. PG movie=${stored.size}, 색인 대상=${indexed.size}, 임베딩=$embedded" }
         exitProcess(0) // 배치 성격 — 출력 후 종료
@@ -74,35 +67,6 @@ class ReindexJob(
     private fun upsertSafe(m: TmdbMovie): Long? = runCatching { upsertService.upsert(m) }
         .onFailure { log.warn(it) { "upsert 스킵. tmdbId=${m.tmdbId}" } }
         .getOrNull()
-
-    /** PG에서 임베딩 입력(EmbeddingText)과 payload를 조립 — SoT 기준 */
-    private fun buildIndexedMovies(): List<IndexedMovie> = movieRepository.findAll().mapNotNull { movie ->
-        val overview = movie.overview ?: return@mapNotNull null // 임베딩 불가 → 스킵
-        val movieId = requireNotNull(movie.movieId) { "조회한 영화에 movieId가 없다. tmdbId=${movie.tmdbId}" }
-        val directors = movieDirectorRepository.findAllByMovieId(movieId)
-        val cast = movieCastRepository.findAllByMovieId(movieId)
-        IndexedMovie(
-            movieId = movieId,
-            embeddingInput = EmbeddingText.assemble(
-                title = movie.title,
-                originalTitle = movie.originalTitle,
-                genreNames = movie.genres.map { it.name },
-                moodTags = movie.moodTags?.split(", ")?.filter { it.isNotBlank() } ?: emptyList(),
-                moodDesc = movie.moodDesc,
-                overview = overview,
-            ),
-            payload = MoviePayload(
-                title = movie.title,
-                releaseYear = movie.releaseYear,
-                rating = movie.voteAverage?.toDouble(),
-                genreIds = movie.genres.map { it.genreId },
-                directorIds = directors.map { it.personId }.take(3),
-                castIds = cast.sortedBy { it.castOrder }.map { it.personId }.take(5),
-                runtime = movie.runtime,
-                voteCount = movie.voteCount,
-            ),
-        )
-    }
 
     companion object {
         private const val FETCH_CONCURRENCY = 4 // 영화 1건 = 요청 2개(detail, credits)

@@ -1,5 +1,7 @@
 package com.whsanha55.cineseek.movie
 
+import com.whsanha55.cineseek.movie.dto.FilmographyRequest
+import com.whsanha55.cineseek.movie.dto.FilmographyResponse
 import com.whsanha55.cineseek.movie.dto.GenresResponse
 import com.whsanha55.cineseek.movie.dto.MovieDetailResponse
 import com.whsanha55.cineseek.movie.dto.MovieExploreRequest
@@ -58,4 +60,19 @@ class MovieController(private val movieQueryService: MovieQueryService) {
         @PathVariable id: Long,
         @Valid @ParameterObject @ModelAttribute request: PersonRequest,
     ): PersonItemResponse = PersonItemResponse.from(movieQueryService.person(id, request.role), request.role)
+
+    @Operation(summary = "배우 필모그래피 — 저장된 출연작을 최신순·평점순으로")
+    @GetMapping("/cineseek/people/{id}/filmography")
+    fun filmography(
+        @PathVariable id: Long,
+        @Valid @ParameterObject @ModelAttribute request: FilmographyRequest,
+    ): FilmographyResponse = FilmographyResponse.from(
+        movieQueryService.filmography(
+            personId = id,
+            sort = request.sortEnum(),
+            page = request.page,
+            limit = request.limit,
+            excludeMovieId = request.excludeMovieId,
+        ),
+    )
 }

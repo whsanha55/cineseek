@@ -7,12 +7,16 @@ import com.whsanha55.cineseek.movie.entity.GenreEntity
 import com.whsanha55.cineseek.movie.entity.MovieCastEntity
 import com.whsanha55.cineseek.movie.entity.MovieDirectorEntity
 import com.whsanha55.cineseek.movie.entity.MovieEntity
+import com.whsanha55.cineseek.movie.entity.PersonEntity
 import com.whsanha55.cineseek.movie.enums.ExploreSortEnum
+import com.whsanha55.cineseek.movie.enums.FilmographySortEnum
+import com.whsanha55.cineseek.movie.enums.PersonFilmoStateEnum
 import com.whsanha55.cineseek.movie.exception.MovieException
 import com.whsanha55.cineseek.movie.repository.GenreRepository
 import com.whsanha55.cineseek.movie.repository.MovieCastRepository
 import com.whsanha55.cineseek.movie.repository.MovieDirectorRepository
 import com.whsanha55.cineseek.movie.repository.MovieRepository
+import com.whsanha55.cineseek.movie.repository.PersonRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -26,9 +30,13 @@ import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.math.BigDecimal
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 
-/** 카드 조립·탐색 정렬·상세·인물 검색이 PG(SoT)와 맞물리는지 — 실제 PG 컨테이너로 검증 */
+/** 카드 조립·탐색 정렬·상세·인물·필모그래피 검색이 PG(SoT)와 맞물리는지 — 실제 PG 컨테이너로 검증 */
 @DataJpaTest
 @Import(JpaConfig::class, ClockConfig::class)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -40,6 +48,11 @@ class MovieQueryServiceTest {
         @ServiceConnection
         @JvmStatic
         val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:17")
+
+        private const val ACTOR_ID = 7777L
+        private const val ACTOR_NAME = "테스트 배우"
+        private val now = Instant.parse("2026-10-01T00:00:00Z")
+        private val fixedClock = Clock.fixed(now, ZoneOffset.UTC)
     }
 
     @Autowired lateinit var movieRepository: MovieRepository
@@ -50,14 +63,27 @@ class MovieQueryServiceTest {
 
     @Autowired lateinit var movieCastRepository: MovieCastRepository
 
+    @Autowired lateinit var personRepository: PersonRepository
+
     private lateinit var service: MovieQueryService
+    private lateinit var refreshRequester: FakeFilmographyRefreshRequester
     private var darkKnight = 0L
     private var matrix = 0L
     private var laLaLand = 0L
+    private var debut = 0L
 
     @BeforeEach
     fun setUp() {
-        service = MovieQueryService(movieRepository, movieDirectorRepository, movieCastRepository, genreRepository)
+        refreshRequester = FakeFilmographyRefreshRequester()
+        service = MovieQueryService(
+            movieRepository,
+            movieDirectorRepository,
+            movieCastRepository,
+            genreRepository,
+            personRepository,
+            refreshRequester,
+            fixedClock,
+        )
         seed()
     }
 
@@ -197,6 +223,146 @@ class MovieQueryServiceTest {
         assertThrows<MovieException> { service.person(999_999L, "director") }
     }
 
+    @Test
+    fun `filmography release 정렬 — 최신 개봉순 기본, 캐릭터 매핑, 투표 수가 적어도 포함`() {
+        // given
+        seedActorFilmography()
+
+        // when
+        val page = service.filmography(ACTOR_ID, FilmographySortEnum.RELEASE, page = 0, limit = 10)
+
+        // then — 데뷔 무명작(5표)도 탐색의 암시 하한(1000)과 무관하게 포함된다
+        assertThat(page.items.map { it.card.movieId }).containsExactly(laLaLand, darkKnight, matrix, debut)
+        assertThat(page.items.map { it.character }).containsExactly("오디션 배우", "조커", "네오", "단역")
+        assertThat(page.person.totalWorks).isEqualTo(4)
+        assertThat(page.hasNext).isFalse()
+    }
+
+    @Test
+    fun `filmography rating 정렬 — 투표 수 하한 없이 평점순`() {
+        // given
+        seedActorFilmography()
+
+        // when
+        val page = service.filmography(ACTOR_ID, FilmographySortEnum.RATING, page = 0, limit = 10)
+
+        // then — 데뷔 무명작(9.5, 5표)이 1위. 탐색이었다면 MIN_VOTES(1000)로 빠졌을 것이다
+        assertThat(page.items.map { it.card.movieId }).containsExactly(debut, matrix, darkKnight, laLaLand)
+    }
+
+    @Test
+    fun `filmography 페이지네이션 — page·limit·hasNext`() {
+        // given
+        seedActorFilmography()
+
+        // when
+        val first = service.filmography(ACTOR_ID, FilmographySortEnum.RELEASE, page = 0, limit = 2)
+        val second = service.filmography(ACTOR_ID, FilmographySortEnum.RELEASE, page = 1, limit = 2)
+
+        // then
+        assertThat(first.items.map { it.card.movieId }).containsExactly(laLaLand, darkKnight)
+        assertThat(first.limit).isEqualTo(2)
+        assertThat(first.offset).isZero()
+        assertThat(first.hasNext).isTrue()
+        assertThat(second.items.map { it.card.movieId }).containsExactly(matrix, debut)
+        assertThat(second.offset).isEqualTo(2)
+        assertThat(second.hasNext).isFalse()
+    }
+
+    @Test
+    fun `filmography excludeMovieId — 현재 영화를 제외해도 totalWorks는 전체 수`() {
+        // given
+        seedActorFilmography()
+
+        // when
+        val page = service.filmography(
+            ACTOR_ID,
+            FilmographySortEnum.RELEASE,
+            page = 0,
+            limit = 10,
+            excludeMovieId = laLaLand,
+        )
+
+        // then
+        assertThat(page.items.map { it.card.movieId }).containsExactly(darkKnight, matrix, debut)
+        assertThat(page.person.totalWorks).isEqualTo(4)
+    }
+
+    @Test
+    fun `filmography — 동일 영화가 중복 없이 한 번만 나온다 (movie_cast PK 보장)`() {
+        // given
+        seedActorFilmography()
+
+        // when
+        val page = service.filmography(ACTOR_ID, FilmographySortEnum.RELEASE, page = 0, limit = 50)
+
+        // then
+        val movieIds = page.items.map { it.card.movieId }
+        assertThat(movieIds.distinct()).containsExactlyElementsOf(movieIds)
+        assertThat(movieIds).hasSize(page.person.totalWorks.toInt())
+    }
+
+    @Test
+    fun `filmography — person 마스터가 없으면 movie_cast 이름으로 대체하고 갱신을 요청한다`() {
+        // given
+        seedActorFilmography()
+
+        // when
+        val page = service.filmography(ACTOR_ID, FilmographySortEnum.RELEASE, page = 0, limit = 10)
+
+        // then — filmo_checked_at가 없으므로(=미확인) 우선 갱신 요청
+        assertThat(page.person.name).isEqualTo(ACTOR_NAME)
+        assertThat(page.person.profilePath).isNull()
+        assertThat(page.person.filmoState).isEqualTo(PersonFilmoStateEnum.NONE)
+        assertThat(page.person.filmoCheckedAt).isNull()
+        assertThat(refreshRequester.requested).containsExactly(ACTOR_ID)
+        assertThat(page.collecting).isFalse()
+    }
+
+    @Test
+    fun `filmography — person 마스터가 있고 확인이 최근(TTL 이내)이면 갱신을 요청하지 않는다`() {
+        // given
+        seedActorFilmography()
+        saveActor(checkedAt = now.minus(Duration.ofDays(29)), profilePath = "/actor.jpg")
+        refreshRequester.pending.add(ACTOR_ID)
+
+        // when
+        val page = service.filmography(ACTOR_ID, FilmographySortEnum.RELEASE, page = 0, limit = 10)
+
+        // then
+        assertThat(page.person.name).isEqualTo(ACTOR_NAME)
+        assertThat(page.person.profilePath).isEqualTo("/actor.jpg")
+        assertThat(page.person.filmoState).isEqualTo(PersonFilmoStateEnum.COMPLETE)
+        assertThat(page.person.filmoCheckedAt).isEqualTo(now.minus(Duration.ofDays(29)))
+        assertThat(refreshRequester.requested).isEmpty()
+        assertThat(page.collecting).isTrue()
+    }
+
+    @Test
+    fun `filmography — 확인이 30일을 넘으면 갱신을 요청한다`() {
+        // given
+        seedActorFilmography()
+        saveActor(checkedAt = now.minus(Duration.ofDays(31)))
+
+        // when
+        service.filmography(ACTOR_ID, FilmographySortEnum.RELEASE, page = 0, limit = 10)
+
+        // then
+        assertThat(refreshRequester.requested).containsExactly(ACTOR_ID)
+    }
+
+    @Test
+    fun `filmography — 어느 테이블에도 없는 사람은 PERSON_NOT_FOUND, 갱신도 요청하지 않는다`() {
+        // when
+        val e = assertThrows<MovieException> {
+            service.filmography(999_999L, FilmographySortEnum.RELEASE, page = 0, limit = 10)
+        }
+
+        // then
+        assertThat(e.errorCode).isEqualTo(ErrorCodeEnum.PERSON_NOT_FOUND)
+        assertThat(refreshRequester.requested).isEmpty()
+    }
+
     /** 매트릭스(originalTitle 없음, 투표 999) · 다크나이트(8.5/3000표) · 라라랜드(8.0/1000표). 놀란은 두 작품 */
     private fun seed() {
         val action = genreRepository.save(GenreEntity(genreId = 28L, name = "액션"))
@@ -273,4 +439,82 @@ class MovieQueryServiceTest {
         movie.replaceGenres(listOf(genre))
         return requireNotNull(movieRepository.save(movie).movieId)
     }
+
+    /**
+     * 필모그래피 픽스처 — 배우 7777이 기존 3편 + 데뷔 무명작(9.5점, 5표)에 출연.
+     * 데뷔작만 개별 시드하는 이유는 전역 seed에 넣으면 기존 탐색 테스트(vote_count 정렬 등)가 깨지기 때문
+     */
+    private fun seedActorFilmography() {
+        movieCastRepository.save(
+            MovieCastEntity(
+                movieId = laLaLand,
+                personId = ACTOR_ID,
+                name = ACTOR_NAME,
+                character = "오디션 배우",
+                castOrder = 3,
+            ),
+        )
+        movieCastRepository.save(
+            MovieCastEntity(
+                movieId = darkKnight,
+                personId = ACTOR_ID,
+                name = ACTOR_NAME,
+                character = "조커",
+                castOrder = 6,
+            ),
+        )
+        movieCastRepository.save(
+            MovieCastEntity(
+                movieId = matrix,
+                personId = ACTOR_ID,
+                name = ACTOR_NAME,
+                character = "네오",
+                castOrder = 7,
+            ),
+        )
+        val drama = genreRepository.save(GenreEntity(genreId = 18L, name = "Drama"))
+        debut = save(
+            MovieEntity(
+                tmdbId = 999_001L,
+                title = "데뷔 무명작",
+                overview = "표는 5표뿐인 데뷔 작품",
+                releaseDate = LocalDate.of(1990, 5, 1),
+                releaseYear = 1990,
+                voteAverage = BigDecimal("9.5"),
+                voteCount = 5,
+            ),
+            drama,
+        )
+        movieCastRepository.save(
+            MovieCastEntity(movieId = debut, personId = ACTOR_ID, name = ACTOR_NAME, character = "단역", castOrder = 0),
+        )
+    }
+
+    /** person 마스터 저장 — checkedAt이 null이면 확인 이력 없는 상태(NONE) 그대로 둔다 */
+    private fun saveActor(checkedAt: Instant?, profilePath: String? = null) {
+        personRepository.save(
+            PersonEntity(personId = ACTOR_ID, name = ACTOR_NAME, profilePath = profilePath).apply {
+                checkedAt?.let {
+                    applyFilmography(
+                        checkedAt = it,
+                        externalCount = 4,
+                        storedCount = 4,
+                        state = PersonFilmoStateEnum.COMPLETE,
+                    )
+                }
+            },
+        )
+    }
+}
+
+/** 포트 가짜 — 갱신 요청과 대기 중 작업만 기록한다 (실제 구현은 collect 도메인에 있다) */
+private class FakeFilmographyRefreshRequester : FilmographyRefreshRequester {
+    val requested = mutableSetOf<Long>()
+    val pending = mutableSetOf<Long>()
+
+    override fun requestRefresh(personId: Long) {
+        requested += personId
+    }
+
+    override fun hasPendingWork(personId: Long) = personId in pending
 }

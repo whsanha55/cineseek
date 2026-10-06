@@ -58,6 +58,16 @@ pnpm build      # tsc + 프로덕션 빌드 (/_ds는 운영 번들에서 제외)
 - 확정 검색·필터 상태는 전부 URL 쿼리가 원천이다
 - 개발용 디자인 카탈로그: `http://localhost:5173/_ds`
 
+## 수집 운영 (한국 영화 카탈로그·배우 필모그래피)
+
+재색인 배치(`--cineseek.job=reindex`)와 별개로, api 서비스 안에 상시 수집 스케줄러가 있다(`cineseek.collect.enabled`, 기본 off — prod compose에서만 on).
+
+- **작업 큐**: 수집은 전부 PG `collect_task`의 멱등 작업(`UNIQUE(task_type, payload_key)`)으로 실행된다 — 전 세계 discover 3기준, 한국 전용(국가·언어 조건 union, 연도 구간, 투표 하한 없음, 페이지 상한 도달 시 구간 반분할), 영화 상세(줄거리 없어도 저장), 배우 필모그래피(`/person/{id}/movie_credits`, 없는 영화는 1단계만 확장)
+- **초기 집중 수집(BOOTSTRAP)**: 30분마다 틱이 `batchSize`만큼 클레임(lease 잠금, 중복 실행 방지)해 `maxRuntime` 안에 처리한다. 체크포인트(마지막 페이지)를 남기므로 중단 후 다음 틱에 이어서 한다. 429·일시 5xx는 Retry-After·지수 백오프로 재시도하고 404는 영구 실패로 기록한다
+- **일일 갱신(DAILY)**: 초기 작업이 소진되면 자동 전환된다. 매일 04:00(Asia/Seoul)에 신작 창·필모그래피 만료 배우·줄거리 누락 영화·재시도 소진 실패를 증분 수집한다. 배우 클릭 우선 수집(필모그래피 조회 시 백그라운드 갱신)은 양 모드에서 계속 동작한다
+- **보고**: `docker compose ... run --rm api --cineseek.job=collect-report` — 모드, 유형별 작업 상태, 연도별 한국 영화 수, 줄거리 누락 수, seed 배우 10명 확보율, PG 대비 색인 미완료 수. 매 틱 로그에도 같은 지표가 남는다
+- **설정**(`application.yml` `cineseek.collect.*`): `interval`·`batch-size`·`max-runtime`·`concurrency`(시작값 4)·`kr.years-back`(기본 30년)·`seed-person-ids` 등. 시크릿 없음 — TMDB 토큰만 기존대로
+
 ## 환경변수
 
 | 위치 | 용도 |
