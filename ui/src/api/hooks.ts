@@ -41,7 +41,8 @@ export function useMovie(id: number | string | undefined) {
 	});
 }
 
-export function useSimilar(id: number | string | undefined, limit = 8) {
+// ponytail-audit #14: 쓰이지 않던 limit 기본값(8) 제거 — 유일한 호출부가 10을 넘긴다
+export function useSimilar(id: number | string | undefined, limit: number) {
 	return useQuery({
 		queryKey: ["similar", id, limit] as const,
 		enabled: id !== undefined,
