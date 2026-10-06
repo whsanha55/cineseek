@@ -1,7 +1,6 @@
 package com.whsanha55.cineseek.search.job
 
 import com.whsanha55.cineseek.external.tmdb.client.TmdbClient
-import com.whsanha55.cineseek.external.tmdb.config.TmdbProperties
 import com.whsanha55.cineseek.movie.repository.MovieCastRepository
 import com.whsanha55.cineseek.movie.repository.MovieDirectorRepository
 import com.whsanha55.cineseek.movie.repository.MovieRepository
@@ -31,7 +30,6 @@ private val log = KotlinLogging.logger {}
 @ConditionalOnProperty(prefix = "cineseek", name = ["job"], havingValue = "reindex")
 class ReindexJob(
     private val tmdbClient: TmdbClient,
-    private val tmdbProperties: TmdbProperties,
     private val upsertService: MovieUpsertService,
     private val movieRepository: MovieRepository,
     private val movieDirectorRepository: MovieDirectorRepository,
@@ -41,8 +39,9 @@ class ReindexJob(
 ) : ApplicationRunner {
 
     override fun run(args: ApplicationArguments) {
-        val ids = tmdbClient.fetchTmdbIds(tmdbProperties.pages)
-        log.info { "TMDB 후보 수집. ids=${ids.size}, pages=${tmdbProperties.pages}" }
+        // ponytail-audit #13: pages는 TmdbClient 기본값(TmdbProperties.pages) — 중복 주입 제거
+        val ids = tmdbClient.fetchTmdbIds()
+        log.info { "TMDB 후보 수집. ids=${ids.size}" }
 
         val movies = fetchDetailsParallel(ids)
         log.info { "상세 수집 완료. overview 있는 영화=${movies.size}" }
