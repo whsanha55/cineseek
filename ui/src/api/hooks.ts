@@ -1,7 +1,7 @@
 /** TanStack Query 훅 — A1~A6 조회. URL 상태가 원천이므로 훅은 파라미터만 받는다 */
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "./client";
-import type { SearchState } from "../lib/urlState";
+import type { ExploreState, SearchState } from "../lib/urlState";
 import type {
 	GenresResponse,
 	MovieDetail,
@@ -49,33 +49,11 @@ export function useSimilar(id: number | string | undefined, limit = 8) {
 	});
 }
 
-export interface ExploreQuery {
-	genreId: number | null;
-	sort: "rating" | "release" | "vote_count";
-	page: number;
-	limit: number;
-	directorId: number | null;
-	castId: number | null;
-	ratingMin: number | null;
-	voteCountMin: number | null;
-	voteCountMax: number | null;
-}
-
-export function useExplore(query: ExploreQuery) {
+// ponytail-audit #5: ExploreQuery(ExploreState 복사본) 제거 — 키가 API 파라미터와 같아 그대로 넘긴다
+export function useExplore(query: ExploreState) {
 	return useQuery({
 		queryKey: ["explore", query] as const,
-		queryFn: () =>
-			apiGet<MovieListResponse>("/cineseek/movies", {
-				genreId: query.genreId,
-				sort: query.sort,
-				page: query.page,
-				limit: query.limit,
-				directorId: query.directorId,
-				castId: query.castId,
-				ratingMin: query.ratingMin,
-				voteCountMin: query.voteCountMin,
-				voteCountMax: query.voteCountMax,
-			}),
+		queryFn: () => apiGet<MovieListResponse>("/cineseek/movies", { ...query }),
 	});
 }
 
