@@ -35,6 +35,9 @@ export function Search() {
 		[state, navigate, setSearchParams],
 	);
 
+	// ponytail-audit #7: 필터 10개를 비우던 객체 리터럴 2벌 → 하나로 (검색어·표시 개수는 유지)
+	const clearFilters = () => patch({ ...DEFAULT_SEARCH_STATE, q: state.q, limit: state.limit });
+
 	const nextLimit = SEARCH_LIMITS[Math.min(SEARCH_LIMITS.findIndex((l) => l === state.limit) + 1, SEARCH_LIMITS.length - 1)];
 	const canLoadMore = data?.page.hasNext === true && state.limit < SEARCH_LIMITS[SEARCH_LIMITS.length - 1];
 
@@ -53,20 +56,7 @@ export function Search() {
 			<FilterBar
 				state={state}
 				onChange={patch}
-				onReset={() =>
-					patch({
-						genreIds: [],
-						yearMin: null,
-						yearMax: null,
-						ratingMin: null,
-						directorId: null,
-						castId: null,
-						runtimeMin: null,
-						runtimeMax: null,
-						voteCountMin: null,
-						voteCountMax: null,
-					})
-				}
+				onReset={clearFilters}
 			/>
 
 			{isError ? (
@@ -75,20 +65,7 @@ export function Search() {
 				<MovieGridSkeleton />
 			) : data!.items.length === 0 ? (
 				<EmptyState
-					onResetFilters={() =>
-						patch({
-							genreIds: [],
-							yearMin: null,
-							yearMax: null,
-							ratingMin: null,
-							directorId: null,
-							castId: null,
-							runtimeMin: null,
-							runtimeMax: null,
-							voteCountMin: null,
-							voteCountMax: null,
-						})
-					}
+					onResetFilters={clearFilters}
 					onResetAll={() => patch({ ...DEFAULT_SEARCH_STATE, q: state.q })}
 					exploreTo={`/explore?${serializeExploreState(searchToExploreState(state))}`}
 					navigate={navigate}
