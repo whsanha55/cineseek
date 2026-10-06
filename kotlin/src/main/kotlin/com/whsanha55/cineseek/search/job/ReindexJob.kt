@@ -19,7 +19,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
-import java.util.concurrent.Semaphore
 import kotlin.system.exitProcess
 
 private val log = KotlinLogging.logger {}
@@ -46,7 +45,7 @@ class ReindexJob(
         log.info { "TMDB 후보 수집. ids=${ids.size}, pages=${tmdbProperties.pages}" }
 
         val movies = fetchDetailsParallel(ids)
-        log.info { "상세 수집 완료(가상 스레드). overview 있는 영화=${movies.size}" }
+        log.info { "상세 수집 완료. overview 있는 영화=${movies.size}" }
 
         val stored = movies.mapNotNull { upsertSafe(it) }
         log.info { "PG 적재 완료. stored=${stored.size}" }
@@ -61,30 +60,18 @@ class ReindexJob(
     }
 
     /**
-     * 가상 스레드로 detail + credits 병렬 수집 — 단건 실패는 건너뛴다 (python fetch_detail_safe).
-     * 동시 요청은 Semaphore로 제한한다 — 무제한이면 TMDB rate limit(429)에 대부분 막힌다
+     * detail + credits 병렬 수집 — 단건 실패는 건너뛴다 (python fetch_detail_safe).
+     * 동시 요청은 스레드 수로 제한한다 — 무제한이면 TMDB rate limit(429)에 대부분 막힌다.
+     * ponytail-audit #6: 가상 스레드 + Semaphore → 고정 크기 스레드 풀
      */
-    private fun fetchDetailsParallel(ids: List<Long>): List<TmdbMovie> {
-        val permits = Semaphore(FETCH_CONCURRENCY)
-        return Executors.newVirtualThreadPerTaskExecutor().use { executor ->
-            executor.invokeAll(
-                ids.map { id ->
-                    Callable {
-                        permits.acquire()
-                        try {
-                            runCatching { tmdbClient.fetchDetail(id) }
-                        } finally {
-                            permits.release()
-                        }
-                    }
-                },
-            )
+    private fun fetchDetailsParallel(ids: List<Long>): List<TmdbMovie> =
+        Executors.newFixedThreadPool(FETCH_CONCURRENCY).use { executor ->
+            executor.invokeAll(ids.map { id -> Callable { runCatching { tmdbClient.fetchDetail(id) } } })
         }.mapNotNull { future ->
             future.get()
                 .onFailure { log.warn(it) { "수집 스킵" } }
                 .getOrNull()
         }
-    }
 
     /** 한 건이 실패해도 나머지는 계속 (영화 한 건당 트랜잭션) */
     private fun upsertSafe(m: TmdbMovie): Long? = runCatching { upsertService.upsert(m) }
