@@ -13,7 +13,6 @@
 	--primary: #2563eb;
 	--primary-foreground: #ffffff;
 	--rating: #f59e0b;
-	--destructive: #dc2626;
 
 	/* shadcn 호환 alias — 컴포넌트 복사 시 수정 최소화 */
 	--card: var(--background);

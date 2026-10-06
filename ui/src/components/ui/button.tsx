@@ -1,7 +1,7 @@
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { cn } from "../../lib/cn";
 
-type Variant = "default" | "outline" | "ghost" | "destructive";
+type Variant = "default" | "outline" | "ghost"; // ponytail-audit #3: destructive 변형 제거
 type Size = "default" | "sm";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -13,7 +13,6 @@ const variantClass: Record<Variant, string> = {
 	default: "bg-primary text-primary-foreground hover:opacity-90",
 	outline: "border border-border bg-background text-foreground hover:bg-surface",
 	ghost: "text-foreground hover:bg-surface",
-	destructive: "bg-destructive text-primary-foreground hover:opacity-90",
 };
 
 const sizeClass: Record<Size, string> = {

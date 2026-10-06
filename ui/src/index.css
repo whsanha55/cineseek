@@ -15,7 +15,6 @@
 	--color-primary: var(--primary);
 	--color-primary-foreground: var(--primary-foreground);
 	--color-rating: var(--rating);
-	--color-destructive: var(--destructive);
 
 	/* shadcn alias */
 	--color-card: var(--card);
