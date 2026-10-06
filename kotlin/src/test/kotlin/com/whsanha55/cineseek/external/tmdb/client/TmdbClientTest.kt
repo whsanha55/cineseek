@@ -219,6 +219,32 @@ class TmdbClientTest {
     }
 
     @Test
+    fun `originCountry는 origin_country를 제작국가 첫 번째보다 우선한다`() {
+        // given — 합작 영화: 제작국가 첫 번째는 US, origin_country는 KR
+        wiremock.stubFor(
+            WireMock.get(WireMock.urlPathEqualTo("/movie/156")).willReturn(
+                WireMock.okJson(
+                    """
+                    {"id":156,"title":"합작 영화","overview":"줄거리","origin_country":["KR"],
+                     "production_countries":[{"iso_3166_1":"US"},{"iso_3166_1":"KR"}]}
+                    """.trimIndent(),
+                ),
+            ),
+        )
+        wiremock.stubFor(
+            WireMock.get(WireMock.urlPathEqualTo("/movie/156/credits")).willReturn(
+                WireMock.okJson("""{"cast":[],"crew":[]}"""),
+            ),
+        )
+
+        // when
+        val movie = client.fetchDetail(156L)!!
+
+        // then
+        assertThat(movie.originCountry).isEqualTo("KR")
+    }
+
+    @Test
     fun `detail이 404면 null을 반환하고 재시도하지 않는다`() {
         // given
         wiremock.stubFor(
@@ -257,6 +283,27 @@ class TmdbClientTest {
         // then — 재시도한 요청이 성공 응답을 받는다
         assertThat(result.tmdbIds).containsExactly(11L)
         wiremock.verify(2, WireMock.getRequestedFor(WireMock.urlPathEqualTo("/discover/movie")))
+    }
+
+    @Test
+    fun `중간 페이지에서 실패하면 그때까지의 진행분을 failure와 함께 돌려준다`() {
+        // given — 1페이지 성공, 2페이지 500
+        wiremock.stubFor(
+            WireMock.get(WireMock.urlPathEqualTo("/discover/movie")).withQueryParam("page", WireMock.equalTo("1"))
+                .willReturn(WireMock.okJson("""{"results":[{"id":11}],"total_pages":5}""")),
+        )
+        wiremock.stubFor(
+            WireMock.get(WireMock.urlPathEqualTo("/discover/movie")).withQueryParam("page", WireMock.equalTo("2"))
+                .willReturn(WireMock.serverError()),
+        )
+
+        // when
+        val result = client.fetchDiscoverIds(TmdbClient.KR_DISCOVER_PARAMS, endPage = 5)
+
+        // then — 재시도가 2페이지부터 이어서 하도록 lastPage=1
+        assertThat(result.tmdbIds).containsExactly(11L)
+        assertThat(result.lastPage).isEqualTo(1)
+        assertThat(result.failure!!.status).isEqualTo(500)
     }
 
     @Test

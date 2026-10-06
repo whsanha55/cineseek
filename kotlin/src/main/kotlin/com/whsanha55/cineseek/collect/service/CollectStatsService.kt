@@ -4,6 +4,7 @@ import com.whsanha55.cineseek.collect.config.CollectProperties
 import com.whsanha55.cineseek.collect.enums.CollectTaskStatusEnum
 import com.whsanha55.cineseek.collect.enums.CollectTaskTypeEnum
 import com.whsanha55.cineseek.collect.repository.CollectTaskRepository
+import com.whsanha55.cineseek.movie.repository.MovieCastRepository
 import com.whsanha55.cineseek.movie.repository.MovieRepository
 import com.whsanha55.cineseek.movie.repository.PersonRepository
 import com.whsanha55.cineseek.search.service.MovieIndexer
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service
 class CollectStatsService(
     private val collectTaskRepository: CollectTaskRepository,
     private val movieRepository: MovieRepository,
+    private val movieCastRepository: MovieCastRepository,
     private val personRepository: PersonRepository,
     private val indexer: MovieIndexer,
     private val properties: CollectProperties,
@@ -37,7 +39,11 @@ class CollectStatsService(
         qdrantPointCount = runCatching { indexer.countPoints() }.getOrNull(),
     )
 
-    /** 시드 인물 확보 현황 — 아직 수집 전(행 없음)인 시드는 카운트가 null로 남는다 */
+    /**
+     * 시드 인물 확보 현황 — 아직 수집 전(행 없음)인 시드는 카운트가 null로 남는다.
+     * 저장 수는 movie_cast에서 지금 센다 — person.filmo_stored_count는 필모 수집 시점 값이라
+     * 그 뒤 MOVIE_DETAIL로 채워진 출연작이 TTL(30일) 재확인 전까지 반영되지 않는다
+     */
     private fun seedCoverage(): List<SeedCoverage> {
         val stored = personRepository.findAllById(properties.seedPersonIds).associateBy { it.personId }
         return properties.seedPersonIds.sorted().map { personId ->
@@ -45,7 +51,7 @@ class CollectStatsService(
             SeedCoverage(
                 personId = personId,
                 name = person?.name,
-                storedCount = person?.filmoStoredCount,
+                storedCount = person?.let { movieCastRepository.countByPersonId(personId).toInt() },
                 externalCount = person?.filmoExternalCount,
             )
         }

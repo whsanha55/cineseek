@@ -236,6 +236,7 @@ class CollectPipeline(
         val startPage = Checkpoint.decode(objectMapper, task.checkpoint).page + 1
         val result = tmdbClient.fetchDiscoverIds(params, startPage, properties.kr.pageCap)
         result.tmdbIds.forEach { enqueueMovieDetail(it, PRIORITY_NORMAL) }
+        result.failure?.let { return@runCatching fail(task, it, Checkpoint(result.lastPage).encode(objectMapper)) }
 
         val split = window.split(properties.kr.minWindowMonths)
         val capped = result.lastPage >= properties.kr.pageCap && result.totalPages > properties.kr.pageCap
@@ -257,6 +258,7 @@ class CollectPipeline(
         val startPage = Checkpoint.decode(objectMapper, task.checkpoint).page + 1
         val result = tmdbClient.fetchDiscoverIds(params, startPage, tmdbProperties.pages)
         result.tmdbIds.forEach { enqueueMovieDetail(it, PRIORITY_NORMAL) }
+        result.failure?.let { return@runCatching fail(task, it, Checkpoint(result.lastPage).encode(objectMapper)) }
         collectTaskService.complete(task, Checkpoint(result.lastPage).encode(objectMapper))
         Outcome.SUCCEEDED
     }.getOrElse { fail(task, it) }
@@ -329,10 +331,13 @@ class CollectPipeline(
             .let(personRepository::save)
     }
 
-    /** 실패 처리 — 영구(404·파싱 오류)인지 분류해 기록한다. 429/5xx/타임아웃과 나머지는 재시도 예약 */
-    private fun fail(task: CollectTaskEntity, e: Throwable): Outcome {
+    /**
+     * 실패 처리 — 영구(404·파싱 오류)인지 분류해 기록한다. 429/5xx/타임아웃과 나머지는 재시도 예약.
+     * [checkpointJson]은 discover 중간 실패의 진행분 — 재시도가 그다음 페이지부터 이어서 한다
+     */
+    private fun fail(task: CollectTaskEntity, e: Throwable, checkpointJson: String? = null): Outcome {
         val retryable = e !is PermanentTaskFailure && (e !is ExternalApiException || e.status != HTTP_NOT_FOUND)
-        collectTaskService.fail(task, e.message ?: e.javaClass.simpleName, retryable)
+        collectTaskService.fail(task, e.message ?: e.javaClass.simpleName, retryable, checkpointJson)
         return if (retryable) Outcome.RETRYABLE else Outcome.PERMANENT
     }
 

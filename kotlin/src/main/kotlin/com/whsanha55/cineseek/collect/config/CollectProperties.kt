@@ -18,7 +18,7 @@ data class CollectProperties(
     val retryBase: Duration = DEFAULT_RETRY_BASE, // 재시도 백오프 기본 — base * 2^attempts + 지터
     val retryMaxAttempts: Int = 8, // 재시도 예약 횟수가 이 값 이상이면 FAILED(영구)로 확정
     val kr: Kr = Kr(),
-    val seedPersonIds: List<Long> = DEFAULT_SEED_PERSON_IDS, // 시드 인물 — 초기 검증용 한국 배우 10명
+    val seedPersonIds: List<Long> = emptyList(), // 시드 인물 — 기본 10명은 application.yml에 둔다
     val filmoTtlDays: Int = 30, // 필모그래피 재확인 주기(일)
     val dailyCron: String = "0 0 4 * * *", // 일일 증분 배치 시각
     val zone: String = "Asia/Seoul", // 구간 계산 기준 타임존 — 시각 자체는 Instant로 다룬다
@@ -35,19 +35,5 @@ data class CollectProperties(
         private val DEFAULT_MAX_RUNTIME: Duration = Duration.ofMinutes(25)
         private val DEFAULT_LEASE_TIMEOUT: Duration = Duration.ofMinutes(30) // max-runtime보다 길게
         private val DEFAULT_RETRY_BASE: Duration = Duration.ofSeconds(60)
-
-        /** TMDB person id — 수집 보고(collect-report)의 seed 확보율 검증 대상 */
-        private val DEFAULT_SEED_PERSON_IDS: List<Long> = listOf(
-            20738L, // 송강호
-            20737L, // 전도연
-            64880L, // 최민식
-            25002L, // 이병헌
-            1024395L, // 마동석
-            587634L, // 박보검
-            1537768L, // 김태리
-            73249L, // 이정재
-            75913L, // 하정우
-            75912L, // 김윤석
-        )
     }
 }

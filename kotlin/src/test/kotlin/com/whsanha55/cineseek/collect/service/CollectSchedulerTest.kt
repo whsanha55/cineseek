@@ -82,6 +82,22 @@ class CollectSchedulerTest {
     }
 
     @Test
+    fun `틱 마무리는 상태를 다시 읽어 저장한다 — pipeline이 남긴 bootstrapped_at을 덮어쓰지 않는다`() {
+        val stale = CollectStateEntity()
+        val fresh = CollectStateEntity().apply { markBootstrapped(start) }
+        every { collectStateRepository.findById(CollectStateEntity.SINGLETON_ID) } returnsMany
+            listOf(Optional.of(stale), Optional.of(fresh))
+        every { pipeline.runBatch() } returns batchResult()
+        every { taskService.hasRemainingWork() } returns true
+
+        scheduler.tick()
+
+        verify(exactly = 1) { collectStateRepository.save(fresh) }
+        verify(exactly = 0) { collectStateRepository.save(stale) }
+        assertThat(fresh.bootstrappedAt).isEqualTo(start)
+    }
+
+    @Test
     fun `잔여 작업이 남으면 BOOTSTRAP를 유지한다 — FAILED는 hasRemainingWork 잔여로 치지 않는다`() {
         val state = CollectStateEntity()
         stubState(state)

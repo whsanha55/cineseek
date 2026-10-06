@@ -218,6 +218,28 @@ class CollectPipelineTest {
     }
 
     @Test
+    fun `KR_DISCOVER — 중간 페이지 실패는 진행분을 enqueue하고 체크포인트를 남겨 재시도를 예약한다`() {
+        // given — 2페이지까지 읽고 3페이지에서 503
+        collectTaskService.enqueue(KR_DISCOVER, "kr:origin:2022-01-01..2022-12-31")
+        every { tmdbClient.fetchDiscoverIds(any(), any(), any()) } returns TmdbDiscoverResult(
+            tmdbIds = listOf(20L),
+            lastPage = 2,
+            totalPages = 10,
+            failure = ExternalApiException("tmdb", RuntimeException("503"), 503),
+        )
+
+        // when
+        val result = pipeline.runBatch()
+
+        // then
+        assertThat(result.failedRetryable).isEqualTo(1)
+        val krTask = task(KR_DISCOVER, "kr:origin:2022-01-01..2022-12-31")!!
+        assertThat(krTask.status).isEqualTo(PENDING)
+        assertThat(krTask.checkpoint).isEqualTo("""{"page":2}""")
+        assertThat(task(MOVIE_DETAIL, "movie:tmdb:20")!!.status).isEqualTo(PENDING)
+    }
+
+    @Test
     fun `KR_DISCOVER — pageCap 도달 시 구간을 반분할해 두 작업을 enqueue한다`() {
         // given
         collectTaskService.enqueue(KR_DISCOVER, "kr:lang:2020-01-01..2020-12-31")

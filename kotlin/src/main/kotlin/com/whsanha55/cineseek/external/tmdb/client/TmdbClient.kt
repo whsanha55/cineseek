@@ -38,13 +38,15 @@ class TmdbClient(private val properties: TmdbProperties) {
         .build()
 
     /** 수집 기준별로 discover 페이지를 순회하고 합쳐서 중복을 제거한다. 기준마다 빈 페이지에서 조기 종료 */
-    fun fetchTmdbIds(pages: Int = properties.pages): List<Long> =
-        GLOBAL_DISCOVER_SOURCES.flatMap { params -> fetchDiscoverIds(params, endPage = pages).tmdbIds }.distinct()
+    fun fetchTmdbIds(pages: Int = properties.pages): List<Long> = GLOBAL_DISCOVER_SOURCES.flatMap { params ->
+        fetchDiscoverIds(params, endPage = pages).also { it.failure?.let { e -> throw e } }.tmdbIds
+    }.distinct()
 
     /**
      * 임의 파라미터로 discover를 순회한다 — 한국 수집처럼 호출자가 정렬·연도 구간 등 조건을 만들어 넘긴다.
      * startPage부터 endPage까지 읽고 빈 페이지·마지막 페이지(total_pages)에서 종료한다.
      * 반환값의 lastPage는 성공적으로 소비한 마지막 페이지로, 다음 실행의 체크포인트(startPage)로 쓴다.
+     * 한 페이지 이상 읽은 뒤 실패하면 던지지 않고 그때까지의 진행분을 failure와 함께 돌려준다 — 재시도가 이어서 하게.
      */
     fun fetchDiscoverIds(
         params: Map<String, String>,
@@ -54,25 +56,41 @@ class TmdbClient(private val properties: TmdbProperties) {
         val ids = mutableListOf<Long>()
         var lastPage = startPage - 1
         var totalPages = 0
-        for (page in startPage..endPage) {
-            val body = call {
-                restClient.get()
-                    .uri { builder ->
-                        builder.path("/discover/movie")
-                            .queryParam("language", properties.language)
-                            .queryParam("page", page)
-                        params.forEach { (key, value) -> builder.queryParam(key, value) }
-                        builder.build()
-                    }
-                    .retrieve()
-                    .body(DiscoverBody::class.java)
-            } ?: return TmdbDiscoverResult(tmdbIds = ids, lastPage = lastPage, totalPages = totalPages)
-            lastPage = page
-            totalPages = body.totalPages ?: 0
-            ids.addAll(body.results.map { it.id })
-            if (body.results.isEmpty() || (totalPages > 0 && page >= totalPages)) break
+        var failure: ExternalApiException? = null
+        var page = startPage
+        var done = false
+        while (!done && page <= endPage) {
+            val body = try {
+                discoverPage(params, page)
+            } catch (e: ExternalApiException) {
+                if (lastPage < startPage) throw e // 진행분이 없으면 그대로 실패
+                failure = e
+                null
+            }
+            if (body == null) {
+                done = true
+            } else {
+                lastPage = page
+                totalPages = body.totalPages ?: 0
+                ids.addAll(body.results.map { it.id })
+                done = body.results.isEmpty() || (totalPages > 0 && page >= totalPages)
+                page++
+            }
         }
-        return TmdbDiscoverResult(tmdbIds = ids, lastPage = lastPage, totalPages = totalPages)
+        return TmdbDiscoverResult(tmdbIds = ids, lastPage = lastPage, totalPages = totalPages, failure = failure)
+    }
+
+    private fun discoverPage(params: Map<String, String>, page: Int): DiscoverBody? = call {
+        restClient.get()
+            .uri { builder ->
+                builder.path("/discover/movie")
+                    .queryParam("language", properties.language)
+                    .queryParam("page", page)
+                params.forEach { (key, value) -> builder.queryParam(key, value) }
+                builder.build()
+            }
+            .retrieve()
+            .body(DiscoverBody::class.java)
     }
 
     /** 상세 + credits. 404는 null(영구 실패). overview가 비어도 반환한다 — 줄거리 누락은 보강 대상일 뿐 메타데이터를 버리지 않는다 */
@@ -163,7 +181,8 @@ class TmdbClient(private val properties: TmdbProperties) {
         val retryAfterSeconds = (e as? HttpStatusCodeException)
             ?.responseHeaders?.getFirst(HttpHeaders.RETRY_AFTER)?.toLongOrNull()
         if (retryAfterSeconds != null && retryAfterSeconds > 0) {
-            return Duration.ofSeconds(retryAfterSeconds)
+            // 상한 — 긴 대기로 lease(lease-timeout)를 넘기면 다른 워커가 같은 작업을 회수해 중복 실행한다
+            return Duration.ofSeconds(retryAfterSeconds.coerceAtMost(MAX_RETRY_AFTER_SECONDS))
         }
         return Duration.ofMillis(RETRY_BACKOFF_BASE_MILLIS shl attempt)
     }
@@ -180,7 +199,8 @@ class TmdbClient(private val properties: TmdbProperties) {
         posterPath = posterPath,
         backdropPath = backdropPath,
         originalLanguage = originalLanguage,
-        originCountry = productionCountries.firstOrNull()?.isoCode,
+        // discover의 with_origin_country와 같은 origin_country를 우선 — 없으면 제작국가 첫 번째
+        originCountry = originCountries.firstOrNull() ?: productionCountries.firstOrNull()?.isoCode,
         genres = genres.map { TmdbGenre(it.id, it.name) },
         directors = credits.crew.filter { it.job == DIRECTOR_JOB }.map { TmdbPerson(it.id, it.name) },
         cast = credits.cast.map { TmdbCastMember(it.id, it.name, it.character, it.order) },
@@ -207,6 +227,7 @@ class TmdbClient(private val properties: TmdbProperties) {
         private const val TARGET = "tmdb"
         private const val MAX_RETRIES = 3
         private const val RETRY_BACKOFF_BASE_MILLIS = 200L
+        private const val MAX_RETRY_AFTER_SECONDS = 60L
         private val RETRYABLE_STATUSES = setOf(
             HttpStatus.TOO_MANY_REQUESTS.value(),
             HttpStatus.BAD_GATEWAY.value(),

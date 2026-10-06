@@ -85,7 +85,7 @@ class CollectScheduler(
             pipeline.enqueueBootstrapIfNotStarted()
         }
         val result = pipeline.runBatch() // 내부에서 lease 회수가 한 번 더 실행되지만 직전에 비웠으니 무해하다
-        if (finishTick(state, result)) {
+        if (finishTick(result)) {
             log.info { "bootstrap 완료 — 잔여 작업이 없어 일일 증분(DAILY) 모드로 전환한다" }
         }
         logStats(result)
@@ -105,7 +105,7 @@ class CollectScheduler(
         val missingOverviews = requeueMissingOverviews()
         val resetFailed = taskService.resetRetryExhausted()
         val result = pipeline.runBatch()
-        finishTick(state, result)
+        finishTick(result)
         log.info {
             "일일 증분 틱 완료. 신작등록=$freshMovies, 만료필모=$expiredFilmos, " +
                 "줄거리누락=$missingOverviews, 실패복귀=$resetFailed, ${result.summary()}"
@@ -113,8 +113,12 @@ class CollectScheduler(
         logStats(result)
     }
 
-    /** 틱 마무리 — last_run_at/last_summary 기록. BOOTSTRAP에서 잔여 작업이 없으면 DAILY로 전환하고 true를 돌려준다 */
-    private fun finishTick(state: CollectStateEntity, result: BatchResult): Boolean {
+    /**
+     * 틱 마무리 — last_run_at/last_summary 기록. BOOTSTRAP에서 잔여 작업이 없으면 DAILY로 전환하고 true를 돌려준다.
+     * 상태는 다시 읽는다 — 틱 시작 때 읽은 것을 저장하면 그사이 pipeline이 남긴 bootstrapped_at을 NULL로 덮는다
+     */
+    private fun finishTick(result: BatchResult): Boolean {
+        val state = collectStateRepository.findById(CollectStateEntity.SINGLETON_ID).orElseThrow()
         val now = Instant.now(clock)
         val transitioned = state.mode == CollectModeEnum.BOOTSTRAP && !taskService.hasRemainingWork()
         if (transitioned) {

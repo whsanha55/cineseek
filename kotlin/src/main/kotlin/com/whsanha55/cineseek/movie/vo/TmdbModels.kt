@@ -1,5 +1,6 @@
 package com.whsanha55.cineseek.movie.vo
 
+import com.whsanha55.cineseek.global.exception.ExternalApiException
 import java.math.BigDecimal
 import java.time.LocalDate
 
@@ -44,6 +45,7 @@ data class TmdbDiscoverResult(
     val tmdbIds: List<Long>,
     val lastPage: Int, // 성공적으로 소비한 마지막 페이지 — 다음 실행의 startPage 체크포인트
     val totalPages: Int, // TMDB가 알려준 total_pages (응답에 없으면 0)
+    val failure: ExternalApiException? = null, // 중간 페이지에서 실패 — tmdbIds·lastPage는 그 직전까지의 진행분
 )
 
 /** TMDB person 상세(ko-KR) */

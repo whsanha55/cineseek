@@ -85,10 +85,11 @@ class CollectTaskService(
 
     /**
      * 작업 실패 — [retryable]이면 지수 백오프로 재시도를 예약한다. 재시도 횟수(attempts)가
-     * 상한에 도달했거나 retryable이 아니면 FAILED(영구)로 확정한다
+     * 상한에 도달했거나 retryable이 아니면 FAILED(영구)로 확정한다. [checkpointJson]이 있으면 재시도가 이어서 하게 남긴다
      */
     @Transactional
-    fun fail(task: CollectTaskEntity, error: String, retryable: Boolean) {
+    fun fail(task: CollectTaskEntity, error: String, retryable: Boolean, checkpointJson: String? = null) {
+        checkpointJson?.let(task::saveCheckpoint)
         task.markFailed(error) // 오류 기록과 lease 해제
         if (retryable && task.attempts < properties.retryMaxAttempts) {
             // 상태만 PENDING으로 되돌려 예약 — 오류 기록은 남는다

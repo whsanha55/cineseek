@@ -28,6 +28,7 @@ internal data class DetailBody(
     @JsonProperty("poster_path") val posterPath: String? = null,
     @JsonProperty("backdrop_path") val backdropPath: String? = null,
     @JsonProperty("original_language") val originalLanguage: String? = null,
+    @JsonProperty("origin_country") val originCountries: List<String> = emptyList(),
     @JsonProperty("production_countries") val productionCountries: List<ProductionCountryItem> = emptyList(),
     val genres: List<GenreItem> = emptyList(),
 )
