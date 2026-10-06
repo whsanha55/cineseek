@@ -4,6 +4,7 @@ import { Home } from "./pages/Home";
 import { Search } from "./pages/Search";
 import { MovieDetail } from "./pages/MovieDetail";
 import { Explore } from "./pages/Explore";
+import { PersonPage } from "./pages/PersonPage";
 import { NotFound } from "./pages/NotFound";
 
 const routes: RouteObject[] = [
@@ -11,6 +12,7 @@ const routes: RouteObject[] = [
 	{ path: "/search", element: <Search /> },
 	{ path: "/movies/:id", element: <MovieDetail /> },
 	{ path: "/explore", element: <Explore /> },
+	{ path: "/people/:id", element: <PersonPage /> },
 	{ path: "*", element: <NotFound /> },
 ];
 if (import.meta.env.DEV) {

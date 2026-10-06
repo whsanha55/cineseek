@@ -1,12 +1,13 @@
 import { Link, useParams } from "react-router-dom";
 import { Star } from "lucide-react";
 import { useMovie } from "../api/hooks";
+import { CastOtherWorks } from "../components/CastOtherWorks";
 import { PosterImage } from "../components/PosterImage";
 import { SimilarRow } from "../components/SimilarRow";
 import { ErrorState } from "../components/StateViews";
 import { Skeleton } from "../components/ui/skeleton";
 
-/** 영화 상세 — 메타·줄거리·출연진 + 유사 영화 (F3). 인물 클릭은 /explore로 통일 */
+/** 영화 상세 — 메타·줄거리·출연진 + 유사 영화·주요 배우 다른 작품 (F3, T7). 감독은 /explore, 배우는 /people로 */
 export function MovieDetail() {
 	const { id } = useParams();
 	const { data: movie, isPending, isError, refetch } = useMovie(id);
@@ -95,7 +96,7 @@ export function MovieDetail() {
 										{m.cast.map((c) => (
 											<li key={c.personId} className="text-sm">
 												<Link
-													to={`/explore?castId=${c.personId}`}
+													to={`/people/${c.personId}`}
 													className="text-foreground underline-offset-4 hover:text-primary hover:underline"
 												>
 													{c.name}
@@ -115,6 +116,8 @@ export function MovieDetail() {
 				<h2 className="mb-4 text-lg font-bold text-foreground">이 영화랑 비슷한</h2>
 				<SimilarRow movieId={Number(id)} />
 			</section>
+
+			<CastOtherWorks movieId={Number(id)} cast={m.cast.slice(0, 3)} />
 		</article>
 	);
 }

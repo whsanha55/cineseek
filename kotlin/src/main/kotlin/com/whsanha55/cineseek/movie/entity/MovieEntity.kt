@@ -34,6 +34,7 @@ class MovieEntity(
     posterPath: String? = null,
     val backdropPath: String? = null,
     val originalLanguage: String? = null,
+    originCountry: String? = null,
     overviewUpdatedAt: Instant? = null,
     moodTags: String? = null,
     moodDesc: String? = null,
@@ -71,6 +72,9 @@ class MovieEntity(
     var posterPath: String? = posterPath
         protected set
 
+    var originCountry: String? = originCountry
+        protected set
+
     var overviewUpdatedAt: Instant? = overviewUpdatedAt
         protected set
 
@@ -104,6 +108,7 @@ class MovieEntity(
         voteAverage = tmdb.voteAverage
         voteCount = tmdb.voteCount
         posterPath = tmdb.posterPath
+        originCountry = tmdb.originCountry
         overviewUpdatedAt = now
     }
 

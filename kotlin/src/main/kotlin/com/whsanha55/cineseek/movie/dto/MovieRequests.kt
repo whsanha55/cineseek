@@ -1,6 +1,7 @@
 package com.whsanha55.cineseek.movie.dto
 
 import com.whsanha55.cineseek.movie.enums.ExploreSortEnum
+import com.whsanha55.cineseek.movie.enums.FilmographySortEnum
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.DecimalMax
 import jakarta.validation.constraints.DecimalMin
@@ -78,3 +79,24 @@ data class PersonRequest(
     @field:Pattern(regexp = PeopleRequest.ROLE_PATTERN)
     val role: String = "director",
 )
+
+/** GET /cineseek/people/{id}/filmography 쿼리 파라미터 — 배우 필모그래피 */
+data class FilmographyRequest(
+    @field:Schema(description = "정렬 (release | rating) — 기본 최신 개봉순", example = "release")
+    @field:Pattern(regexp = "release|rating")
+    val sort: String = "release",
+
+    @field:Schema(description = "페이지 (0부터)", example = "0")
+    @field:Min(0)
+    val page: Int = 0,
+
+    @field:Schema(description = "페이지 크기 (1~50)", example = "20")
+    @field:Min(1)
+    @field:Max(MovieExploreRequest.MAX_LIMIT)
+    val limit: Int = MovieExploreRequest.DEFAULT_LIMIT,
+
+    @field:Schema(description = "제외할 영화 id — 영화 상세의 '주요 배우 다른 작품'에서 현재 영화 제외", example = "155")
+    val excludeMovieId: Long? = null,
+) {
+    fun sortEnum() = FilmographySortEnum.fromParam(sort)
+}

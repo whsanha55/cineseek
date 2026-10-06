@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "./client";
 import type { SearchState } from "../lib/urlState";
 import type {
+	FilmographyResponse,
 	GenresResponse,
 	MovieDetail,
 	MovieListResponse,
@@ -103,5 +104,39 @@ export function usePerson(id: number | null, role: "director" | "cast") {
 		enabled: id !== null,
 		retry: false,
 		queryFn: () => apiGet<PersonItem>(`/cineseek/people/${id}`, { role }),
+	});
+}
+
+export type FilmographySort = "release" | "rating";
+
+export interface FilmographyQuery {
+	personId: number | null;
+	sort: FilmographySort;
+	page: number;
+	limit: number;
+	/** 영화 상세의 '다른 작품' 행에서 현재 영화를 뺄 때 사용 */
+	excludeMovieId: number | null;
+}
+
+/** 배우 필모그래피 — collecting이면 백그라운드 수집 중이므로 주기 재조회로 갱신된 목록을 받는다 */
+export function useFilmography(query: FilmographyQuery, enabled = true) {
+	return useQuery({
+		queryKey: [
+			"filmography",
+			query.personId,
+			query.sort,
+			query.page,
+			query.limit,
+			query.excludeMovieId,
+		] as const,
+		enabled: enabled && query.personId !== null,
+		queryFn: () =>
+			apiGet<FilmographyResponse>(`/cineseek/people/${query.personId}/filmography`, {
+				sort: query.sort,
+				page: query.page,
+				limit: query.limit,
+				excludeMovieId: query.excludeMovieId,
+			}),
+		refetchInterval: (q) => (q.state.data?.collecting ? 10_000 : false),
 	});
 }

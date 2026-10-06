@@ -23,6 +23,23 @@ logging:
     correlation: "[%X{requestId:-}] "  # RequestIdFilter가 MDC에 넣은 요청 ID
 
 cineseek:
+  collect:
+    enabled: ${CINESEEK_COLLECT_ENABLED:false}  # 수집 스케줄러 활성
+    interval: 30m  # 수집 틱 주기 (초기 집중 수집)
+    batch-size: 100  # 틱당 최대 작업 수
+    max-runtime: 25m  # 한 틱 최대 실행 시간 — 도달하면 체크포인트 남기고 다음 틱에 이어서
+    concurrency: 4  # 상세 수집 동시성
+    lease-timeout: 20m  # 만료 RUNNING 회수 임계
+    retry-base: 60s  # 재시도 백오프 기본 (base * 2^attempts + 지터)
+    retry-max-attempts: 8
+    kr:
+      years-back: 30  # 오늘 기준 수집 연도 범위
+      page-cap: 400  # 구간당 페이지 상한 — 도달 시 반분할
+      min-window-months: 1
+    seed-person-ids: []  # 시드 인물 — 확정 전 비움
+    filmo-ttl-days: 30
+    daily-cron: "0 0 4 * * *"  # 일일 증분 배치 시각
+    zone: Asia/Seoul  # 구간 계산 기준 타임존
   embedding:
     base-url: ${EMBED_URL:http://localhost:8001}
     batch-size: 64          # /embed 요청 분할 단위 (계약: 1회 최대 64개)

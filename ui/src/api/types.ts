@@ -26,3 +26,6 @@ export type CastMember = Api<"CastMemberResponse">;
 export type GenresResponse = Api<"GenresResponse">;
 export type PersonItem = Api<"PersonItemResponse">;
 export type PeopleResponse = Api<"PeopleResponse">;
+export type FilmographyPerson = Api<"FilmographyPersonResponse">;
+export type FilmographyItem = Api<"FilmographyItemResponse">;
+export type FilmographyResponse = Api<"FilmographyResponse">;

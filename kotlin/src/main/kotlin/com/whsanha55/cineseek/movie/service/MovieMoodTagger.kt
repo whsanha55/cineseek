@@ -51,15 +51,21 @@ class MovieMoodTagger(
 ) {
 
     /**
-     * 분위기 태그가 없거나 버전이 다른 영화를 병렬 태깅한다 — 가상 스레드 + Semaphore 동시 제한.
-     * 한 건 실패는 건너뛰고 성공 수를 반환한다. API 키가 비어 있으면 경고 후 0
+     * 분위기 태그가 없거나 버전이 다른 영화 전체를 병렬 태깅한다 — 재색인 배치용
      */
-    fun tagAll(): Int {
+    fun tagAll(): Int = tagAll(Int.MAX_VALUE)
+
+    /**
+     * 분위기 태그가 없거나 버전이 다른 영화를 최대 [limit]건 병렬 태깅한다 — 가상 스레드 + Semaphore 동시 제한.
+     * 수집 틱이 갖는 LLM 호출 수를 상한으로 묶어 폭주를 막는다. 한 건 실패는 건너뛰고 성공 수를 반환한다.
+     * API 키가 비어 있으면 경고 후 0
+     */
+    fun tagAll(limit: Int): Int {
         if (llmProperties.apiKey.isBlank()) {
             log.warn { "LLM API 키 미설정 — 분위기 태깅을 건너뛴다" }
             return 0
         }
-        val ids = movieRepository.findRequiringMoodTag(version()).mapNotNull { it.movieId }
+        val ids = movieRepository.findRequiringMoodTag(version()).mapNotNull { it.movieId }.take(limit)
         val permits = Semaphore(TAG_CONCURRENCY)
         val results = Executors.newVirtualThreadPerTaskExecutor().use { executor ->
             executor.invokeAll(
