@@ -1,4 +1,4 @@
 source=https://github.com/whsanha55/claude-code-skills
 sha=5e0b23864bfa4f1a9499f203562af757475b23b8
-synced_at=2026-10-06T06:25:15Z
-targets=README.md common backend/common backend/kotlin
+synced_at=2026-10-06T06:32:39Z
+targets=README.md common backend/common backend/kotlin frontend/README.md frontend/common frontend/typescript
