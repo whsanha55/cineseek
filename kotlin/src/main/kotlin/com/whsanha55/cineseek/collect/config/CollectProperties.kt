@@ -33,7 +33,7 @@ data class CollectProperties(
     companion object {
         private val DEFAULT_INTERVAL: Duration = Duration.ofMinutes(30)
         private val DEFAULT_MAX_RUNTIME: Duration = Duration.ofMinutes(25)
-        private val DEFAULT_LEASE_TIMEOUT: Duration = Duration.ofMinutes(20)
+        private val DEFAULT_LEASE_TIMEOUT: Duration = Duration.ofMinutes(30) // max-runtime보다 길게
         private val DEFAULT_RETRY_BASE: Duration = Duration.ofSeconds(60)
 
         /** TMDB person id — 수집 보고(collect-report)의 seed 확보율 검증 대상 */
