@@ -28,6 +28,7 @@ hotfix/WLT-7-settlement-timeout
 ```
 
 - 설명은 소문자와 하이픈으로 쓴다.
+- 설명에 도구·스킬·에이전트 이름이나 리뷰 번호를 쓰지 않는다.
 
 ## 2. 커밋 메시지
 
@@ -67,6 +68,7 @@ hotfix/WLT-7-settlement-timeout
 금지:
 
 - `Co-Authored-By` 등 AI나 도구의 서명 트레일러
+- 도구·스킬·에이전트 이름이나 리뷰 번호 같은 작업 표시 (예: `ponytail`, `(audit #3)`)
 - `wip`, `수정`, `.` 같은 의미 없는 메시지
 
 ## 3. Push
@@ -100,7 +102,7 @@ hotfix/WLT-7-settlement-timeout
 - 섹션을 비우지 않는다. 해당 없으면 "없음"이라고 쓴다.
 - 이유에 관련 티켓을 적는다.
 - 영향에는 API, DB, 설정 변경 여부와 배포 시 주의점을 적는다.
-- "Generated with Claude Code" 등 도구 문구를 넣지 않는다.
+- "Generated with Claude Code" 등 도구 문구나 리뷰 번호 같은 작업 표시를 넣지 않는다.
 
 ## 6. 머지 전 체크리스트
 
