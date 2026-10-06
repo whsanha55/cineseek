@@ -174,7 +174,7 @@ class MovieQueryService(
         genres = genres.sortedBy { it.genreId }.map { it.toItem() },
     )
 
-    private fun GenreEntity.toItem() = GenreItem(genreId, name, nameKo)
+    private fun GenreEntity.toItem() = GenreItem(genreId, name) // ponytail-audit #1
 
     companion object {
         private const val ROLE_DIRECTOR = "director"

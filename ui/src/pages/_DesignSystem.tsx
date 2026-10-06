@@ -24,8 +24,8 @@ const mockCard = {
 	voteCount: 21000,
 	posterPath: "/94PWwAT8MYL5i5SVplngTryLATS.jpg",
 	genres: [
-		{ id: 878, name: "SF", nameKo: null },
-		{ id: 12, name: "모험", nameKo: null },
+		{ id: 878, name: "SF" }, // ponytail-audit #1: nameKo 제거
+		{ id: 12, name: "모험" },
 	],
 };
 

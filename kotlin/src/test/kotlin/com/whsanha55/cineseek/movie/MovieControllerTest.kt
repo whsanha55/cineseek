@@ -123,7 +123,7 @@ class MovieControllerTest {
     @Test
     fun `장르 목록을 응답한다`() {
         // given
-        every { movieQueryService.genres() } returns listOf(GenreItem(28L, "Action", "액션"))
+        every { movieQueryService.genres() } returns listOf(GenreItem(28L, "액션"))
 
         // when
         val result = mockMvc.get("/cineseek/genres")
@@ -132,7 +132,7 @@ class MovieControllerTest {
         result.andExpect {
             status { isOk() }
             jsonPath("$.items[0].id") { value(28) }
-            jsonPath("$.items[0].nameKo") { value("액션") }
+            jsonPath("$.items[0].name") { value("액션") }
         }
     }
 
@@ -193,6 +193,6 @@ class MovieControllerTest {
         rating = 8.0,
         voteCount = 21000,
         posterPath = "/example.jpg",
-        genres = listOf(GenreItem(878L, "Science Fiction", "SF")),
+        genres = listOf(GenreItem(878L, "SF")),
     )
 }

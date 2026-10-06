@@ -91,7 +91,7 @@ class ReindexJob(
         .onFailure { log.warn(it) { "upsert 스킵. tmdbId=${m.tmdbId}" } }
         .getOrNull()
 
-    /** PG에서 임베딩 입력(EmbeddingText)과 payload를 조립 — SoT 기준. 장르명은 nameKo 우선 */
+    /** PG에서 임베딩 입력(EmbeddingText)과 payload를 조립 — SoT 기준. ponytail-audit #1: 장르명은 name 그대로 */
     private fun buildIndexedMovies(): List<IndexedMovie> = movieRepository.findAll().mapNotNull { movie ->
         val overview = movie.overview ?: return@mapNotNull null // 임베딩 불가 → 스킵
         val movieId = requireNotNull(movie.movieId) { "조회한 영화에 movieId가 없다. tmdbId=${movie.tmdbId}" }
@@ -102,7 +102,7 @@ class ReindexJob(
             embeddingInput = EmbeddingText.assemble(
                 title = movie.title,
                 originalTitle = movie.originalTitle,
-                genreNames = movie.genres.map { it.nameKo ?: it.name },
+                genreNames = movie.genres.map { it.name },
                 moodTags = movie.moodTags?.split(", ")?.filter { it.isNotBlank() } ?: emptyList(),
                 moodDesc = movie.moodDesc,
                 overview = overview,

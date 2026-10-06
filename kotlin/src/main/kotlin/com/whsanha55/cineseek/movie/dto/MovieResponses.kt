@@ -16,11 +16,10 @@ import io.swagger.v3.oas.annotations.media.Schema
 data class GenreResponse(
     @field:Schema(description = "TMDB 장르 id", example = "28")
     val id: Long,
-    val name: String,
-    val nameKo: String?,
+    val name: String, // ponytail-audit #1: nameKo 제거
 ) {
     companion object {
-        fun from(genre: GenreItem) = GenreResponse(id = genre.genreId, name = genre.name, nameKo = genre.nameKo)
+        fun from(genre: GenreItem) = GenreResponse(id = genre.genreId, name = genre.name)
     }
 }
 

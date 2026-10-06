@@ -592,12 +592,6 @@
           },
           "name": {
             "type": "string"
-          },
-          "nameKo": {
-            "type": [
-              "string",
-              "null"
-            ]
           }
         }
       },

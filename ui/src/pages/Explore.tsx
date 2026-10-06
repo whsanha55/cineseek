@@ -68,7 +68,8 @@ export function Explore() {
 									: "h-8 shrink-0 rounded-[var(--radius-chip)] bg-surface px-3 text-xs font-medium text-foreground hover:bg-border"
 							}
 						>
-							{g.nameKo ?? g.name}
+							{/* ponytail-audit #1: nameKo 제거 */}
+							{g.name}
 						</button>
 					))}
 				</div>

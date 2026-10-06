@@ -95,7 +95,8 @@ export function FilterBar({ state, onChange, onReset }: FilterBarProps) {
 									: "border-border bg-background text-foreground hover:bg-surface",
 							)}
 						>
-							{g.nameKo ?? g.name}
+							{/* ponytail-audit #1: nameKo 제거 */}
+							{g.name}
 						</button>
 					);
 				})}
@@ -223,7 +224,7 @@ export function FilterBar({ state, onChange, onReset }: FilterBarProps) {
 					{state.genreIds.map((id) => {
 						const g = genreById.get(id);
 						return (
-							<Chip key={id} label={g ? (g.nameKo ?? g.name) : `장르 ${id}`} onRemove={() =>
+							<Chip key={id} label={g ? g.name : `장르 ${id}`} /* ponytail-audit #1 */ onRemove={() =>
 								onChange({ genreIds: state.genreIds.filter((x) => x !== id) })
 							} />
 						);

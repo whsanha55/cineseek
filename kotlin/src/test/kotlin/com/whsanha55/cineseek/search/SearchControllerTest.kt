@@ -48,7 +48,7 @@ class SearchControllerTest {
             jsonPath("$.items[0].title") { value("쇼생크 탈출") }
             jsonPath("$.items[0].originalTitle") { value(nullValue()) }
             jsonPath("$.items[0].genres[0].id") { value(80) }
-            jsonPath("$.items[0].genres[0].nameKo") { value("범죄") }
+            jsonPath("$.items[0].genres[0].name") { value("범죄") }
             jsonPath("$.items[0].score") { value(0.032) }
             jsonPath("$.page.limit") { value(3) }
             jsonPath("$.page.hasNext") { value(true) }
@@ -166,6 +166,6 @@ class SearchControllerTest {
         rating = 8.7,
         voteCount = 27000,
         posterPath = "/example.jpg",
-        genres = listOf(GenreItem(80L, "Crime", "범죄")),
+        genres = listOf(GenreItem(80L, "범죄")),
     )
 }

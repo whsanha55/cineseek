@@ -69,7 +69,7 @@ class MovieQueryServiceTest {
         // then
         assertThat(cards.keys).containsExactlyInAnyOrder(matrix, darkKnight)
         assertThat(cards.getValue(matrix).originalTitle).isNull()
-        assertThat(cards.getValue(darkKnight).genres.map { it.nameKo }).containsExactly("액션")
+        assertThat(cards.getValue(darkKnight).genres.map { it.name }).containsExactly("액션")
     }
 
     @Test
@@ -199,8 +199,8 @@ class MovieQueryServiceTest {
 
     /** 매트릭스(originalTitle 없음, 투표 999) · 다크나이트(8.5/3000표) · 라라랜드(8.0/1000표). 놀란은 두 작품 */
     private fun seed() {
-        val action = genreRepository.save(GenreEntity(genreId = 28L, name = "Action", nameKo = "액션"))
-        val romance = genreRepository.save(GenreEntity(genreId = 10749L, name = "Romance", nameKo = "로맨스"))
+        val action = genreRepository.save(GenreEntity(genreId = 28L, name = "액션"))
+        val romance = genreRepository.save(GenreEntity(genreId = 10749L, name = "로맨스"))
 
         matrix = save(
             MovieEntity(

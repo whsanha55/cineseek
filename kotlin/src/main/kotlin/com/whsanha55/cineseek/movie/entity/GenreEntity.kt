@@ -12,8 +12,7 @@ class GenreEntity(
     @Id
     val genreId: Long,
 
+    // ponytail-audit #1: nameKo 제거 — 채우는 경로가 없었다. TMDB ko-KR 응답이라 name이 이미 한글. name_ko 컬럼은 DB에 남겨둠
     @Column(nullable = false)
     val name: String,
-
-    val nameKo: String? = null,
 )
