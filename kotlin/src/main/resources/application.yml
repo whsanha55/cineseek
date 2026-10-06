@@ -36,7 +36,7 @@ cineseek:
       years-back: 30  # 오늘 기준 수집 연도 범위
       page-cap: 400  # 구간당 페이지 상한 — 도달 시 반분할
       min-window-months: 1
-    seed-person-ids: ${CINESEEK_COLLECT_SEED_PERSON_IDS:}  # 시드 인물 TMDB id (콤마 구분) — 기본 없음, prod에서 env로 켠다
+    # seed-person-ids — 기본은 CollectProperties의 한국 배우 10명. env(CINESEEK_COLLECT_SEED_PERSON_IDS, 콤마 구분)로 재정의
     filmo-ttl-days: 30
     daily-cron: "0 0 4 * * *"  # 일일 증분 배치 시각
     zone: Asia/Seoul  # 구간 계산 기준 타임존
