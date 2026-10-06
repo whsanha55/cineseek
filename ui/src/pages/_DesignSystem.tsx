@@ -2,7 +2,6 @@
  * 개발용 디자인 시스템 카탈로그 (/_ds) — 토큰·컴포넌트·상태(로딩/빈/에러)를 한 장에서 본다.
  * import.meta.env.DEV 조건부 라우트로만 등록 — 운영 번들에서 제외 (§6.3)
  */
-import { useState } from "react";
 import { Star } from "lucide-react";
 import { SearchBar } from "../components/SearchBar";
 import { MovieCard } from "../components/MovieCard";
@@ -10,8 +9,6 @@ import { MovieGridSkeleton } from "../components/MovieGrid";
 import { RelevanceMeter } from "../components/RelevanceMeter";
 import { EmptyState, ErrorState } from "../components/StateViews";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Badge } from "../components/ui/badge";
 import { Select } from "../components/ui/select";
 import { Skeleton } from "../components/ui/skeleton";
 
@@ -24,8 +21,8 @@ const mockCard = {
 	voteCount: 21000,
 	posterPath: "/94PWwAT8MYL5i5SVplngTryLATS.jpg",
 	genres: [
-		{ id: 878, name: "SF", nameKo: null },
-		{ id: 12, name: "모험", nameKo: null },
+		{ id: 878, name: "SF" },
+		{ id: 12, name: "모험" },
 	],
 };
 
@@ -41,8 +38,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function Component() {
-	const [input, setInput] = useState("");
-
 	return (
 		<div className="space-y-12 pb-20">
 			<header>
@@ -59,7 +54,6 @@ function Component() {
 						["surface", "bg-surface"],
 						["primary", "bg-primary"],
 						["rating", "bg-[var(--rating)]"],
-						["destructive", "bg-[var(--destructive)]"],
 						["border", "bg-border"],
 					].map(([name, cls]) => (
 						<div key={name} className="flex flex-col items-center gap-1">
@@ -86,19 +80,13 @@ function Component() {
 				</div>
 			</Section>
 
-			<Section title="Button · Input · Badge · Select">
+			<Section title="Button · Select">
 				<div className="flex flex-wrap items-center gap-2">
 					<Button>기본</Button>
 					<Button variant="outline">아웃라인</Button>
 					<Button variant="ghost">고스트</Button>
-					<Button variant="destructive">삭제</Button>
 					<Button size="sm">작게</Button>
 					<Button disabled>비활성</Button>
-				</div>
-				<Input placeholder="입력" value={input} onChange={(e) => setInput(e.target.value)} className="max-w-xs" />
-				<div className="flex flex-wrap gap-2">
-					<Badge>장르 칩</Badge>
-					<Badge variant="outline">아웃라인 배지</Badge>
 				</div>
 				<Select className="w-40" defaultValue="a">
 					<option value="a">옵션 A</option>

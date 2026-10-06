@@ -43,7 +43,7 @@ export function MovieCard({ movie, allScores }: MovieCardProps) {
 				</div>
 				{genres.length > 0 && (
 					<p className="line-clamp-1 text-xs text-muted-foreground">
-						{genres.map((g) => g.nameKo ?? g.name).join(" · ")}
+						{genres.map((g) => g.name).join(" · ")}
 					</p>
 				)}
 				{isSearchItem(movie) && allScores && <RelevanceMeter score={movie.score} allScores={allScores} />}

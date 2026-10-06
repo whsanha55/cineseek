@@ -50,6 +50,18 @@ gh repo clone whsanha55/claude-code-skills ~/temp/personal/claude-code-skills
 ln -s ~/temp/personal/claude-code-skills/skills/convention-sync ~/.claude/skills/convention-sync
 ```
 
+새 컴퓨터에서는 아래 설정도 최초 1회 해 둔다. 커밋·PR에 도구 서명과 작업 표시가 남지 않게 하는 설정이다(`common/git-pr.md` 2절, 5절).
+
+- Claude Code 전역 설정 `~/.claude/settings.json`에 서명 자동 첨부 끄기:
+
+  ```json
+  { "attribution": { "commit": "", "pr": "", "sessionUrl": false } }
+  ```
+
+- 플러그인 설정(예: ponytail 자동 활성화 끄기)은 저장소 루트 `plugins/configure.sh`에 있다. `jsync-skill`의 `plugin pull`로 복원하면 함께 적용된다.
+
+`/convention-sync`는 동기화할 때마다 두 설정을 확인하고, 어긋나 있으면 고칠지 묻는다.
+
 프로젝트에서 `/convention-sync`를 실행하면 다음을 한다.
 
 - 프로젝트 종류(백엔드/프론트엔드, 언어)에 맞는 문서를 `docs/convention/`에 복사한다.

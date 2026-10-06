@@ -95,14 +95,14 @@ class MovieQueryServiceTest {
         // then
         assertThat(cards.keys).containsExactlyInAnyOrder(matrix, darkKnight)
         assertThat(cards.getValue(matrix).originalTitle).isNull()
-        assertThat(cards.getValue(darkKnight).genres.map { it.nameKo }).containsExactly("액션")
+        assertThat(cards.getValue(darkKnight).genres.map { it.name }).containsExactly("액션")
     }
 
     @Test
     fun `explore rating 정렬 — 최소 투표 수 미만은 제외한다`() {
         // when
-        val first = service.explore(null, ExploreSortEnum.RATING, offset = 0, limit = 1)
-        val all = service.explore(null, ExploreSortEnum.RATING, offset = 0, limit = 10)
+        val first = service.explore(null, ExploreSortEnum.RATING, page = 0, limit = 1)
+        val all = service.explore(null, ExploreSortEnum.RATING, page = 0, limit = 10)
 
         // then — 매트릭스(9.0, 999표)는 MIN_VOTES(1000) 미만이라 빠진다
         assertThat(first.items.map { it.movieId }).containsExactly(darkKnight)
@@ -113,8 +113,8 @@ class MovieQueryServiceTest {
     @Test
     fun `explore genreId 필터와 vote_count 정렬`() {
         // when
-        val byGenre = service.explore(28L, ExploreSortEnum.RELEASE, offset = 0, limit = 10)
-        val byVotes = service.explore(null, ExploreSortEnum.VOTE_COUNT, offset = 0, limit = 10)
+        val byGenre = service.explore(28L, ExploreSortEnum.RELEASE, page = 0, limit = 10)
+        val byVotes = service.explore(null, ExploreSortEnum.VOTE_COUNT, page = 0, limit = 10)
 
         // then
         assertThat(byGenre.items.map { it.movieId }).containsExactly(darkKnight, matrix)
@@ -124,8 +124,8 @@ class MovieQueryServiceTest {
     @Test
     fun `explore 인물 필터 — 여러 작품에 참여한 감독도 조회된다`() {
         // when
-        val byDirector = service.explore(null, ExploreSortEnum.RELEASE, offset = 0, limit = 10, directorId = 525L)
-        val byCast = service.explore(null, ExploreSortEnum.RELEASE, offset = 0, limit = 10, castId = 3895L)
+        val byDirector = service.explore(null, ExploreSortEnum.RELEASE, page = 0, limit = 10, directorId = 525L)
+        val byCast = service.explore(null, ExploreSortEnum.RELEASE, page = 0, limit = 10, castId = 3895L)
 
         // then
         assertThat(byDirector.items.map { it.movieId }).containsExactly(darkKnight, matrix)
@@ -165,7 +165,7 @@ class MovieQueryServiceTest {
         val page = service.explore(
             null,
             ExploreSortEnum.RATING,
-            offset = 0,
+            page = 0,
             limit = 10,
             ratingMin = 7.5,
             voteCountMin = 50,
@@ -179,8 +179,8 @@ class MovieQueryServiceTest {
     @Test
     fun `explore voteCountMin 없이 ratingMin만 쓰면 소수 투표 고평점 작품이 섞인다`() {
         // when
-        val byRelease = service.explore(null, ExploreSortEnum.RELEASE, offset = 0, limit = 10, ratingMin = 7.5)
-        val byRating = service.explore(null, ExploreSortEnum.RATING, offset = 0, limit = 10, ratingMin = 7.5)
+        val byRelease = service.explore(null, ExploreSortEnum.RELEASE, page = 0, limit = 10, ratingMin = 7.5)
+        val byRating = service.explore(null, ExploreSortEnum.RATING, page = 0, limit = 10, ratingMin = 7.5)
 
         // then — 평점순이 아니면 암시 하한이 없어 매트릭스(9.0, 999표)가 그대로 섞이고, 평점순은 기존대로 암시 하한 1000을 유지한다
         assertThat(byRelease.items.map { it.movieId }).containsExactly(laLaLand, darkKnight, matrix)
@@ -365,8 +365,8 @@ class MovieQueryServiceTest {
 
     /** 매트릭스(originalTitle 없음, 투표 999) · 다크나이트(8.5/3000표) · 라라랜드(8.0/1000표). 놀란은 두 작품 */
     private fun seed() {
-        val action = genreRepository.save(GenreEntity(genreId = 28L, name = "Action", nameKo = "액션"))
-        val romance = genreRepository.save(GenreEntity(genreId = 10749L, name = "Romance", nameKo = "로맨스"))
+        val action = genreRepository.save(GenreEntity(genreId = 28L, name = "액션"))
+        val romance = genreRepository.save(GenreEntity(genreId = 10749L, name = "로맨스"))
 
         matrix = save(
             MovieEntity(
@@ -472,7 +472,7 @@ class MovieQueryServiceTest {
                 castOrder = 7,
             ),
         )
-        val drama = genreRepository.save(GenreEntity(genreId = 18L, name = "Drama", nameKo = "드라마"))
+        val drama = genreRepository.save(GenreEntity(genreId = 18L, name = "Drama"))
         debut = save(
             MovieEntity(
                 tmdbId = 999_001L,

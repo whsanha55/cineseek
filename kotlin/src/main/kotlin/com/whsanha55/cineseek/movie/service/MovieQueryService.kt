@@ -67,7 +67,7 @@ class MovieQueryService(
     }
 
     /**
-     * 탐색 목록 — offset은 limit의 배수(page * limit)로 들어온다.
+     * 탐색 목록 — page는 0부터. 응답의 offset은 page * limit.
      *
      * 평점순 정렬은 투표 몇 표짜리 작품이 상위에 오지 않도록 [MIN_VOTES_FOR_RATING] 암시 하한을 건다.
      * 호출자가 [voteCountMin]을 명시하면 명시값이 우선하고 암시 하한은 적용하지 않는다 —
@@ -77,7 +77,7 @@ class MovieQueryService(
     fun explore(
         genreId: Long?,
         sort: ExploreSortEnum,
-        offset: Int,
+        page: Int,
         limit: Int,
         directorId: Long? = null,
         castId: Long? = null,
@@ -86,22 +86,21 @@ class MovieQueryService(
         voteCountMax: Int? = null,
     ): MoviePage {
         val minVoteCount = voteCountMin ?: if (sort == ExploreSortEnum.RATING) MIN_VOTES_FOR_RATING else null
-        val page = movieRepository.findAll(
+        val found = movieRepository.findAll(
             exploreSpec(genreId, minVoteCount, voteCountMax, directorId, castId, ratingMin),
-            PageRequest.of(offset / limit, limit, sortOrder(sort)),
+            PageRequest.of(page, limit, sortOrder(sort)),
         )
-        val ids = page.content.map { requireNotNull(it.movieId) }
+        val ids = found.content.map { requireNotNull(it.movieId) }
         val cards = cards(ids)
         return MoviePage(
             items = ids.mapNotNull { cards[it] },
             limit = limit,
-            offset = offset,
-            hasNext = page.hasNext(),
+            offset = page * limit,
+            hasNext = found.hasNext(),
         )
     }
 
-    fun genres(): List<GenreItem> =
-        genreRepository.findAll(Sort.by("genreId")).map { GenreItem(it.genreId, it.name, it.nameKo) }
+    fun genres(): List<GenreItem> = genreRepository.findAll(Sort.by("genreId")).map { GenreItem(it.genreId, it.name) }
 
     /** 사람 자동완성 (접두어 일치, 상위 10) */
     fun people(prefix: String, role: String): List<PersonItem> {
@@ -237,7 +236,7 @@ class MovieQueryService(
         rating = voteAverage?.toDouble(),
         voteCount = voteCount,
         posterPath = posterPath,
-        genres = genres.sortedBy { it.genreId }.map { GenreItem(it.genreId, it.name, it.nameKo) },
+        genres = genres.sortedBy { it.genreId }.map { GenreItem(it.genreId, it.name) },
     )
 
     companion object {

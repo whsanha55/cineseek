@@ -72,9 +72,9 @@ class MovieControllerTest {
     }
 
     @Test
-    fun `탐색은 page를 offset으로 바꿔 조회하고 카드에는 score가 없다`() {
+    fun `탐색은 page를 서비스에 넘기고 카드에는 score가 없다`() {
         // given
-        every { movieQueryService.explore(28L, ExploreSortEnum.VOTE_COUNT, 20, 20, null, null) } returns
+        every { movieQueryService.explore(28L, ExploreSortEnum.VOTE_COUNT, 1, 20, null, null) } returns
             MoviePage(items = listOf(card()), limit = 20, offset = 20, hasNext = false)
 
         // when
@@ -130,7 +130,7 @@ class MovieControllerTest {
     @Test
     fun `장르 목록을 응답한다`() {
         // given
-        every { movieQueryService.genres() } returns listOf(GenreItem(28L, "Action", "액션"))
+        every { movieQueryService.genres() } returns listOf(GenreItem(28L, "액션"))
 
         // when
         val result = mockMvc.get("/cineseek/genres")
@@ -139,7 +139,7 @@ class MovieControllerTest {
         result.andExpect {
             status { isOk() }
             jsonPath("$.items[0].id") { value(28) }
-            jsonPath("$.items[0].nameKo") { value("액션") }
+            jsonPath("$.items[0].name") { value("액션") }
         }
     }
 
@@ -226,7 +226,7 @@ class MovieControllerTest {
             jsonPath("$.person.totalWorks") { value(47) }
             jsonPath("$.items[0].movieId") { value(1) }
             jsonPath("$.items[0].character") { value("브루스 웨인") }
-            jsonPath("$.items[0].genres[0].nameKo") { value("SF") }
+            jsonPath("$.items[0].genres[0].name") { value("SF") }
             jsonPath("$.page.offset") { value(0) }
             jsonPath("$.page.hasNext") { value(false) }
             jsonPath("$.collecting") { value(true) }
@@ -296,6 +296,6 @@ class MovieControllerTest {
         rating = 8.0,
         voteCount = 21000,
         posterPath = "/example.jpg",
-        genres = listOf(GenreItem(878L, "Science Fiction", "SF")),
+        genres = listOf(GenreItem(878L, "SF")),
     )
 }

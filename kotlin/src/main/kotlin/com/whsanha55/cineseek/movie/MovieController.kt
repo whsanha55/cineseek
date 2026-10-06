@@ -35,7 +35,7 @@ class MovieController(private val movieQueryService: MovieQueryService) {
             movieQueryService.explore(
                 genreId = request.genreId,
                 sort = request.sortEnum(),
-                offset = request.page * request.limit,
+                page = request.page,
                 limit = request.limit,
                 directorId = request.directorId,
                 castId = request.castId,

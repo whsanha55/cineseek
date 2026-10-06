@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component
  * PG(SoT)에서 색인 단위(IndexedMovie) 조립 — ReindexJob의 조립 로직을 추출한 것.
  * overview가 없는 영화는 임베딩이 불가해 스킵하고, castIds/directorIds는 전체 목록을
  * 담는다(PG와 Qdrant 배우 필터가 같은 출연 관계를 반영하도록).
- * 장르명은 nameKo 우선
  */
 @Component
 class IndexedMovieAssembler(
@@ -42,7 +41,7 @@ class IndexedMovieAssembler(
             embeddingInput = EmbeddingText.assemble(
                 title = movie.title,
                 originalTitle = movie.originalTitle,
-                genreNames = movie.genres.map { it.nameKo ?: it.name },
+                genreNames = movie.genres.map { it.name },
                 moodTags = movie.moodTags?.split(", ")?.filter { it.isNotBlank() } ?: emptyList(),
                 moodDesc = movie.moodDesc,
                 overview = overview,

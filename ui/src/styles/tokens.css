@@ -13,20 +13,10 @@
 	--primary: #2563eb;
 	--primary-foreground: #ffffff;
 	--rating: #f59e0b;
-	--destructive: #dc2626;
 
-	/* shadcn 호환 alias — 컴포넌트 복사 시 수정 최소화 */
-	--card: var(--background);
-	--card-foreground: var(--foreground);
+	/* shadcn 호환 alias — 컴포넌트가 쓰는 것만 둔다 */
 	--popover: var(--background);
-	--popover-foreground: var(--foreground);
-	--secondary: var(--surface);
-	--secondary-foreground: var(--foreground);
-	--muted: var(--surface);
-	--accent: var(--surface);
-	--accent-foreground: var(--foreground);
 	--input: var(--border);
-	--ring: var(--primary);
 
 	/* 반경 */
 	--radius: 8px;
@@ -38,7 +28,4 @@
 
 	/* 그림자 — 옅게 1단계만 */
 	--shadow-sm: 0 1px 3px rgb(0 0 0 / 0.07), 0 4px 12px rgb(0 0 0 / 0.05);
-
-	/* 모션 */
-	--motion-fast: 150ms ease-out;
 }

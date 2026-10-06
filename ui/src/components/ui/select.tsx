@@ -3,7 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "../../lib/cn";
 
 /**
- * 네이티브 select 래퍼 — 접근성·모바일 동작은 플랫폼에 맡긴다 (ponytail: 라이브러리 없이).
+ * 네이티브 select 래퍼 — 접근성·모바일 동작은 플랫폼에 맡긴다 (라이브러리 없이).
  * 필터의 값 선택은 이걸로 충분하다
  */
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(

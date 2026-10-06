@@ -47,7 +47,7 @@ class MovieRepositoryTest {
     @Test
     fun `영화 저장 후 tmdbId로 조회 — 장르 조인과 자식 라운드트립`() {
         // given
-        val genre = genreRepository.save(GenreEntity(genreId = 80, name = "Crime", nameKo = "범죄"))
+        val genre = genreRepository.save(GenreEntity(genreId = 80, name = "범죄"))
         val saved = movieRepository.save(
             MovieEntity(
                 tmdbId = 155L,

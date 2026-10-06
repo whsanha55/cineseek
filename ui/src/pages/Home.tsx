@@ -44,7 +44,7 @@ export function Home() {
 								to={`/explore?genreId=${g.id}`}
 								className="rounded-[var(--radius-chip)] bg-surface px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-border"
 							>
-								{g.nameKo ?? g.name}
+								{g.name}
 							</Link>
 						))}
 					</div>
