@@ -65,9 +65,9 @@ class MovieControllerTest {
     }
 
     @Test
-    fun `탐색은 page를 offset으로 바꿔 조회하고 카드에는 score가 없다`() {
+    fun `탐색은 page를 서비스에 넘기고 카드에는 score가 없다`() {
         // given
-        every { movieQueryService.explore(28L, ExploreSortEnum.VOTE_COUNT, 20, 20, null, null) } returns
+        every { movieQueryService.explore(28L, ExploreSortEnum.VOTE_COUNT, 1, 20, null, null) } returns
             MoviePage(items = listOf(card()), limit = 20, offset = 20, hasNext = false)
 
         // when

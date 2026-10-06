@@ -33,7 +33,7 @@ class MovieController(private val movieQueryService: MovieQueryService) {
             movieQueryService.explore(
                 genreId = request.genreId,
                 sort = request.sortEnum(),
-                offset = request.page * request.limit,
+                page = request.page, // ponytail-audit #12: page→offset→page 왕복 제거
                 limit = request.limit,
                 directorId = request.directorId,
                 castId = request.castId,
