@@ -14,7 +14,6 @@ import {
 	type ExploreState,
 } from "../lib/urlState";
 
-// ponytail-audit #10: "전체"·장르 버튼에 똑같이 있던 className 삼항식을 함수 하나로
 const genreChipClass = (active: boolean) =>
 	active
 		? "h-8 shrink-0 rounded-[var(--radius-chip)] bg-primary px-3 text-xs font-medium text-primary-foreground"
@@ -61,7 +60,6 @@ export function Explore() {
 							onClick={() => patch({ genreId: g.id })}
 							className={genreChipClass(state.genreId === g.id)}
 						>
-							{/* ponytail-audit #1: nameKo 제거 */}
 							{g.name}
 						</button>
 					))}
@@ -74,7 +72,6 @@ export function Explore() {
 						value={state.sort}
 						onChange={(e) => patch({ sort: e.target.value as ExploreSort })}
 					>
-						{/* ponytail-audit #9: 중복 SORT_OPTIONS 대신 urlState의 EXPLORE_SORT_LABEL 사용 */}
 						{Object.entries(EXPLORE_SORT_LABEL).map(([value, label]) => (
 							<option key={value} value={value}>
 								{label}

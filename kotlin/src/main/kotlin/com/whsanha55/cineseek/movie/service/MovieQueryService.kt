@@ -55,7 +55,7 @@ class MovieQueryService(
     }
 
     /**
-     * 탐색 목록 — page는 0부터. 응답의 offset은 page * limit (ponytail-audit #12: offset을 받아 다시 나누던 왕복 제거).
+     * 탐색 목록 — page는 0부터. 응답의 offset은 page * limit.
      *
      * 평점순 정렬은 투표 몇 표짜리 작품이 상위에 오지 않도록 [MIN_VOTES_FOR_RATING] 암시 하한을 건다.
      * 호출자가 [voteCountMin]을 명시하면 명시값이 우선하고 암시 하한은 적용하지 않는다 —
@@ -174,7 +174,7 @@ class MovieQueryService(
         genres = genres.sortedBy { it.genreId }.map { it.toItem() },
     )
 
-    private fun GenreEntity.toItem() = GenreItem(genreId, name) // ponytail-audit #1
+    private fun GenreEntity.toItem() = GenreItem(genreId, name)
 
     companion object {
         private const val ROLE_DIRECTOR = "director"

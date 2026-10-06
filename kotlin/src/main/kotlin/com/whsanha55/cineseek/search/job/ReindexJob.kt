@@ -39,7 +39,6 @@ class ReindexJob(
 ) : ApplicationRunner {
 
     override fun run(args: ApplicationArguments) {
-        // ponytail-audit #13: pages는 TmdbClient 기본값(TmdbProperties.pages) — 중복 주입 제거
         val ids = tmdbClient.fetchTmdbIds()
         log.info { "TMDB 후보 수집. ids=${ids.size}" }
 
@@ -61,7 +60,6 @@ class ReindexJob(
     /**
      * detail + credits 병렬 수집 — 단건 실패는 건너뛴다 (python fetch_detail_safe).
      * 동시 요청은 스레드 수로 제한한다 — 무제한이면 TMDB rate limit(429)에 대부분 막힌다.
-     * ponytail-audit #6: 가상 스레드 + Semaphore → 고정 크기 스레드 풀
      */
     private fun fetchDetailsParallel(ids: List<Long>): List<TmdbMovie> =
         Executors.newFixedThreadPool(FETCH_CONCURRENCY).use { executor ->
@@ -77,7 +75,7 @@ class ReindexJob(
         .onFailure { log.warn(it) { "upsert 스킵. tmdbId=${m.tmdbId}" } }
         .getOrNull()
 
-    /** PG에서 임베딩 입력(EmbeddingText)과 payload를 조립 — SoT 기준. ponytail-audit #1: 장르명은 name 그대로 */
+    /** PG에서 임베딩 입력(EmbeddingText)과 payload를 조립 — SoT 기준 */
     private fun buildIndexedMovies(): List<IndexedMovie> = movieRepository.findAll().mapNotNull { movie ->
         val overview = movie.overview ?: return@mapNotNull null // 임베딩 불가 → 스킵
         val movieId = requireNotNull(movie.movieId) { "조회한 영화에 movieId가 없다. tmdbId=${movie.tmdbId}" }

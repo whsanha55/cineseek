@@ -35,7 +35,6 @@ export function Search() {
 		[state, navigate, setSearchParams],
 	);
 
-	// ponytail-audit #7: 필터 10개를 비우던 객체 리터럴 2벌 → 하나로 (검색어·표시 개수는 유지)
 	const clearFilters = () => patch({ ...DEFAULT_SEARCH_STATE, q: state.q, limit: state.limit });
 
 	const nextLimit = SEARCH_LIMITS[Math.min(SEARCH_LIMITS.findIndex((l) => l === state.limit) + 1, SEARCH_LIMITS.length - 1)];

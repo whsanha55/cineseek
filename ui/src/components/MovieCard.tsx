@@ -43,7 +43,6 @@ export function MovieCard({ movie, allScores }: MovieCardProps) {
 				</div>
 				{genres.length > 0 && (
 					<p className="line-clamp-1 text-xs text-muted-foreground">
-						{/* ponytail-audit #1: nameKo 제거 */}
 						{genres.map((g) => g.name).join(" · ")}
 					</p>
 				)}

@@ -70,7 +70,6 @@ export function FilterBar({ state, onChange, onReset }: FilterBarProps) {
 	}, [sheetOpen]);
 
 	const genreById = new Map((genres?.items ?? []).map((g) => [g.id, g]));
-	// ponytail-audit #8: null 아닌 필터 수 10줄 덧셈 → 키 목록 카운트
 	const activeCount = state.genreIds.length + FILTER_KEYS.filter((k) => state[k] !== null).length;
 
 	const controls = (
@@ -97,7 +96,6 @@ export function FilterBar({ state, onChange, onReset }: FilterBarProps) {
 									: "border-border bg-background text-foreground hover:bg-surface",
 							)}
 						>
-							{/* ponytail-audit #1: nameKo 제거 */}
 							{g.name}
 						</button>
 					);
@@ -226,7 +224,7 @@ export function FilterBar({ state, onChange, onReset }: FilterBarProps) {
 					{state.genreIds.map((id) => {
 						const g = genreById.get(id);
 						return (
-							<Chip key={id} label={g ? g.name : `장르 ${id}`} /* ponytail-audit #1 */ onRemove={() =>
+							<Chip key={id} label={g ? g.name : `장르 ${id}`} onRemove={() =>
 								onChange({ genreIds: state.genreIds.filter((x) => x !== id) })
 							} />
 						);

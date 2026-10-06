@@ -41,7 +41,6 @@ export function useMovie(id: number | string | undefined) {
 	});
 }
 
-// ponytail-audit #14: 쓰이지 않던 limit 기본값(8) 제거 — 유일한 호출부가 10을 넘긴다
 export function useSimilar(id: number | string | undefined, limit: number) {
 	return useQuery({
 		queryKey: ["similar", id, limit] as const,
@@ -50,7 +49,6 @@ export function useSimilar(id: number | string | undefined, limit: number) {
 	});
 }
 
-// ponytail-audit #5: ExploreQuery(ExploreState 복사본) 제거 — 키가 API 파라미터와 같아 그대로 넘긴다
 export function useExplore(query: ExploreState) {
 	return useQuery({
 		queryKey: ["explore", query] as const,

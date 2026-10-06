@@ -16,7 +16,7 @@
 	--color-primary-foreground: var(--primary-foreground);
 	--color-rating: var(--rating);
 
-	/* shadcn alias — ponytail-audit #4: 안 쓰는 별칭(card·secondary·muted·accent·ring 등) 제거 */
+	/* shadcn alias */
 	--color-popover: var(--popover);
 	--color-input: var(--input);
 

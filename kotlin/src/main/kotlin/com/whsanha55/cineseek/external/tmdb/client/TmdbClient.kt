@@ -28,7 +28,7 @@ class TmdbClient(private val properties: TmdbProperties) {
         .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
         .build()
 
-    /** 수집 기준별로 discover 페이지를 순회하고 합쳐서 중복을 제거한다. 기준마다 빈 페이지에서 조기 종료 (ponytail-audit #13: 위에 남아 있던 옛 KDoc 한 줄 삭제) */
+    /** 수집 기준별로 discover 페이지를 순회하고 합쳐서 중복을 제거한다. 기준마다 빈 페이지에서 조기 종료 */
     fun fetchTmdbIds(pages: Int = properties.pages): List<Long> =
         DISCOVER_SOURCES.flatMap { params -> fetchDiscover(params, pages) }.distinct()
 

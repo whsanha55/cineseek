@@ -21,7 +21,7 @@ const mockCard = {
 	voteCount: 21000,
 	posterPath: "/94PWwAT8MYL5i5SVplngTryLATS.jpg",
 	genres: [
-		{ id: 878, name: "SF" }, // ponytail-audit #1: nameKo 제거
+		{ id: 878, name: "SF" },
 		{ id: 12, name: "모험" },
 	],
 };
@@ -88,7 +88,6 @@ function Component() {
 					<Button size="sm">작게</Button>
 					<Button disabled>비활성</Button>
 				</div>
-				{/* ponytail-audit #3: Input·Badge 컴포넌트 삭제 */}
 				<Select className="w-40" defaultValue="a">
 					<option value="a">옵션 A</option>
 					<option value="b">옵션 B</option>

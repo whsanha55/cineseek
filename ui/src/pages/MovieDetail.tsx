@@ -60,7 +60,6 @@ export function MovieDetail() {
 										to={`/explore?genreId=${g.id}`}
 										className="inline-block rounded-[var(--radius-chip)] bg-surface px-3 py-1 text-xs font-medium text-foreground hover:bg-border"
 									>
-										{/* ponytail-audit #1: nameKo 제거 */}
 										{g.name}
 									</Link>
 								</li>

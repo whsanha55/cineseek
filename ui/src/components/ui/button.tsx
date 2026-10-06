@@ -1,7 +1,7 @@
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { cn } from "../../lib/cn";
 
-type Variant = "default" | "outline" | "ghost"; // ponytail-audit #3: destructive 변형 제거
+type Variant = "default" | "outline" | "ghost";
 type Size = "default" | "sm";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

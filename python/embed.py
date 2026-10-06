@@ -6,8 +6,6 @@ import os
 
 from FlagEmbedding import BGEM3FlagModel
 
-# ponytail-audit #15: load_dotenv() 제거 — app.py가 이미 호출하고, 환경변수는 get_model() 호출 시점에 읽는다
-
 _model: BGEM3FlagModel | None = None
 
 

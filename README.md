@@ -43,7 +43,7 @@ curl 'http://localhost:8080/cineseek/search?q=감옥에서 탈출하는 이야�
 - 헬스체크: `GET :8080/actuator/health`, `GET :8001/health`
 - API 문서: `:8080/swagger-ui.html` (OpenAPI JSON `:8080/v3/api-docs`). 프론트 타입은 `cd ui && pnpm gen:api`로 재생성 — 원본은 루트 `openapi.json` 스냅샷
 - 검색 파라미터: `q`(필수), `genreId`(반복·OR), `yearMin`, `yearMax`, `ratingMin`, `directorId`, `castId`, `limit`(1~50), `offset`. 응답은 `items`(카드+`score`) + `page{limit,offset,hasNext,total:null}`. 잘못된 값은 400 ProblemDetail(`code`, `requestId`, `errors`)로 응답
-- 평가(라벨셋 nDCG@10·MRR): `... run --rm api --cineseek.job=eval` — 라벨은 `kotlin/src/main/resources/eval/queries.json`, 기준값은 같은 폴더 `baseline.json` <!-- ponytail-audit #2: docs/baseline-eval.txt 삭제 -->
+- 평가(라벨셋 nDCG@10·MRR): `... run --rm api --cineseek.job=eval` — 라벨은 `kotlin/src/main/resources/eval/queries.json`, 기준값은 같은 폴더 `baseline.json`
 
 ## 프론트엔드 (ui/)
 

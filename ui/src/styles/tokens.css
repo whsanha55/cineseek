@@ -14,7 +14,7 @@
 	--primary-foreground: #ffffff;
 	--rating: #f59e0b;
 
-	/* shadcn 호환 alias — ponytail-audit #4: 쓰는 것만 남김 */
+	/* shadcn 호환 alias — 컴포넌트가 쓰는 것만 둔다 */
 	--popover: var(--background);
 	--input: var(--border);
 
