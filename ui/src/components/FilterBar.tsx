@@ -17,6 +17,17 @@ interface FilterBarProps {
 
 const RATING_STEPS = [6, 7, 8] as const;
 const RUNTIME_STEPS = [60, 90, 120, 150, 180] as const;
+const FILTER_KEYS = [
+	"yearMin",
+	"yearMax",
+	"ratingMin",
+	"directorId",
+	"castId",
+	"runtimeMin",
+	"runtimeMax",
+	"voteCountMin",
+	"voteCountMax",
+] as const satisfies readonly (keyof SearchState)[];
 
 function yearOptions(): number[] {
 	const thisYear = new Date().getFullYear();
@@ -59,17 +70,8 @@ export function FilterBar({ state, onChange, onReset }: FilterBarProps) {
 	}, [sheetOpen]);
 
 	const genreById = new Map((genres?.items ?? []).map((g) => [g.id, g]));
-	const activeCount =
-		state.genreIds.length +
-		(state.yearMin !== null ? 1 : 0) +
-		(state.yearMax !== null ? 1 : 0) +
-		(state.ratingMin !== null ? 1 : 0) +
-		(state.directorId !== null ? 1 : 0) +
-		(state.castId !== null ? 1 : 0) +
-		(state.runtimeMin !== null ? 1 : 0) +
-		(state.runtimeMax !== null ? 1 : 0) +
-		(state.voteCountMin !== null ? 1 : 0) +
-		(state.voteCountMax !== null ? 1 : 0);
+	// ponytail-audit #8: null 아닌 필터 수 10줄 덧셈 → 키 목록 카운트
+	const activeCount = state.genreIds.length + FILTER_KEYS.filter((k) => state[k] !== null).length;
 
 	const controls = (
 		<>
