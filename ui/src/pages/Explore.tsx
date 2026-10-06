@@ -6,6 +6,7 @@ import { MovieGrid, MovieGridSkeleton } from "../components/MovieGrid";
 import { EmptyState, ErrorState } from "../components/StateViews";
 import { Select } from "../components/ui/select";
 import {
+	EXPLORE_SORT_LABEL,
 	isHiddenGem,
 	parseExploreState,
 	serializeExploreState,
@@ -13,11 +14,10 @@ import {
 	type ExploreState,
 } from "../lib/urlState";
 
-const SORT_OPTIONS: { value: ExploreSort; label: string }[] = [
-	{ value: "rating", label: "평점 높은 순" },
-	{ value: "release", label: "최근 개봉 순" },
-	{ value: "vote_count", label: "투표 많은 순" },
-];
+const genreChipClass = (active: boolean) =>
+	active
+		? "h-8 shrink-0 rounded-[var(--radius-chip)] bg-primary px-3 text-xs font-medium text-primary-foreground"
+		: "h-8 shrink-0 rounded-[var(--radius-chip)] bg-surface px-3 text-xs font-medium text-foreground hover:bg-border";
 
 /** 탐색 — 검색어 없이 조건으로 둘러보기 (F5). 카드·상태 컴포넌트는 검색과 공유 */
 export function Explore() {
@@ -48,11 +48,7 @@ export function Explore() {
 						type="button"
 						aria-pressed={state.genreId === null}
 						onClick={() => patch({ genreId: null })}
-						className={
-							state.genreId === null
-								? "h-8 shrink-0 rounded-[var(--radius-chip)] bg-primary px-3 text-xs font-medium text-primary-foreground"
-								: "h-8 shrink-0 rounded-[var(--radius-chip)] bg-surface px-3 text-xs font-medium text-foreground hover:bg-border"
-						}
+						className={genreChipClass(state.genreId === null)}
 					>
 						전체
 					</button>
@@ -62,13 +58,9 @@ export function Explore() {
 							type="button"
 							aria-pressed={state.genreId === g.id}
 							onClick={() => patch({ genreId: g.id })}
-							className={
-								state.genreId === g.id
-									? "h-8 shrink-0 rounded-[var(--radius-chip)] bg-primary px-3 text-xs font-medium text-primary-foreground"
-									: "h-8 shrink-0 rounded-[var(--radius-chip)] bg-surface px-3 text-xs font-medium text-foreground hover:bg-border"
-							}
+							className={genreChipClass(state.genreId === g.id)}
 						>
-							{g.nameKo ?? g.name}
+							{g.name}
 						</button>
 					))}
 				</div>
@@ -80,9 +72,9 @@ export function Explore() {
 						value={state.sort}
 						onChange={(e) => patch({ sort: e.target.value as ExploreSort })}
 					>
-						{SORT_OPTIONS.map((o) => (
-							<option key={o.value} value={o.value}>
-								{o.label}
+						{Object.entries(EXPLORE_SORT_LABEL).map(([value, label]) => (
+							<option key={value} value={value}>
+								{label}
 							</option>
 						))}
 					</Select>

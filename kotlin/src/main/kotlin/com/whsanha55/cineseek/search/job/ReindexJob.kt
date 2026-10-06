@@ -1,7 +1,6 @@
 package com.whsanha55.cineseek.search.job
 
 import com.whsanha55.cineseek.external.tmdb.client.TmdbClient
-import com.whsanha55.cineseek.external.tmdb.config.TmdbProperties
 import com.whsanha55.cineseek.movie.repository.MovieCastRepository
 import com.whsanha55.cineseek.movie.repository.MovieDirectorRepository
 import com.whsanha55.cineseek.movie.repository.MovieRepository
@@ -19,7 +18,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
-import java.util.concurrent.Semaphore
 import kotlin.system.exitProcess
 
 private val log = KotlinLogging.logger {}
@@ -32,7 +30,6 @@ private val log = KotlinLogging.logger {}
 @ConditionalOnProperty(prefix = "cineseek", name = ["job"], havingValue = "reindex")
 class ReindexJob(
     private val tmdbClient: TmdbClient,
-    private val tmdbProperties: TmdbProperties,
     private val upsertService: MovieUpsertService,
     private val movieRepository: MovieRepository,
     private val movieDirectorRepository: MovieDirectorRepository,
@@ -42,11 +39,11 @@ class ReindexJob(
 ) : ApplicationRunner {
 
     override fun run(args: ApplicationArguments) {
-        val ids = tmdbClient.fetchTmdbIds(tmdbProperties.pages)
-        log.info { "TMDB 후보 수집. ids=${ids.size}, pages=${tmdbProperties.pages}" }
+        val ids = tmdbClient.fetchTmdbIds()
+        log.info { "TMDB 후보 수집. ids=${ids.size}" }
 
         val movies = fetchDetailsParallel(ids)
-        log.info { "상세 수집 완료(가상 스레드). overview 있는 영화=${movies.size}" }
+        log.info { "상세 수집 완료. overview 있는 영화=${movies.size}" }
 
         val stored = movies.mapNotNull { upsertSafe(it) }
         log.info { "PG 적재 완료. stored=${stored.size}" }
@@ -61,37 +58,24 @@ class ReindexJob(
     }
 
     /**
-     * 가상 스레드로 detail + credits 병렬 수집 — 단건 실패는 건너뛴다 (python fetch_detail_safe).
-     * 동시 요청은 Semaphore로 제한한다 — 무제한이면 TMDB rate limit(429)에 대부분 막힌다
+     * detail + credits 병렬 수집 — 단건 실패는 건너뛴다 (python fetch_detail_safe).
+     * 동시 요청은 스레드 수로 제한한다 — 무제한이면 TMDB rate limit(429)에 대부분 막힌다.
      */
-    private fun fetchDetailsParallel(ids: List<Long>): List<TmdbMovie> {
-        val permits = Semaphore(FETCH_CONCURRENCY)
-        return Executors.newVirtualThreadPerTaskExecutor().use { executor ->
-            executor.invokeAll(
-                ids.map { id ->
-                    Callable {
-                        permits.acquire()
-                        try {
-                            runCatching { tmdbClient.fetchDetail(id) }
-                        } finally {
-                            permits.release()
-                        }
-                    }
-                },
-            )
+    private fun fetchDetailsParallel(ids: List<Long>): List<TmdbMovie> =
+        Executors.newFixedThreadPool(FETCH_CONCURRENCY).use { executor ->
+            executor.invokeAll(ids.map { id -> Callable { runCatching { tmdbClient.fetchDetail(id) } } })
         }.mapNotNull { future ->
             future.get()
                 .onFailure { log.warn(it) { "수집 스킵" } }
                 .getOrNull()
         }
-    }
 
     /** 한 건이 실패해도 나머지는 계속 (영화 한 건당 트랜잭션) */
     private fun upsertSafe(m: TmdbMovie): Long? = runCatching { upsertService.upsert(m) }
         .onFailure { log.warn(it) { "upsert 스킵. tmdbId=${m.tmdbId}" } }
         .getOrNull()
 
-    /** PG에서 임베딩 입력(EmbeddingText)과 payload를 조립 — SoT 기준. 장르명은 nameKo 우선 */
+    /** PG에서 임베딩 입력(EmbeddingText)과 payload를 조립 — SoT 기준 */
     private fun buildIndexedMovies(): List<IndexedMovie> = movieRepository.findAll().mapNotNull { movie ->
         val overview = movie.overview ?: return@mapNotNull null // 임베딩 불가 → 스킵
         val movieId = requireNotNull(movie.movieId) { "조회한 영화에 movieId가 없다. tmdbId=${movie.tmdbId}" }
@@ -102,7 +86,7 @@ class ReindexJob(
             embeddingInput = EmbeddingText.assemble(
                 title = movie.title,
                 originalTitle = movie.originalTitle,
-                genreNames = movie.genres.map { it.nameKo ?: it.name },
+                genreNames = movie.genres.map { it.name },
                 moodTags = movie.moodTags?.split(", ")?.filter { it.isNotBlank() } ?: emptyList(),
                 moodDesc = movie.moodDesc,
                 overview = overview,

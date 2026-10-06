@@ -26,8 +26,6 @@ cineseek:
   embedding:
     base-url: ${EMBED_URL:http://localhost:8001}
     batch-size: 64          # /embed 요청 분할 단위 (계약: 1회 최대 64개)
-  index:
-    upsert-batch-size: 256  # Qdrant upsert 단위
   llm:
     base-url: ${LLM_BASE_URL:https://api.openai.com/v1}  # OpenAI 호환 엔드포인트 루트
     api-key: ${LLM_API_KEY:}  # 비어 있으면 분위기 태깅 배치를 건너뛴다 (컨테이너 주입은 compose env_file)

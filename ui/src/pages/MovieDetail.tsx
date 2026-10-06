@@ -60,7 +60,7 @@ export function MovieDetail() {
 										to={`/explore?genreId=${g.id}`}
 										className="inline-block rounded-[var(--radius-chip)] bg-surface px-3 py-1 text-xs font-medium text-foreground hover:bg-border"
 									>
-										{g.nameKo ?? g.name}
+										{g.name}
 									</Link>
 								</li>
 							))}

@@ -14,6 +14,4 @@ class GenreEntity(
 
     @Column(nullable = false)
     val name: String,
-
-    val nameKo: String? = null,
 )

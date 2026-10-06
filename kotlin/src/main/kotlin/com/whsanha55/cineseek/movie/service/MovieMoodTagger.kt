@@ -13,7 +13,6 @@ import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
-import java.util.concurrent.Semaphore
 
 private val log = KotlinLogging.logger {}
 
@@ -51,7 +50,7 @@ class MovieMoodTagger(
 ) {
 
     /**
-     * 분위기 태그가 없거나 버전이 다른 영화를 병렬 태깅한다 — 가상 스레드 + Semaphore 동시 제한.
+     * 분위기 태그가 없거나 버전이 다른 영화를 병렬 태깅한다 — 고정 크기 스레드 풀로 동시 제한.
      * 한 건 실패는 건너뛰고 성공 수를 반환한다. API 키가 비어 있으면 경고 후 0
      */
     fun tagAll(): Int {
@@ -60,18 +59,10 @@ class MovieMoodTagger(
             return 0
         }
         val ids = movieRepository.findRequiringMoodTag(version()).mapNotNull { it.movieId }
-        val permits = Semaphore(TAG_CONCURRENCY)
-        val results = Executors.newVirtualThreadPerTaskExecutor().use { executor ->
+        val results = Executors.newFixedThreadPool(TAG_CONCURRENCY).use { executor ->
             executor.invokeAll(
                 ids.map { id ->
-                    Callable {
-                        permits.acquire()
-                        try {
-                            runCatching { tagOne(id) }.onFailure { log.warn(it) { "분위기 태깅 스킵. movieId=$id" } }
-                        } finally {
-                            permits.release()
-                        }
-                    }
+                    Callable { runCatching { tagOne(id) }.onFailure { log.warn(it) { "분위기 태깅 스킵. movieId=$id" } } }
                 },
             )
         }

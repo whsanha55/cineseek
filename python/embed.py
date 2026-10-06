@@ -4,10 +4,7 @@
 """
 import os
 
-from dotenv import load_dotenv
 from FlagEmbedding import BGEM3FlagModel
-
-load_dotenv()
 
 _model: BGEM3FlagModel | None = None
 

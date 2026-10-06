@@ -17,10 +17,9 @@ data class GenreResponse(
     @field:Schema(description = "TMDB 장르 id", example = "28")
     val id: Long,
     val name: String,
-    val nameKo: String?,
 ) {
     companion object {
-        fun from(genre: GenreItem) = GenreResponse(id = genre.genreId, name = genre.name, nameKo = genre.nameKo)
+        fun from(genre: GenreItem) = GenreResponse(id = genre.genreId, name = genre.name)
     }
 }
 
