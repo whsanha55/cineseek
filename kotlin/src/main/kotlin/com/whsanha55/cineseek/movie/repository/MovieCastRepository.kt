@@ -33,11 +33,7 @@ interface MovieCastRepository : JpaRepository<MovieCastEntity, MovieCastId> {
                 "where c.personId = :personId and (:excludeMovieId is null or m.movieId <> :excludeMovieId)"
             ),
     )
-    fun findFilmographyOrderByReleaseDate(
-        @Param("personId") personId: Long,
-        @Param("excludeMovieId") excludeMovieId: Long?,
-        pageable: Pageable,
-    ): Page<MovieEntity>
+    fun findFilmographyOrderByReleaseDate(personId: Long, excludeMovieId: Long?, pageable: Pageable): Page<MovieEntity>
 
     /** 배우 필모그래피 페이지 — 평점순, 동점은 투표 수. 투표 수 하한 없음 (탐색과 다른 점) */
     @Query(
@@ -51,11 +47,7 @@ interface MovieCastRepository : JpaRepository<MovieCastEntity, MovieCastId> {
                 "where c.personId = :personId and (:excludeMovieId is null or m.movieId <> :excludeMovieId)"
             ),
     )
-    fun findFilmographyOrderByRating(
-        @Param("personId") personId: Long,
-        @Param("excludeMovieId") excludeMovieId: Long?,
-        pageable: Pageable,
-    ): Page<MovieEntity>
+    fun findFilmographyOrderByRating(personId: Long, excludeMovieId: Long?, pageable: Pageable): Page<MovieEntity>
 
     /** 필모그래피 아이템의 배역 — 페이지에 나온 영화만 */
     fun findAllByPersonIdAndMovieIdIn(personId: Long, movieIds: Collection<Long>): List<MovieCastEntity>
