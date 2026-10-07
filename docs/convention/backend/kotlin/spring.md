@@ -152,6 +152,29 @@ class JpaConfig {
 - 복잡한 조회는 QueryDSL이나 `@Query`를 쓴다. 메서드 이름 기반 쿼리가 길어지면 명시적 쿼리로 바꾼다.
 - 대량 데이터에 조건 없는 `findAll()`을 쓰지 않는다.
 
+`@Query` 문자열은 JPQL과 네이티브 쿼리 모두 같은 형식으로 쓴다.
+
+- 문자열 연결(`+`) 대신 `"""`를 쓴다. 애노테이션 인자라 `trimIndent()`는 붙이지 않는다.
+- `SELECT`, `FROM`, `JOIN`, `WHERE`, `GROUP BY`, `HAVING`, `ORDER BY`마다 줄을 나눈다.
+- `AND`, `OR` 조건도 한 줄에 하나씩 쓰고, `WHERE`보다 한 단계 들여 쓴다.
+- SQL 키워드와 함수(`LOWER`, `CONCAT` 등)는 대문자로 쓴다.
+- 파라미터에 `@Param`을 붙이지 않는다. 메서드 파라미터 이름으로 연결된다. Spring Boot Gradle 플러그인이 없는 프로젝트는 `kotlin { compilerOptions { javaParameters = true } }`를 켠다.
+
+```kotlin
+@Query(
+    """
+    SELECT m
+    FROM MovieEntity m
+    WHERE m.overview IS NOT NULL
+        AND (
+            m.moodModel IS NULL
+            OR m.moodModel <> :version
+        )
+    """,
+)
+fun findRequiringMoodTag(version: String): List<MovieEntity>
+```
+
 ## 7. DB 시간 컬럼
 
 `Instant`를 UTC로 저장한다.
