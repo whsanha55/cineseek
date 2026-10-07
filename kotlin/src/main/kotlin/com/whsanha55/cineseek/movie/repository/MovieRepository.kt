@@ -30,8 +30,15 @@ interface MovieRepository :
 
     /** 분위기 태그가 필요한 영화 — overview 있고 현재 태그 버전과 다른 것 (IS NULL과 비교 혼합이라 파생 쿼리 불가) */
     @Query(
-        "SELECT m FROM MovieEntity m WHERE m.overview IS NOT NULL " +
-            "AND (m.moodModel IS NULL OR m.moodModel <> :version)",
+        """
+        SELECT m
+        FROM MovieEntity m
+        WHERE m.overview IS NOT NULL
+            AND (
+                m.moodModel IS NULL
+                OR m.moodModel <> :version
+            )
+        """,
     )
     fun findRequiringMoodTag(version: String): List<MovieEntity>
 
