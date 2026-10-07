@@ -23,29 +23,57 @@ interface MovieCastRepository : JpaRepository<MovieCastEntity, MovieCastId> {
      * 투표 수 하한 없음 — 출연작 전체를 최신순으로 보여준다
      */
     @Query(
-        value = (
-            "select m from MovieEntity m join MovieCastEntity c on c.movieId = m.movieId " +
-                "where c.personId = :personId and (:excludeMovieId is null or m.movieId <> :excludeMovieId) " +
-                "order by m.releaseDate desc nulls last"
-            ),
-        countQuery = (
-            "select count(m) from MovieEntity m join MovieCastEntity c on c.movieId = m.movieId " +
-                "where c.personId = :personId and (:excludeMovieId is null or m.movieId <> :excludeMovieId)"
-            ),
+        value =
+        """
+            SELECT m
+            FROM MovieEntity m
+            JOIN MovieCastEntity c ON c.movieId = m.movieId
+            WHERE c.personId = :personId
+                AND (
+                    :excludeMovieId IS NULL
+                    OR m.movieId <> :excludeMovieId
+                )
+            ORDER BY m.releaseDate DESC NULLS LAST
+            """,
+        countQuery =
+        """
+            SELECT COUNT(m)
+            FROM MovieEntity m
+            JOIN MovieCastEntity c ON c.movieId = m.movieId
+            WHERE c.personId = :personId
+                AND (
+                    :excludeMovieId IS NULL
+                    OR m.movieId <> :excludeMovieId
+                )
+            """,
     )
     fun findFilmographyOrderByReleaseDate(personId: Long, excludeMovieId: Long?, pageable: Pageable): Page<MovieEntity>
 
     /** 배우 필모그래피 페이지 — 평점순, 동점은 투표 수. 투표 수 하한 없음 (탐색과 다른 점) */
     @Query(
-        value = (
-            "select m from MovieEntity m join MovieCastEntity c on c.movieId = m.movieId " +
-                "where c.personId = :personId and (:excludeMovieId is null or m.movieId <> :excludeMovieId) " +
-                "order by m.voteAverage desc nulls last, m.voteCount desc nulls last"
-            ),
-        countQuery = (
-            "select count(m) from MovieEntity m join MovieCastEntity c on c.movieId = m.movieId " +
-                "where c.personId = :personId and (:excludeMovieId is null or m.movieId <> :excludeMovieId)"
-            ),
+        value =
+        """
+            SELECT m
+            FROM MovieEntity m
+            JOIN MovieCastEntity c ON c.movieId = m.movieId
+            WHERE c.personId = :personId
+                AND (
+                    :excludeMovieId IS NULL
+                    OR m.movieId <> :excludeMovieId
+                )
+            ORDER BY m.voteAverage DESC NULLS LAST, m.voteCount DESC NULLS LAST
+            """,
+        countQuery =
+        """
+            SELECT COUNT(m)
+            FROM MovieEntity m
+            JOIN MovieCastEntity c ON c.movieId = m.movieId
+            WHERE c.personId = :personId
+                AND (
+                    :excludeMovieId IS NULL
+                    OR m.movieId <> :excludeMovieId
+                )
+            """,
     )
     fun findFilmographyOrderByRating(personId: Long, excludeMovieId: Long?, pageable: Pageable): Page<MovieEntity>
 
