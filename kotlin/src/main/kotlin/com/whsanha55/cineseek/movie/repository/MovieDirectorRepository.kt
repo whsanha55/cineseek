@@ -6,7 +6,6 @@ import com.whsanha55.cineseek.movie.vo.PersonNameView
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
-import org.springframework.data.repository.query.Param
 
 interface MovieDirectorRepository : JpaRepository<MovieDirectorEntity, MovieDirectorId> {
 
@@ -18,17 +17,26 @@ interface MovieDirectorRepository : JpaRepository<MovieDirectorEntity, MovieDire
 
     /** 감독 자동완성 — 접두어 일치, 이름 정렬. 작품 수만큼 행이 있어 distinct */
     @Query(
-        "select distinct d.personId as personId, d.name as name from MovieDirectorEntity d " +
-            "where lower(d.name) like lower(concat(:prefix, '%')) order by d.name",
+        """
+        SELECT DISTINCT d.personId AS personId, d.name AS name
+        FROM MovieDirectorEntity d
+        WHERE LOWER(d.name) LIKE LOWER(CONCAT(:prefix, '%'))
+        ORDER BY d.name
+        """,
     )
-    fun searchByPrefix(@Param("prefix") prefix: String, pageable: Pageable): List<PersonNameView>
+    fun searchByPrefix(prefix: String, pageable: Pageable): List<PersonNameView>
 
     /** knownFor — 해당 감독의 최근 작품 제목 (부모 참조 없이 movieId로 entity join) */
     @Query(
-        "select m.title from MovieEntity m join MovieDirectorEntity d on d.movieId = m.movieId " +
-            "where d.personId = :personId order by m.releaseYear desc nulls last",
+        """
+        SELECT m.title
+        FROM MovieEntity m
+        JOIN MovieDirectorEntity d ON d.movieId = m.movieId
+        WHERE d.personId = :personId
+        ORDER BY m.releaseYear DESC NULLS LAST
+        """,
     )
-    fun findTopMovieTitles(@Param("personId") personId: Long, pageable: Pageable): List<String>
+    fun findTopMovieTitles(personId: Long, pageable: Pageable): List<String>
 
     /** 칩 라벨 복원 — 같은 사람의 아무 대표 행 하나 */
     fun findFirstByPersonId(personId: Long): MovieDirectorEntity?
