@@ -121,9 +121,7 @@ class CollectPipeline(
         val failedPermanent = counts.getOrDefault(Outcome.PERMANENT, 0)
         val released = counts.getOrDefault(Outcome.RELEASED, 0)
         val touchedMovieIds = touched.distinct()
-        if (touchedMovieIds.isNotEmpty()) {
-            finishTick(touchedMovieIds)
-        }
+        finishTick(touchedMovieIds)
         log.info {
             "수집 틱 완료. 클레임=${tasks.size}, 성공=$succeeded, 재시도=$failedRetryable, " +
                 "영구실패=$failedPermanent, 반납=$released, 색인대상=${touchedMovieIds.size}"
@@ -313,10 +311,14 @@ class CollectPipeline(
         Outcome.SUCCEEDED
     }.getOrElse { fail(task, it) }
 
-    /** 틱 마무리 — 이번에 저장·갱신한 영화의 분위기 태깅(상한)과 증분 색인. PG는 이미 저장됐으므로 실패는 로그만 남긴다 */
+    /**
+     * 틱 마무리 — 미태깅 영화의 분위기 태깅(상한)과 이번에 저장·갱신한 영화의 증분 색인. PG는 이미 저장됐으므로 실패는 로그만 남긴다.
+     * 태깅은 수집할 작업이 없는 틱에도 돌려 밀린 미태깅분을 따라잡는다
+     */
     private fun finishTick(movieIds: List<Long>) {
         runCatching { moodTagger.tagAll(MOOD_TAG_LIMIT_PER_TICK) }
             .onFailure { log.error(it) { "분위기 태깅 실패 — 다음 틱/재색인에서 회복된다" } }
+        if (movieIds.isEmpty()) return
         runCatching { indexer.indexTouched(assembler.assemble(movieIds)) }
             .onFailure { log.error(it) { "증분 색인 실패 — PG는 저장됐고 재색인에서 회복된다" } }
     }

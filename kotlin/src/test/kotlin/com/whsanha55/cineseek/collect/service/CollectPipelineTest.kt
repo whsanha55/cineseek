@@ -293,7 +293,19 @@ class CollectPipelineTest {
         val failed = task(MOVIE_DETAIL, "movie:tmdb:999")!!
         assertThat(failed.status).isEqualTo(FAILED)
         assertThat(failed.attempts).isZero() // 재시도 예약 없음
-        verify { moodTagger wasNot Called }
+        verify { indexer wasNot Called }
+    }
+
+    @Test
+    fun `처리할 작업이 없는 틱에도 분위기 태깅(상한)을 돌리고 색인은 돌리지 않는다`() {
+        // given — 큐가 비어 있다
+
+        // when
+        val result = pipeline.runBatch()
+
+        // then
+        assertThat(result.processed).isZero()
+        verify { moodTagger.tagAll(50) }
         verify { indexer wasNot Called }
     }
 
