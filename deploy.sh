@@ -5,6 +5,8 @@
 set -uo pipefail
 cd "$(dirname "$0")"
 COMPOSE="docker compose -f compose.yml -f compose.prod.yml"
+# 기본 provenance attestation은 빌드마다 이미지 ID를 바꿔, 변경 없는 서비스까지 컨테이너를 재생성시킨다
+export BUILDX_NO_DEFAULT_ATTESTATIONS=1
 
 if [ $# -gt 0 ]; then
   echo "==> cineseek compose up -d --build --no-deps $*"
