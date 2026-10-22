@@ -34,7 +34,7 @@ Kotlin(api)과 맞물리는 유일한 지점. 변경 시 양쪽을 함께 고친
   "items": [
     {
       "dense": [0.0123],
-      "sparse": { "indices": [1234, 88], "values": [0.21, 0.05] }
+      "sparse": { "indices": [1234, 88], "values": [0.21, 0.05], "tokens": ["▁탈", "출"] }
     }
   ]
 }
@@ -42,6 +42,7 @@ Kotlin(api)과 맞물리는 유일한 지점. 변경 시 양쪽을 함께 고친
 
 - `dense`: 1024차원, L2 정규화
 - `sparse.indices`: 정수(토큰 id), `sparse.values`: 실수
+- `sparse.tokens`: `indices`와 같은 순서의 토큰 문자열(sentencepiece 원형 — 단어 시작은 `▁` 접두, 한국어는 음절 조각). api가 검색 결과의 매칭 단어를 표시할 때 쓴다. 추가 필드라 이전 api는 무시한다
 
 ### GET /health
 
