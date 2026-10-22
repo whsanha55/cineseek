@@ -1,107 +1,70 @@
 # cineseek
 
-"이런 분위기 영화" 같은 자연어로 영화를 찾는 시맨틱 검색 서비스.
-TMDB에서 영화를 수집해 PostgreSQL(원본)에 적재하고, bge-m3 dense+sparse 임베딩을 Qdrant에 색인해 하이브리드(RRF) 검색한다.
+"감옥에서 탈출하는 이야기", "비 오는 날 보기 좋은 잔잔한 영화"처럼 자연어로 영화를 찾는 시맨틱 검색 서비스.
+
+## 동작 방식
+
+```
+TMDB ──수집──▶ PostgreSQL ──임베딩(bge-m3)──▶ Qdrant
+  (원본·메타, SoT)        dense + sparse
+
+검색어 ──임베딩──▶ Qdrant 하이브리드 검색(RRF) ──▶ PG에서 카드 조립 ──▶ UI
+```
+
+- TMDB에서 영화를 수집해 PostgreSQL에 저장한다. 한국 영화와 배우 필모그래피는 상시 수집 스케줄러가 채운다
+- 줄거리에 LLM으로 분위기 태그를 붙여 임베딩 입력에 넣는다 (색인할 때만 사용하고, 검색할 때는 LLM을 부르지 않는다)
+- bge-m3의 dense(의미)와 sparse(키워드) 벡터를 RRF로 합쳐 순위를 매긴다
+- 장르·연도·평점·감독·배우 필터를 함께 걸 수 있다
 
 ## 구성
 
-```
-cineseek/
-├── kotlin/             API + 수집/색인 파이프라인 + 평가 (Spring Boot 4, Java 25)
-├── python/             임베딩 서비스 — POST /embed 하나만 (FastAPI + FlagEmbedding, bge-m3)
-├── ui/                 프론트엔드 — React + Vite SPA, nginx 정적 서빙 + /cineseek 프록시
-├── docs/               eval 기준 결과, 코드 컨벤션
-├── compose.yml         공통 서비스 정의 (qdrant, embed, api, ui)
-└── compose.local.yml   로컬 덮어쓰기 (전용 postgres, 포트 노출, local profile)
-```
-
-| 서비스 | 역할 | 포트 |
-|---|---|---|
-| `ui` (ui/) | 정적 SPA + `/cineseek` 프록시(같은 출처, CORS 불필요) | 5173 |
-| `api` (kotlin/) | `/cineseek/search` 등 조회 API + TMDB 수집 → PG → 임베딩 → Qdrant | 8080 |
-| `embed` (python/) | 텍스트 → dense(1024) + sparse | 8001 |
-| `qdrant` | 벡터 검색 | 6333(REST), 6334(gRPC) |
-| `postgres` (로컬만) | 영화 원본/메타 (SoT) | 5432 |
+| 디렉터리 | 서비스 | 역할 | 스택 |
+|---|---|---|---|
+| `kotlin/` | `api` | 검색 API, 수집·색인 파이프라인, 평가 | Spring Boot 4, Java 25 |
+| `python/` | `embed` | 텍스트 → dense(1024) + sparse 임베딩 | FastAPI, FlagEmbedding |
+| `ui/` | `ui` | 검색 화면. nginx가 정적 파일을 서빙하고 `/cineseek`를 api로 프록시 | React, Vite |
+| — | `qdrant` | 벡터 검색 | Qdrant |
+| — | `postgres` | 영화 원본 데이터 (로컬 compose만. 서버는 공용 PG 사용) | PostgreSQL 17 |
 
 ## 빠른 시작
 
+Docker와 [TMDB API](https://www.themoviedb.org/settings/api) v4 Read Access Token이 필요하다.
+
 ```bash
-# 1. TMDB 토큰 설정 (https://www.themoviedb.org/settings/api 의 v4 Read Access Token)
+# 1. TMDB 토큰 입력
 cp kotlin/.env.example kotlin/.env
 
-# 2. 전체 기동 — 첫 기동은 bge-m3 모델(~2GB) 다운로드로 수 분 걸린다
-#    루트 .env의 PG_USER/PG_PASSWORD가 compose 보간을 덮어쓰면 컨테이너 PG 기본값(jjong)을 함께 넘긴다
+# 2. 전체 기동 — 첫 기동은 bge-m3 모델(~2GB)을 받느라 몇 분 걸린다
 docker compose -f compose.yml -f compose.local.yml up --build
 
-# 3. 색인 (로컬 profile은 TMDB 2페이지 ≈ 40건. 늘리려면 -e TMDB_PAGES=25 → 약 500건)
+# 3. 색인 — 로컬은 약 40편. -e TMDB_PAGES=25로 늘리면 약 500편
 docker compose -f compose.yml -f compose.local.yml run --rm api --cineseek.job=reindex
+```
 
-# 4. 브라우저에서 http://localhost:5173 — 검색 API는 curl로도
+브라우저에서 http://localhost:5173 을 열거나 API를 직접 호출한다.
+
+```bash
 curl 'http://localhost:8080/cineseek/search?q=감옥에서 탈출하는 이야기&limit=5'
 ```
 
-- 헬스체크: `GET :8080/actuator/health`, `GET :8001/health`
-- API 문서: `:8080/swagger-ui.html` (OpenAPI JSON `:8080/v3/api-docs`). 프론트 타입은 `cd ui && pnpm gen:api`로 재생성 — 원본은 루트 `openapi.json` 스냅샷
-- 검색 파라미터: `q`(필수), `genreId`(반복·OR), `yearMin`, `yearMax`, `ratingMin`, `directorId`, `castId`, `limit`(1~50), `offset`. 응답은 `items`(카드+`score`) + `page{limit,offset,hasNext,total:null}`. 잘못된 값은 400 ProblemDetail(`code`, `requestId`, `errors`)로 응답
-- 평가(라벨셋 nDCG@10·MRR): `... run --rm api --cineseek.job=eval` — 라벨은 `kotlin/src/main/resources/eval/queries.json`, 기준값은 같은 폴더 `baseline.json`
+API 문서는 http://localhost:8080/swagger-ui.html 에 있다.
 
-## 프론트엔드 (ui/)
+## 설계 원칙
 
-```bash
-cd ui
-pnpm install
-pnpm dev        # Vite dev 서버 — /cineseek는 localhost:8080으로 프록시
-pnpm test       # Vitest (URL 상태·관련도·TMDB URL·컴포넌트)
-pnpm build      # tsc + 프로덕션 빌드 (/_ds는 운영 번들에서 제외)
-```
-
-- 확정 검색·필터 상태는 전부 URL 쿼리가 원천이다
-- 개발용 디자인 카탈로그: `http://localhost:5173/_ds`
-
-## 수집 운영 (한국 영화 카탈로그·배우 필모그래피)
-
-재색인 배치(`--cineseek.job=reindex`)와 별개로, api 서비스 안에 상시 수집 스케줄러가 있다(`cineseek.collect.enabled`, 기본 off — prod compose에서만 on).
-
-- **작업 큐**: 수집은 전부 PG `collect_task`의 멱등 작업(`UNIQUE(task_type, payload_key)`)으로 실행된다 — 전 세계 discover 3기준, 한국 전용(국가·언어 조건 union, 연도 구간, 투표 하한 없음, 페이지 상한 도달 시 구간 반분할), 영화 상세(줄거리 없어도 저장), 배우 필모그래피(`/person/{id}/movie_credits`, 없는 영화는 1단계만 확장)
-- **초기 집중 수집(BOOTSTRAP)**: 30분마다 틱이 `batchSize`만큼 클레임(lease 잠금, 중복 실행 방지)해 `maxRuntime` 안에 처리한다. 체크포인트(마지막 페이지)를 남기므로 중단 후 다음 틱에 이어서 한다. 429·일시 5xx는 Retry-After·지수 백오프로 재시도하고 404는 영구 실패로 기록한다
-- **일일 갱신(DAILY)**: 초기 작업이 소진되면 자동 전환된다. 매일 04:00(Asia/Seoul)에 신작 창·필모그래피 만료 배우·줄거리 누락 영화·재시도 소진 실패를 증분 수집한다. 배우 클릭 우선 수집(필모그래피 조회 시 백그라운드 갱신)은 양 모드에서 계속 동작한다
-- **보고**: `docker compose ... run --rm api --cineseek.job=collect-report` — 모드, 유형별 작업 상태, 연도별 한국 영화 수, 줄거리 누락 수, seed 배우 10명 확보율, PG 대비 색인 미완료 수. 매 틱 로그에도 같은 지표가 남는다
-- **설정**(`application.yml` `cineseek.collect.*`): `interval`·`batch-size`·`max-runtime`·`concurrency`(시작값 4)·`kr.years-back`(기본 30년)·`seed-person-ids` 등. 시크릿 없음 — TMDB 토큰만 기존대로
-
-## 환경변수
-
-| 위치 | 용도 |
-|---|---|
-| `kotlin/.env` | api 비밀값(`TMDB_ACCESS_TOKEN`). compose는 `env_file`로, IDE/bootRun은 `spring.config.import`로 읽는다 |
-| `python/.env` | embed를 compose 없이 직접 띄울 때(`EMBED_DEVICE`, `EMBED_MODEL`) |
-
-주소(`PG_*`, `QDRANT_*`, `EMBED_URL`)는 `application.yml` 기본값이 로컬 호스트 기준이고, compose에서는 서비스명으로 덮어쓴다.
-
-## IDE에서 api 직접 실행
-
-인프라만 compose로 띄우고 api는 IDE(작업 디렉터리 `kotlin/`)에서 돌린다.
-
-```bash
-docker compose -f compose.yml -f compose.local.yml up postgres qdrant embed
-cd kotlin && SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
-```
-
-테스트는 Testcontainers를 쓰므로 Docker만 떠 있으면 된다: `cd kotlin && ./gradlew test`
-
-## 설계 불변식
-
-- PostgreSQL이 진실의 원천(SoT)이다. Qdrant는 파생 인덱스라 언제든 PG에서 다시 만들 수 있어야 한다 (재색인 idempotent)
-- Qdrant 포인트 id = `movie_id`(PG PK). payload에는 필터용 값만 두고, 표시 필드는 PG에서 조립한다
-- 검색 경로에는 외부 API 의존이 없다 — 임베딩은 로컬 bge-m3
+- PostgreSQL이 원본(SoT)이다. Qdrant는 파생 인덱스라 언제든 PG에서 다시 만들 수 있다 (재색인은 멱등)
+- Qdrant 포인트 id는 `movie_id`(PG PK)다. payload에는 필터용 값만 두고, 화면에 보일 필드는 PG에서 조립한다
+- 검색 경로에는 외부 API 의존이 없다. 임베딩은 로컬 bge-m3로 한다
 
 ## 문서
 
-- 기획·할 일은 [GitHub Issues](https://github.com/whsanha55/cineseek/issues)에서 관리한다 (우선순위 라벨 `P0`~`P3`, 보류 아이디어는 `backlog`)
-- [`kotlin/CLAUDE.md`](kotlin/CLAUDE.md) — Kotlin 코드 컨벤션
-- [`python/README.md`](python/README.md) — 임베딩 서비스 계약(`/embed`)
+- [개발 가이드](docs/development.md) — 환경변수, IDE 실행, 테스트, 프론트엔드, 검색 API, 평가
+- [운영 가이드](docs/operations.md) — 상시 수집 스케줄러, 수집 보고, 서버 배포
+- [임베딩 서비스 계약](python/README.md) — `POST /embed`
+- [Kotlin 코드 규칙](kotlin/CLAUDE.md)
+- 할 일과 아이디어는 [GitHub Issues](https://github.com/whsanha55/cineseek/issues)에서 관리한다 (우선순위 `P0`~`P3`, 보류 `backlog`)
 
 <!-- convention:start -->
 ## Convention
 
-이 프로젝트는 개인 컨벤션 [whsanha55/claude-code-skills/conventions](https://github.com/whsanha55/claude-code-skills/tree/main/conventions)를 따른다. 문서는 `docs/convention/`에 있고, 프로젝트 예외는 `docs/convention/LOCAL.md`에 적는다.
+코드 컨벤션은 [`docs/convention/`](docs/convention/)에 있고, 이 프로젝트만의 예외는 [`LOCAL.md`](docs/convention/LOCAL.md)에 적는다.
 <!-- convention:end -->
