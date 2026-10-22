@@ -383,6 +383,29 @@ class CollectPipelineTest {
     }
 
     @Test
+    fun `MOVIE_DETAIL 재수집 — 이미 있는 영화의 투표 수·평점을 갱신하고 갱신된 payload로 색인한다`() {
+        // given — 개봉 전에 수집돼 투표 수 0으로 멈춘 영화와, 일일 틱이 되살린 완료 작업
+        val movieId = upsertService.upsert(tmdbMovie(155L).copy(voteCount = 0, voteAverage = BigDecimal.ZERO))
+        collectTaskService.enqueue(MOVIE_DETAIL, "movie:tmdb:155")
+        collectTaskService.complete(collectTaskService.claim(1).single())
+        assertThat(collectTaskService.requeue(MOVIE_DETAIL, "movie:tmdb:155")).isTrue()
+        every { tmdbClient.fetchDetail(155L) } returns tmdbMovie(155L)
+
+        // when
+        pipeline.runBatch()
+
+        // then
+        val refreshed = requireNotNull(movieRepository.findByTmdbId(155L))
+        assertThat(refreshed.movieId).isEqualTo(movieId) // 같은 행을 갱신
+        assertThat(refreshed.voteCount).isEqualTo(30000)
+        assertThat(refreshed.voteAverage).isEqualByComparingTo("8.5")
+        assertThat(task(MOVIE_DETAIL, "movie:tmdb:155")?.status).isEqualTo(DONE)
+        val indexed = slot<List<IndexedMovie>>()
+        verify { indexer.indexTouched(capture(indexed)) }
+        assertThat(indexed.captured.single().payload.voteCount).isEqualTo(30000)
+    }
+
+    @Test
     fun `PERSON_FILMO — 없는 영화는 필모 확장 우선순위 상세 수집을 만들고 관계를 보강한다`() {
         // given — 155는 저장돼 있고 5555는 없다
         val movieId = upsertService.upsert(tmdbMovie(155L))
