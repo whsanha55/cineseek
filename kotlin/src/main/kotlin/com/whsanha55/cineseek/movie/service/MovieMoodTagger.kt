@@ -1,6 +1,7 @@
 package com.whsanha55.cineseek.movie.service
 
 import com.whsanha55.cineseek.external.llm.client.LlmClient
+import com.whsanha55.cineseek.external.llm.client.LlmContentFilteredException
 import com.whsanha55.cineseek.external.llm.config.LlmProperties
 import com.whsanha55.cineseek.movie.entity.MovieEntity
 import com.whsanha55.cineseek.movie.repository.MovieRepository
@@ -38,7 +39,8 @@ private val USER_PROMPT_TEMPLATE = """
 
 /**
  * LLM(OpenAI 호환)로 줄거리에 분위기 태그를 붙이는 배치 — PG(SoT)의 mood 컬럼만 갱신한다.
- * 태깅 버전(모델+프롬프트 해시)이 바뀌면 findRequiringMoodTag 대상이 늘어나 전체 재태깅된다
+ * 태깅 버전(모델+프롬프트 해시)이 바뀌면 findRequiringMoodTag 대상이 늘어나 전체 재태깅된다.
+ * 다시 물어도 결과가 같은 실패(콘텐츠 필터, 빈 결과)는 버전과 함께 기록해 그 버전에서는 대상에서 뺀다
  */
 @Service
 class MovieMoodTagger(
@@ -81,6 +83,8 @@ class MovieMoodTagger(
     /**
      * 영화 한 건 태깅 — 프롬프트 조립 → LLM → JSON 파싱 → applyMood 저장. 저장했으면 true,
      * 영화가 없거나 줄거리가 없어 태깅할 재료가 없으면 false.
+     * 영구 실패(콘텐츠 필터, 빈 결과)는 markMoodFailed로 현재 버전을 기록하고 false — 매 틱 같은 실패를 되풀이하지 않는다.
+     * 그 밖의 실패(429·5xx·타임아웃·JSON 파싱)는 예외를 그대로 던져 다음 틱에 다시 시도된다.
      * @Transactional은 쓰지 않는다: tagAll에서의 자기호출은 프록시를 우회해 어노테이션이 무효고,
      * 갱신은 movieRepository.save(SimpleJpaRepository)의 자체 트랜잭션 하나로 충분하다.
      * 조회는 genres까지 한 번에 가져오는 findAllById로 — OSIV=false라 findById의 지연 로딩은 프롬프트 조립에서 터진다
@@ -88,12 +92,34 @@ class MovieMoodTagger(
     fun tagOne(movieId: Long): Boolean {
         val movie = movieRepository.findAllById(listOf(movieId)).firstOrNull()
         val overview = movie?.overview ?: return false
-        val content = llmClient.chat(prompt(movie, overview))
-        val mood = objectMapper.readValue<LlmMoodResult>(extractJson(content))
-        check(mood.tags.isNotEmpty() && mood.description.isNotBlank()) { "분위기 태깅 결과가 비어 있다. movieId=$movieId" }
-        movie.applyMood(mood.tags.joinToString(", "), mood.description, version(), Instant.now(clock))
+        val mood = requestMood(movie, overview)
+        if (mood == null) {
+            movie.markMoodFailed(version())
+        } else {
+            movie.applyMood(mood.tags.joinToString(", "), mood.description, version(), Instant.now(clock))
+        }
         movieRepository.save(movie)
-        return true
+        return mood != null
+    }
+
+    /**
+     * LLM에 분위기를 묻는다. 다시 물어도 결과가 같은 실패는 경고를 남기고 null —
+     * 콘텐츠 필터 차단, 그리고 형식은 맞지만 태그·설명이 빈 응답(사실상 답변 거부)
+     */
+    private fun requestMood(movie: MovieEntity, overview: String): LlmMoodResult? {
+        val content = try {
+            llmClient.chat(prompt(movie, overview))
+        } catch (e: LlmContentFilteredException) {
+            log.warn { "분위기 태깅 영구 실패 — 이 버전에서는 재시도 안 함. movieId=${movie.movieId}, 원인=${e.message}" }
+            return null
+        }
+        return objectMapper.readValue<LlmMoodResult>(extractJson(content))
+            .takeIf { it.tags.isNotEmpty() && it.description.isNotBlank() }
+            .also {
+                if (it == null) {
+                    log.warn { "분위기 태깅 영구 실패 — 이 버전에서는 재시도 안 함. movieId=${movie.movieId}, 원인=빈 결과" }
+                }
+            }
     }
 
     /** 태깅 버전 — 모델명과 프롬프트 해시 앞 8자리. 프롬프트를 고치면 값이 변해 전체 재태깅된다 */

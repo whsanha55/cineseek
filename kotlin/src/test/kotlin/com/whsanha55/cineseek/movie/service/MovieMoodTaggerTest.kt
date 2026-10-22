@@ -1,6 +1,7 @@
 package com.whsanha55.cineseek.movie.service
 
 import com.whsanha55.cineseek.external.llm.client.LlmClient
+import com.whsanha55.cineseek.external.llm.client.LlmContentFilteredException
 import com.whsanha55.cineseek.external.llm.config.LlmProperties
 import com.whsanha55.cineseek.global.exception.ExternalApiException
 import com.whsanha55.cineseek.movie.entity.GenreEntity
@@ -86,16 +87,51 @@ class MovieMoodTaggerTest {
     }
 
     @Test
-    fun `tagOne —태그가 비어 있으면 예외를 던지고 저장하지 않는다`() {
+    fun `tagOne —태그가 비어 있으면 현재 버전으로 영구 실패를 기록하고 false를 반환한다`() {
         // given
         every { movieRepository.findAllById(listOf(1L)) } returns listOf(matrix)
+        every { movieRepository.save(matrix) } returns matrix
         every { llmClient.chat(any()) } returns """{"tags":[],"description":"없음"}"""
 
         // when
-        assertThrows<IllegalStateException> { tagger.tagOne(1L) }
+        val tagged = tagger.tagOne(1L)
+
+        // then
+        assertThat(tagged).isFalse()
+        verify(exactly = 1) { movieRepository.save(matrix) }
+        assertThat(matrix.moodFailedModel).isEqualTo(tagger.version())
+        assertThat(matrix.moodTags).isNull()
+    }
+
+    @Test
+    fun `tagOne —콘텐츠 필터에 걸리면 현재 버전으로 영구 실패를 기록하고 false를 반환한다`() {
+        // given
+        every { movieRepository.findAllById(listOf(1L)) } returns listOf(matrix)
+        every { movieRepository.save(matrix) } returns matrix
+        every { llmClient.chat(any()) } throws LlmContentFilteredException(RuntimeException("1301"))
+
+        // when
+        val tagged = tagger.tagOne(1L)
+
+        // then
+        assertThat(tagged).isFalse()
+        verify(exactly = 1) { movieRepository.save(matrix) }
+        assertThat(matrix.moodFailedModel).isEqualTo(tagger.version())
+        assertThat(matrix.moodTags).isNull()
+    }
+
+    @Test
+    fun `tagOne —일시 실패는 기록하지 않고 예외를 던져 다음에 다시 시도되게 한다`() {
+        // given
+        every { movieRepository.findAllById(listOf(1L)) } returns listOf(matrix)
+        every { llmClient.chat(any()) } throws ExternalApiException("llm")
+
+        // when
+        assertThrows<ExternalApiException> { tagger.tagOne(1L) }
 
         // then
         verify(exactly = 0) { movieRepository.save(any()) }
+        assertThat(matrix.moodFailedModel).isNull()
     }
 
     @Test

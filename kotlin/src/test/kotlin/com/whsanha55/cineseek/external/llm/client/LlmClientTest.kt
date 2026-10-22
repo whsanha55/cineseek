@@ -102,6 +102,41 @@ class LlmClientTest {
     }
 
     @Test
+    fun `400 콘텐츠 필터(1301)는 LlmContentFilteredException이 발생한다`() {
+        // given
+        wiremock.stubFor(
+            WireMock.post("/chat/completions").willReturn(
+                WireMock.badRequest()
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(
+                        """
+                        {"contentFilter":[{"level":1,"role":"user"}],
+                         "error":{"code":"1301","message":"System detected potentially unsafe or sensitive content"}}
+                        """.trimIndent(),
+                    ),
+            ),
+        )
+
+        // when & then
+        assertThrows<LlmContentFilteredException> { client.chat("프롬프트") }
+    }
+
+    @Test
+    fun `콘텐츠 필터가 아닌 400은 일시 실패인 ExternalApiException이 발생한다`() {
+        // given
+        wiremock.stubFor(
+            WireMock.post("/chat/completions").willReturn(
+                WireMock.badRequest()
+                    .withHeader("Content-Type", "application/json")
+                    .withBody("""{"error":{"code":"1302","message":"rate limit"}}"""),
+            ),
+        )
+
+        // when & then
+        assertThrows<ExternalApiException> { client.chat("프롬프트") }
+    }
+
+    @Test
     fun `API 키가 비어 있으면 IllegalStateException이 발생한다`() {
         // given
         val keylessClient = LlmClient(LlmProperties(baseUrl = wiremock.baseUrl(), apiKey = ""))
