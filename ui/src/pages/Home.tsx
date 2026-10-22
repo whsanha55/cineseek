@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useGenres } from "../api/hooks";
 import { SearchBar } from "../components/SearchBar";
+import { TasteRecommendations } from "../components/TasteRecommendations";
 
 /** 홈 — 큰 검색창 + 예시 쿼리 칩 + 장르 바로가기 (F1) */
 export function Home() {
@@ -50,6 +51,8 @@ export function Home() {
 					</div>
 				</section>
 			)}
+
+			<TasteRecommendations />
 		</div>
 	);
 }

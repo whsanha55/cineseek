@@ -1,6 +1,7 @@
 /** TanStack Query 훅 — A1~A6 조회. URL 상태가 원천이므로 훅은 파라미터만 받는다 */
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiGet } from "./client";
+import { recentIds, type Marks } from "../lib/marks";
 import type { ExploreState, SearchState } from "../lib/urlState";
 import type {
 	FilmographyResponse,
@@ -58,6 +59,22 @@ export function useSimilar(id: number | string | undefined, limit: number) {
 		queryKey: ["similar", id, limit] as const,
 		enabled: id !== undefined,
 		queryFn: () => apiGet<SearchResponse>(`/cineseek/movies/${id}/similar`, { limit }),
+	});
+}
+
+/** 취향 추천 — 표시를 바꾸면 키가 바뀌어 다시 조회한다. 그동안 이전 결과를 유지해 깜빡이지 않는다 */
+export function useRecommendations(marks: Marks, limit: number, enabled: boolean) {
+	const params = {
+		likedId: recentIds(marks.liked),
+		dislikedId: recentIds(marks.disliked),
+		watchedId: recentIds(marks.watched),
+		limit,
+	};
+	return useQuery({
+		queryKey: ["recommendations", params] as const,
+		enabled,
+		placeholderData: keepPreviousData,
+		queryFn: () => apiGet<SearchResponse>("/cineseek/recommendations", params),
 	});
 }
 
