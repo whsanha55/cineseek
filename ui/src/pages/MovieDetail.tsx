@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { Star } from "lucide-react";
 import { useMovie } from "../api/hooks";
 import { CastOtherWorks } from "../components/CastOtherWorks";
+import { MarkButtons } from "../components/MarkButtons";
 import { PosterImage } from "../components/PosterImage";
 import { SimilarRow } from "../components/SimilarRow";
 import { WatchProviders } from "../components/WatchProviders";
@@ -53,6 +54,8 @@ export function MovieDetail() {
 							</span>
 						)}
 					</div>
+
+					<MarkButtons movieId={m.movieId} variant="labeled" />
 
 					{m.genres.length > 0 && (
 						<ul className="flex flex-wrap gap-1.5">

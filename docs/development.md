@@ -69,6 +69,7 @@ pnpm lint
 ```
 
 - 검색어와 필터 상태는 모두 URL 쿼리에 담는다
+- 찜·봤어요·관심없음은 로그인이 없어 localStorage `cineseek.marks`에 종류별 영화 id 배열로만 둔다. 찜이 3개 이상이면 홈에 "내 취향 추천"이 나온다. localStorage를 쓸 수 없는 브라우저(Safari 사생활 보호 모드 등)에서는 이 기능을 숨긴다
 - 디자인 카탈로그는 개발 서버의 http://localhost:5173/_ds 에 있다 (운영 빌드에서는 빠진다)
 - API 타입은 루트 `openapi.json`에서 생성한다. API를 바꾸면 `http://localhost:8080/v3/api-docs` 결과로 `openapi.json`을 갱신하고 `pnpm gen:api`를 실행한다
 
