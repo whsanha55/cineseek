@@ -15,6 +15,9 @@ data class SearchRequest(
     @field:Schema(description = "장르 id (반복 파라미터, OR)", example = "[80]")
     val genreId: List<Long> = emptyList(),
 
+    @field:Schema(description = "제외할 장르 id (반복 파라미터, 하나라도 겹치면 제외)", example = "[27]")
+    val excludeGenreId: List<Long> = emptyList(),
+
     @field:Schema(description = "개봉 연도 하한", example = "2000")
     val yearMin: Int? = null,
 
@@ -61,6 +64,7 @@ data class SearchRequest(
 ) {
     fun toFilter() = SearchFilter(
         genreIds = genreId,
+        excludeGenreIds = excludeGenreId,
         yearMin = yearMin,
         yearMax = yearMax,
         ratingMin = ratingMin,

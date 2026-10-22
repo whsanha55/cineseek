@@ -6,6 +6,8 @@
 export interface SearchState {
 	q: string;
 	genreIds: number[];
+	/** 제외 장르 — 부정 표현("무섭지 않은")은 임베딩이 못 다뤄 필터로 뺀다 */
+	excludeGenreIds: number[];
 	yearMin: number | null;
 	yearMax: number | null;
 	ratingMin: number | null;
@@ -25,6 +27,7 @@ export const DEFAULT_SEARCH_LIMIT = 20;
 export const DEFAULT_SEARCH_STATE: SearchState = {
 	q: "",
 	genreIds: [],
+	excludeGenreIds: [],
 	yearMin: null,
 	yearMax: null,
 	ratingMin: null,
@@ -57,15 +60,20 @@ function toRating(value: string | null): number | null {
 	return Number.isFinite(n) && n >= 0 && n <= 10 ? n : null;
 }
 
-export function parseSearchState(params: URLSearchParams): SearchState {
-	const genreIds = [
+/** 반복 파라미터 — 양의 정수만, 중복 제거 */
+function positiveIds(params: URLSearchParams, key: string): number[] {
+	return [
 		...new Set(
 			params
-				.getAll("genreId")
+				.getAll(key)
 				.map((v) => toInt(v))
 				.filter((v): v is number => v !== null && v > 0),
 		),
 	];
+}
+
+export function parseSearchState(params: URLSearchParams): SearchState {
+	const genreIds = positiveIds(params, "genreId");
 	const yearMin = clampInt(toInt(params.get("yearMin")), 1900, 2100, null);
 	const yearMax = clampInt(toInt(params.get("yearMax")), 1900, 2100, null);
 	// yearMin > yearMax 라도 그대로 둔다 — 백엔드가 둘 다 만족하는 결과만 내려 빈 결과가 되고, 사용자가 칩으로 해제한다
@@ -83,6 +91,7 @@ export function parseSearchState(params: URLSearchParams): SearchState {
 	return {
 		q: (params.get("q") ?? "").trim(),
 		genreIds,
+		excludeGenreIds: positiveIds(params, "excludeGenreId"),
 		yearMin,
 		yearMax,
 		ratingMin,
@@ -101,6 +110,7 @@ export function serializeSearchState(state: SearchState): URLSearchParams {
 	const out = new URLSearchParams();
 	if (state.q) out.set("q", state.q);
 	for (const g of state.genreIds) out.append("genreId", String(g));
+	for (const g of state.excludeGenreIds) out.append("excludeGenreId", String(g));
 	if (state.yearMin !== null) out.set("yearMin", String(state.yearMin));
 	if (state.yearMax !== null) out.set("yearMax", String(state.yearMax));
 	if (state.ratingMin !== null) out.set("ratingMin", String(state.ratingMin));

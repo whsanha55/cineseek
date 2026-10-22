@@ -374,6 +374,13 @@ export interface operations {
                  */
                 genreId?: number[];
                 /**
+                 * @description 제외할 장르 id (반복 파라미터, 하나라도 겹치면 제외)
+                 * @example [
+                 *       27
+                 *     ]
+                 */
+                excludeGenreId?: number[];
+                /**
                  * @description 개봉 연도 하한
                  * @example 2000
                  */

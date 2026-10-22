@@ -86,6 +86,27 @@ class SearchServiceTest {
     }
 
     @Test
+    fun `excludeGenreId는 하나라도 겹치는 영화를 제외한다`() {
+        // when
+        val single = service.search("쿼리", SearchFilter(excludeGenreIds = listOf(53L), limit = 5))
+        val multi = service.search("쿼리", SearchFilter(excludeGenreIds = listOf(28L, 53L), limit = 5))
+
+        // then
+        assertThat(single.hits.map { it.movieId }).containsExactly(1L)
+        assertThat(multi.hits).isEmpty()
+    }
+
+    @Test
+    fun `genreId와 excludeGenreId를 함께 주면 포함 장르 중 제외 장르를 뺀다`() {
+        // when
+        val filter = SearchFilter(genreIds = listOf(28L), excludeGenreIds = listOf(53L), limit = 5)
+        val page = service.search("쿼리", filter)
+
+        // then
+        assertThat(page.hits.map { it.movieId }).containsExactly(1L)
+    }
+
+    @Test
     fun `yearMin yearMax ratingMin 필터가 payload에 적용된다`() {
         // when
         val byYearMax = service.search("쿼리", SearchFilter(yearMax = 2000, limit = 5))

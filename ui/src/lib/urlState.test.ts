@@ -14,6 +14,7 @@ describe("parseSearchState", () => {
 		expect(parseSearchState(new URLSearchParams())).toEqual({
 			q: "",
 			genreIds: [],
+			excludeGenreIds: [],
 			yearMin: null,
 			yearMax: null,
 			ratingMin: null,
@@ -30,6 +31,11 @@ describe("parseSearchState", () => {
 	it("반복 genreId 파라미터를 다중으로 파싱하고 중복을 제거한다", () => {
 		const sp = new URLSearchParams("q=우주&genreId=28&genreId=53&genreId=28");
 		expect(parseSearchState(sp).genreIds).toEqual([28, 53]);
+	});
+
+	it("반복 excludeGenreId 파라미터를 파싱하고 잘못된 값·중복을 버린다", () => {
+		const sp = new URLSearchParams("q=가족&excludeGenreId=27&excludeGenreId=abc&excludeGenreId=27&excludeGenreId=53");
+		expect(parseSearchState(sp).excludeGenreIds).toEqual([27, 53]);
 	});
 
 	it("잘못된 숫자는 무시된다", () => {
@@ -76,6 +82,7 @@ describe("serializeSearchState", () => {
 		const out = serializeSearchState({
 			q: "우주",
 			genreIds: [],
+			excludeGenreIds: [],
 			yearMin: null,
 			yearMax: null,
 			ratingMin: null,
@@ -93,6 +100,11 @@ describe("serializeSearchState", () => {
 	it("다중 genreId는 반복 파라미터로 직렬화한다", () => {
 		const out = serializeSearchState(parseSearchState(new URLSearchParams("genreId=28&genreId=53")));
 		expect(out.getAll("genreId")).toEqual(["28", "53"]);
+	});
+
+	it("제외 장르는 excludeGenreId 반복 파라미터로 직렬화한다", () => {
+		const out = serializeSearchState(parseSearchState(new URLSearchParams("q=x&excludeGenreId=27&excludeGenreId=53")));
+		expect(out.getAll("excludeGenreId")).toEqual(["27", "53"]);
 	});
 
 	it("runtime·voteCount는 null이면 생략, 값이 있으면 싣는다", () => {

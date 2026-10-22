@@ -80,6 +80,7 @@ pnpm lint
 |---|---|
 | `q` | 필수. 검색어 |
 | `genreId` | 장르. 여러 번 주면 OR |
+| `excludeGenreId` | 제외 장르. 여러 번 주면 하나라도 겹치는 영화를 뺀다 |
 | `yearMin`, `yearMax` | 개봉 연도 범위 |
 | `ratingMin` | 최소 평점 |
 | `directorId`, `castId` | 감독·배우 TMDB id |

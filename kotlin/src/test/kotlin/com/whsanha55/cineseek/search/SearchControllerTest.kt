@@ -81,6 +81,26 @@ class SearchControllerTest {
     }
 
     @Test
+    fun `반복 excludeGenreId 파라미터가 제외 장르 필터로 전달된다`() {
+        // given
+        val filter = SearchFilter(excludeGenreIds = listOf(27L, 53L))
+        every { searchFacade.search("가족 여행", filter) } returns
+            SearchItems(listOf(ScoredMovieCard(card(), 0.03)), limit = 20, offset = 0, hasNext = false)
+
+        // when
+        val result = mockMvc.get("/cineseek/search") {
+            param("q", "가족 여행")
+            param("excludeGenreId", "27", "53")
+        }
+
+        // then
+        result.andExpect {
+            status { isOk() }
+            jsonPath("$.items[0].movieId") { value(1) }
+        }
+    }
+
+    @Test
     fun `유사 영화는 페이지네이션 없이 응답한다`() {
         // given
         every { searchFacade.similar(1L, 8) } returns listOf(ScoredMovieCard(card(), 0.95))

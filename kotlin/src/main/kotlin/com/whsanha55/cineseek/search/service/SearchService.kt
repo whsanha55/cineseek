@@ -136,7 +136,7 @@ class SearchService(
         return builder.build()
     }
 
-    /** payload 필터 — 장르는 OR(should), 나머지는 AND(must). 이름이 아닌 ID 기준 */
+    /** payload 필터 — 장르는 OR(should), 제외 장르는 must_not, 나머지는 AND(must). 이름이 아닌 ID 기준 */
     private fun buildFilter(filter: SearchFilter): Points.Filter? {
         val must = buildList {
             filter.yearMin?.let { add(range("release_year", Points.Range.newBuilder().setGte(it.toDouble()))) }
@@ -150,10 +150,11 @@ class SearchService(
             filter.castId?.let { add(ConditionFactory.match("cast_ids", it)) }
         }
         val should = filter.genreIds.map { ConditionFactory.match("genre_ids", it) }
-        if (must.isEmpty() && should.isEmpty()) {
+        val mustNot = filter.excludeGenreIds.map { ConditionFactory.match("genre_ids", it) }
+        if (must.isEmpty() && should.isEmpty() && mustNot.isEmpty()) {
             return null
         }
-        return Points.Filter.newBuilder().addAllMust(must).addAllShould(should).build()
+        return Points.Filter.newBuilder().addAllMust(must).addAllShould(should).addAllMustNot(mustNot).build()
     }
 
     private fun range(key: String, range: Points.Range.Builder) = ConditionFactory.range(key, range.build())
