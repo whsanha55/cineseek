@@ -7,6 +7,7 @@ import com.whsanha55.cineseek.external.embedding.client.EmbeddingClient
 import com.whsanha55.cineseek.external.embedding.config.EmbeddingProperties
 import com.whsanha55.cineseek.external.qdrant.config.QdrantProperties
 import com.whsanha55.cineseek.global.exception.ExternalApiException
+import com.whsanha55.cineseek.movie.vo.MoodVocabulary
 import com.whsanha55.cineseek.search.vo.Embedding
 import com.whsanha55.cineseek.search.vo.SearchFilter
 import io.qdrant.client.PointIdFactory
@@ -28,7 +29,7 @@ import java.time.Duration
 
 /**
  * SearchService 통합 테스트 — 실제 Qdrant 컨테이너(dense 4차원 + sparse) + WireMock 임베딩 스텁.
- * prefetch + RRF + 인기도 재정렬 + payload ID 필터가 실제로 맞물리는지 확인한다
+ * prefetch(dense·sparse·분위기 태그) + RRF + 인기도 재정렬 + payload ID 필터가 실제로 맞물리는지 확인한다
  */
 class SearchServiceTest {
 
@@ -47,15 +48,18 @@ class SearchServiceTest {
         qdrantClient = QdrantClient(
             QdrantGrpcClient.newBuilder(qdrant.host, qdrant.getMappedPort(6334), false).build(),
         )
+        val embeddingClient = EmbeddingClient(EmbeddingProperties(baseUrl = embedStub.baseUrl(), batchSize = 64))
         service = SearchService(
             qdrantClient,
-            EmbeddingClient(EmbeddingProperties(baseUrl = embedStub.baseUrl(), batchSize = 64)),
+            embeddingClient,
             QdrantProperties(grpcUrl = "unused", collection = "movies"),
+            MoodTagMatcher(embeddingClient),
         )
 
         createCollection()
         upsertFixtures()
         stubEmbed()
+        stubTagEmbed()
     }
 
     @AfterEach
@@ -351,15 +355,88 @@ class SearchServiceTest {
     }
 
     @Test
+    fun `쿼리와 가까운 분위기 태그를 가진 영화는 dense 순위가 낮아도 세 번째 후보 목록으로 앞선다`() {
+        // given — 기본 쿼리의 상위 태그는 잔잔한·서정적. 영화9만 잔잔한 태그를 갖고 dense는 영화7보다 멀다
+        upsertMoodFixtures()
+
+        // when
+        val page = service.search("쿼리", SearchFilter(genreIds = listOf(99L), limit = 5))
+
+        // then
+        assertThat(page.hits.map { it.movieId }).containsExactly(9L, 7L)
+    }
+
+    @Test
+    fun `분위기 태그 후보 목록에도 사용자 필터와 투표 수 하한이 적용된다`() {
+        // given — 영화10은 투표 3(하한 미만), 영화11은 장르 98. 둘 다 잔잔한 태그를 갖고 쿼리 방향에 가깝다
+        upsertMoodFixtures()
+        qdrantClient.upsertAsync(
+            "movies",
+            listOf(
+                point(
+                    10L,
+                    listOf(1f, 0.1f, 0f, 0f),
+                    listOf(10),
+                    2015,
+                    7.0,
+                    listOf(99L),
+                    emptyList(),
+                    emptyList(),
+                    voteCount = 3,
+                    moodTags = listOf("잔잔한"),
+                ),
+                point(
+                    11L,
+                    listOf(1f, 0.1f, 0f, 0f),
+                    listOf(11),
+                    2015,
+                    7.0,
+                    listOf(98L),
+                    emptyList(),
+                    emptyList(),
+                    voteCount = 100,
+                    moodTags = listOf("잔잔한"),
+                ),
+            ),
+        ).get()
+
+        // when
+        val page = service.search("쿼리", SearchFilter(genreIds = listOf(99L), limit = 5))
+
+        // then
+        assertThat(page.hits.map { it.movieId }).containsExactly(9L, 7L)
+    }
+
+    @Test
+    fun `분위기 태그 임베딩이 실패해도 dense와 sparse만으로 검색한다`() {
+        // given
+        upsertMoodFixtures()
+        embedStub.stubFor(
+            WireMock.post("/embed")
+                .withRequestBody(WireMock.containing(MoodVocabulary.CANDIDATE_TAGS.first()))
+                .atPriority(1)
+                .willReturn(WireMock.serverError()),
+        )
+
+        // when
+        val page = service.search("쿼리", SearchFilter(genreIds = listOf(99L), limit = 5))
+
+        // then — 태그 후보 목록이 없으니 dense가 가까운 영화7이 앞선다
+        assertThat(page.hits.map { it.movieId }).containsExactly(7L, 9L)
+    }
+
+    @Test
     fun `Qdrant에 연결할 수 없으면 ExternalApiException이 발생한다`() {
         // given
         val unreachable = QdrantClient(
             QdrantGrpcClient.newBuilder("localhost", 1, false).withTimeout(Duration.ofSeconds(1)).build(),
         )
+        val embeddingClient = EmbeddingClient(EmbeddingProperties(baseUrl = embedStub.baseUrl(), batchSize = 64))
         val failingService = SearchService(
             unreachable,
-            EmbeddingClient(EmbeddingProperties(baseUrl = embedStub.baseUrl(), batchSize = 64)),
+            embeddingClient,
             QdrantProperties(grpcUrl = "unused", collection = "movies"),
+            MoodTagMatcher(embeddingClient),
         )
 
         // when & then
@@ -456,6 +533,43 @@ class SearchServiceTest {
         qdrantClient.upsertAsync("movies", listOf(obscure)).get()
     }
 
+    /**
+     * 장르 99의 분위기 비교용 영화 — 영화7은 쿼리 방향에 가깝고 태그가 없다. 영화9는 더 멀지만 잔잔한 태그를 갖는다.
+     * 투표 수를 같게 두어 인기도 보정이 순위에 끼어들지 않게 하고, sparse는 쿼리와 겹치지 않는다
+     */
+    private fun upsertMoodFixtures() {
+        qdrantClient.upsertAsync(
+            "movies",
+            listOf(
+                point(
+                    7L,
+                    listOf(1f, 0.2f, 0f, 0f),
+                    listOf(7),
+                    2015,
+                    7.0,
+                    listOf(99L),
+                    emptyList(),
+                    emptyList(),
+                    100,
+                    100,
+                ),
+                point(
+                    9L,
+                    listOf(0.5f, 0f, 0f, 1f),
+                    listOf(9),
+                    2015,
+                    7.0,
+                    listOf(99L),
+                    emptyList(),
+                    emptyList(),
+                    100,
+                    100,
+                    moodTags = listOf("잔잔한"),
+                ),
+            ),
+        ).get()
+    }
+
     private fun point(
         id: Long,
         dense: List<Float>,
@@ -467,6 +581,7 @@ class SearchServiceTest {
         castIds: List<Long>,
         runtime: Int? = null,
         voteCount: Int? = null,
+        moodTags: List<String> = emptyList(),
     ): Points.PointStruct = Points.PointStruct.newBuilder()
         .setId(PointIdFactory.id(id))
         .setVectors(
@@ -487,6 +602,7 @@ class SearchServiceTest {
                 put("cast_ids", ValueFactory.list(castIds.map { ValueFactory.value(it) }))
                 runtime?.let { put("runtime", ValueFactory.value(it.toLong())) }
                 voteCount?.let { put("vote_count", ValueFactory.value(it.toLong())) }
+                put("mood_tags", ValueFactory.list(moodTags.map { ValueFactory.value(it) }))
             },
         )
         .build()
@@ -503,6 +619,27 @@ class SearchServiceTest {
                     """.trimIndent(),
                 ),
             ),
+        )
+    }
+
+    /**
+     * 분위기 태그 임베딩 스텁 — 후보 어휘 요청에만 응답한다. 잔잔한은 [0,0,0,1], 서정적은 [0,0,1,0], 나머지는 [-1,0,0,0]이라
+     * 기본 쿼리([0.9,0.1,0,0])의 상위 2개 태그는 잔잔한·서정적이다
+     */
+    private fun stubTagEmbed() {
+        val items = MoodVocabulary.CANDIDATE_TAGS.map { tag ->
+            val dense = when (tag) {
+                "잔잔한" -> "[0.0,0.0,0.0,1.0]"
+                "서정적" -> "[0.0,0.0,1.0,0.0]"
+                else -> "[-1.0,0.0,0.0,0.0]"
+            }
+            """{"dense":$dense,"sparse":{"indices":[1],"values":[0.1]}}"""
+        }
+        embedStub.stubFor(
+            WireMock.post("/embed")
+                .withRequestBody(WireMock.containing(MoodVocabulary.CANDIDATE_TAGS.first()))
+                .atPriority(1)
+                .willReturn(WireMock.okJson("""{"model":"stub","items":[${items.joinToString(",")}]}""")),
         )
     }
 }

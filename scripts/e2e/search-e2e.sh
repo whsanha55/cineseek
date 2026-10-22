@@ -63,6 +63,11 @@ expect_eq '.items[0].movieId' "$A"
 # 매칭 단어는 sparse 토큰이 덮은 구간이라 "반딧불"까지만 나올 수 있다
 expect_true '.items[0].matchedTerms | any(contains("반딧불"))' "LLM 분위기 태그가 색인에 반영됐다"
 
+# B·C는 기본 LLM 스텁 태그(잔잔한·감동적인·희망적인)를 받는다. 쿼리와 가까운 분위기 태그 후보 목록(mood_tags payload)이 B·C를 올린다
+get /cineseek/search q="잔잔하고 감동적인 이야기" directorId="$DIRECTOR_ID"
+expect_status 200
+expect_true "[.items[].movieId] | index($A) == 2" "분위기 태그가 없는 A는 B·C 뒤에 온다"
+
 get /cineseek/search q="고장 난 우주 정거장에 홀로 남은 우주비행사" limit=50
 expect_status 200
 expect_true "[.items[].movieId] | index($A) != null" "필터 없이도 검색된다"

@@ -23,7 +23,7 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.Future
 
 /**
- * 하이브리드(dense+sparse RRF → 인기도 재정렬) 검색 + vector-to-vector 유사 조회 — search.py 이식.
+ * 하이브리드(dense+sparse+분위기 태그 RRF → 인기도 재정렬) 검색 + vector-to-vector 유사 조회 — search.py 이식.
  * 결과는 (movie_id, score)만 돌려주고 표시 필드는 PG 조립에 맡긴다 (PG=SoT, Qdrant=파생 인덱스)
  */
 @Service
@@ -31,6 +31,7 @@ class SearchService(
     private val qdrantClient: QdrantClient,
     private val embeddingClient: EmbeddingClient,
     private val qdrantProperties: QdrantProperties,
+    private val moodTagMatcher: MoodTagMatcher,
 ) {
 
     fun search(query: String, filter: SearchFilter): SearchPage =
@@ -42,20 +43,19 @@ class SearchService(
      *
      * dense·sparse 후보를 RRF로 합친 상위 [CANDIDATE_LIMIT]개를 인기도로 재정렬한다 (#78).
      * 후보 수를 dense·sparse·RRF 단계 모두 같게 두어 offset+limit이 후보 수 안이면 페이지마다 같은 후보 집합을
-     * 재정렬하므로 페이지 사이에 중복·누락이 없다. 더 깊은 페이지는 offset+limit만큼 후보를 늘린다
+     * 재정렬하므로 페이지 사이에 중복·누락이 없다. 더 깊은 페이지는 offset+limit만큼 후보를 늘린다.
+     *
+     * RRF에는 세 번째 후보 목록으로 쿼리와 가까운 분위기 태그(MoodTagMatcher)를 하나라도 가진 영화의 dense 순위를 넣는다 (#40).
+     * 분위기 쿼리에서 줄거리 단어보다 태그가 맞는 영화를 끌어올리기 위해서다. 같은 payload 필터를 걸고, 태그를 못 고르면 빠진다
      */
     fun search(embedding: Embedding, filter: SearchFilter, query: String? = null): SearchPage {
         val fetch = filter.limit + 1 // hasNext 판단용 1건 초과 조회
         val payloadFilter = buildFilter(filter)
         val candidateLimit = maxOf(CANDIDATE_LIMIT, (filter.offset + fetch).toLong())
+        val dense = QueryFactory.nearest(VectorInputFactory.vectorInput(embedding.dense))
         val fused = Points.PrefetchQuery.newBuilder()
             .addPrefetch(
-                prefetch(
-                    QueryFactory.nearest(VectorInputFactory.vectorInput(embedding.dense)),
-                    "dense",
-                    payloadFilter,
-                    candidateLimit,
-                ),
+                prefetch(dense, "dense", payloadFilter, candidateLimit),
             )
             .addPrefetch(
                 prefetch(
@@ -70,6 +70,15 @@ class SearchService(
                     candidateLimit,
                 ),
             )
+            .apply {
+                val moodTags = moodTagMatcher.topTags(embedding.dense)
+                if (moodTags.isNotEmpty()) {
+                    val moodFilter = payloadFilter.toBuilder()
+                        .addMust(ConditionFactory.matchKeywords(MOOD_TAGS, moodTags))
+                        .build()
+                    addPrefetch(prefetch(dense, "dense", moodFilter, candidateLimit))
+                }
+            }
             .setQuery(QueryFactory.fusion(Points.Fusion.RRF))
             .setLimit(candidateLimit)
             .build()
@@ -249,6 +258,7 @@ class SearchService(
 
     companion object {
         private const val QDRANT = "qdrant"
+        private const val MOOD_TAGS = "mood_tags"
         private const val CANDIDATE_LIMIT = 50L // 인기도 재정렬 후보 수 (dense·sparse·RRF 각 단계) — 페이지가 깊어지면 offset+limit으로 확장
         private const val DEFAULT_VOTE_COUNT_MIN = 10 // 검색 기본·유사·추천의 투표 수 하한 (#78)
         private const val POPULARITY_WEIGHT = 0.1f // log10(1 + vote_count) 가중치 — eval로 정했다 (#78)
