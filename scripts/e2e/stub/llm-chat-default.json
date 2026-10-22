@@ -1,0 +1,21 @@
+{
+  "priority": 10,
+  "request": {
+    "method": "POST",
+    "urlPath": "/llm/v1/chat/completions"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "choices": [
+        {
+          "message": {
+            "role": "assistant",
+            "content": "{\"tags\": [\"잔잔한\", \"감동적인\", \"희망적인\"], \"description\": \"잔잔하게 마음을 울리는 이야기\"}"
+          }
+        }
+      ]
+    }
+  }
+}
