@@ -2,10 +2,12 @@ package com.whsanha55.cineseek.movie
 
 import com.ninjasquad.springmockk.MockkBean
 import com.whsanha55.cineseek.global.exception.ErrorCodeEnum
+import com.whsanha55.cineseek.global.exception.ExternalApiException
 import com.whsanha55.cineseek.movie.enums.ExploreSortEnum
 import com.whsanha55.cineseek.movie.enums.FilmographySortEnum
 import com.whsanha55.cineseek.movie.enums.PersonFilmoStateEnum
 import com.whsanha55.cineseek.movie.exception.MovieException
+import com.whsanha55.cineseek.movie.facade.WatchProviderFacade
 import com.whsanha55.cineseek.movie.service.MovieQueryService
 import com.whsanha55.cineseek.movie.vo.CastMember
 import com.whsanha55.cineseek.movie.vo.FilmographyItem
@@ -16,6 +18,8 @@ import com.whsanha55.cineseek.movie.vo.MovieCard
 import com.whsanha55.cineseek.movie.vo.MovieDetail
 import com.whsanha55.cineseek.movie.vo.MoviePage
 import com.whsanha55.cineseek.movie.vo.PersonItem
+import com.whsanha55.cineseek.movie.vo.WatchProvider
+import com.whsanha55.cineseek.movie.vo.WatchProviders
 import io.mockk.every
 import io.mockk.verify
 import org.junit.jupiter.api.Test
@@ -31,6 +35,8 @@ class MovieControllerTest {
     @Autowired lateinit var mockMvc: MockMvc
 
     @MockkBean lateinit var movieQueryService: MovieQueryService
+
+    @MockkBean lateinit var watchProviderFacade: WatchProviderFacade
 
     @Test
     fun `상세는 줄거리·감독·출연진 배역을 응답한다`() {
@@ -68,6 +74,46 @@ class MovieControllerTest {
         result.andExpect {
             status { isNotFound() }
             jsonPath("$.code") { value("MOVIE_NOT_FOUND") }
+        }
+    }
+
+    @Test
+    fun `시청처는 출처 링크와 정액제·대여·구매 구분을 응답한다`() {
+        // given
+        every { watchProviderFacade.watchProviders(1L) } returns WatchProviders(
+            link = "https://www.themoviedb.org/movie/286217/watch?locale=KR",
+            flatrate = listOf(WatchProvider(8L, "Netflix", "/n.jpg")),
+            rent = emptyList(),
+            buy = listOf(WatchProvider(3L, "Google Play Movies", null)),
+        )
+
+        // when
+        val result = mockMvc.get("/cineseek/movies/1/watch-providers")
+
+        // then
+        result.andExpect {
+            status { isOk() }
+            jsonPath("$.link") { value("https://www.themoviedb.org/movie/286217/watch?locale=KR") }
+            jsonPath("$.flatrate[0].providerId") { value(8) }
+            jsonPath("$.flatrate[0].name") { value("Netflix") }
+            jsonPath("$.flatrate[0].logoPath") { value("/n.jpg") }
+            jsonPath("$.rent.length()") { value(0) }
+            jsonPath("$.buy[0].name") { value("Google Play Movies") }
+        }
+    }
+
+    @Test
+    fun `시청처 조회 중 TMDB 장애는 503 EXTERNAL_API_ERROR로 응답한다`() {
+        // given
+        every { watchProviderFacade.watchProviders(1L) } throws ExternalApiException("tmdb", status = 503)
+
+        // when
+        val result = mockMvc.get("/cineseek/movies/1/watch-providers")
+
+        // then
+        result.andExpect {
+            status { isServiceUnavailable() }
+            jsonPath("$.code") { value("EXTERNAL_API_ERROR") }
         }
     }
 

@@ -29,3 +29,5 @@ export type PeopleResponse = Api<"PeopleResponse">;
 export type FilmographyPerson = Api<"FilmographyPersonResponse">;
 export type FilmographyItem = Api<"FilmographyItemResponse">;
 export type FilmographyResponse = Api<"FilmographyResponse">;
+export type WatchProvider = Api<"WatchProviderResponse">;
+export type WatchProviders = Api<"WatchProvidersResponse">;

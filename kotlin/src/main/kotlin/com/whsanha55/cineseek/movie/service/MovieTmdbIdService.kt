@@ -3,7 +3,7 @@ package com.whsanha55.cineseek.movie.service
 import com.whsanha55.cineseek.movie.repository.MovieRepository
 import org.springframework.stereotype.Service
 
-/** eval용 movieId↔tmdbId 조회 — 라벨은 재색인에도 변하지 않는 tmdbId로 매긴다 */
+/** movieId↔tmdbId 조회 — eval 라벨(재색인에도 변하지 않는 tmdbId)과 TMDB 실시간 조회(시청처)에 쓴다 */
 @Service
 class MovieTmdbIdService(private val movieRepository: MovieRepository) {
 

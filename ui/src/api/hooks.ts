@@ -10,6 +10,7 @@ import type {
 	PeopleResponse,
 	PersonItem,
 	SearchResponse,
+	WatchProviders,
 } from "./types";
 
 export function useSearch(state: SearchState, enabled = true) {
@@ -40,6 +41,15 @@ export function useMovie(id: number | string | undefined) {
 		queryKey: ["movie", id] as const,
 		enabled: id !== undefined,
 		queryFn: () => apiGet<MovieDetail>(`/cineseek/movies/${id}`),
+	});
+}
+
+/** KR 시청처 — 실패해도 상세 화면은 그대로라 재시도로 늦추지 않는다 */
+export function useWatchProviders(id: number) {
+	return useQuery({
+		queryKey: ["watchProviders", id] as const,
+		retry: false,
+		queryFn: () => apiGet<WatchProviders>(`/cineseek/movies/${id}/watch-providers`),
 	});
 }
 

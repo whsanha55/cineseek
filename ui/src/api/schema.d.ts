@@ -106,6 +106,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cineseek/movies/{id}/watch-providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 영화 시청처 (KR, JustWatch 제공) — TMDB 장애는 503 */
+        get: operations["watchProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cineseek/movies/{id}/similar": {
         parameters: {
             query?: never;
@@ -251,6 +268,34 @@ export interface components {
             /** Format: int64 */
             personId?: number;
             name?: string;
+        };
+        WatchProvidersResponse: {
+            /** @description TMDB 시청처 안내 페이지 — 출처(JustWatch) 링크로 쓴다 */
+            link?: string | null;
+            /** @description 정액제 스트리밍 */
+            flatrate?: components["schemas"]["WatchProviderResponse"][];
+            /** @description 대여 */
+            rent?: components["schemas"]["WatchProviderResponse"][];
+            /** @description 구매 */
+            buy?: components["schemas"]["WatchProviderResponse"][];
+        };
+        WatchProviderResponse: {
+            /**
+             * Format: int64
+             * @description TMDB 시청처 id
+             * @example 8
+             */
+            providerId?: number;
+            /**
+             * @description 시청처 이름
+             * @example Netflix
+             */
+            name?: string;
+            /**
+             * @description 로고 이미지 경로 (TMDB 이미지 CDN)
+             * @example /pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg
+             */
+            logoPath?: string | null;
         };
         GenresResponse: {
             items?: components["schemas"]["GenreResponse"][];
@@ -639,6 +684,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MovieDetailResponse"];
+                };
+            };
+        };
+    };
+    watchProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["WatchProvidersResponse"];
                 };
             };
         };

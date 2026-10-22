@@ -10,6 +10,8 @@ import com.whsanha55.cineseek.movie.vo.MovieCard
 import com.whsanha55.cineseek.movie.vo.MovieDetail
 import com.whsanha55.cineseek.movie.vo.MoviePage
 import com.whsanha55.cineseek.movie.vo.PersonItem
+import com.whsanha55.cineseek.movie.vo.WatchProvider
+import com.whsanha55.cineseek.movie.vo.WatchProviders
 import io.swagger.v3.oas.annotations.media.Schema
 import java.time.Instant
 
@@ -227,6 +229,43 @@ data class FilmographyResponse(
                 hasNext = filmography.hasNext,
             ),
             collecting = filmography.collecting,
+        )
+    }
+}
+
+data class WatchProviderResponse(
+    @field:Schema(description = "TMDB 시청처 id", example = "8")
+    val providerId: Long,
+    @field:Schema(description = "시청처 이름", example = "Netflix")
+    val name: String,
+    @field:Schema(description = "로고 이미지 경로 (TMDB 이미지 CDN)", example = "/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg")
+    val logoPath: String?,
+) {
+    companion object {
+        fun from(provider: WatchProvider) = WatchProviderResponse(
+            providerId = provider.providerId,
+            name = provider.name,
+            logoPath = provider.logoPath,
+        )
+    }
+}
+
+data class WatchProvidersResponse(
+    @field:Schema(description = "TMDB 시청처 안내 페이지 — 출처(JustWatch) 링크로 쓴다")
+    val link: String?,
+    @field:Schema(description = "정액제 스트리밍")
+    val flatrate: List<WatchProviderResponse>,
+    @field:Schema(description = "대여")
+    val rent: List<WatchProviderResponse>,
+    @field:Schema(description = "구매")
+    val buy: List<WatchProviderResponse>,
+) {
+    companion object {
+        fun from(providers: WatchProviders) = WatchProvidersResponse(
+            link = providers.link,
+            flatrate = providers.flatrate.map(WatchProviderResponse::from),
+            rent = providers.rent.map(WatchProviderResponse::from),
+            buy = providers.buy.map(WatchProviderResponse::from),
         )
     }
 }
