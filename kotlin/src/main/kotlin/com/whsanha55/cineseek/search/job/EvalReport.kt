@@ -44,24 +44,40 @@ data class BaselineComparison(
             (ndcgDelta < -EvalReport.MEAN_DROP_THRESHOLD || rrDelta < -EvalReport.MEAN_DROP_THRESHOLD)
 }
 
-/** 쿼리별 점수를 전체·유형별로 집계하고 기준값과 비교한다 */
+/**
+ * 쿼리별 점수를 전체·유형별로 집계하고 기준값과 비교한다.
+ * 전체 평균과 [comparison]은 내용 검색 유형만 본다. separate 유형(제목 검색)은 [separateComparisons]로 따로 비교하고,
+ * 어느 쪽이든 회귀면 [isRegression]이다
+ */
 class EvalReport(val scores: List<QueryScore>, baseline: EvalBaseline?) {
-    val overall: MeanScore = mean(scores.map { it.ndcg to it.rr })
+    private val overallScores = scores.filterNot { it.type.separate }
+
+    val overall: MeanScore = mean(overallScores.map { it.ndcg to it.rr })
 
     /** 점수가 있는 유형만 담는다 */
     val byType: Map<EvalQueryTypeEnum, MeanScore> = scores
         .groupBy { it.type }
         .mapValues { (_, typeScores) -> mean(typeScores.map { it.ndcg to it.rr }) }
 
-    /** baseline이 없으면 null */
-    val comparison: BaselineComparison? = baseline?.let { compare(it) }
+    /** 내용 검색 유형의 기준값 비교. baseline이 없으면 null */
+    val comparison: BaselineComparison? = baseline?.let { compare(overallScores, it) }
+
+    /** separate 유형별 기준값 비교. baseline이 없으면 비어 있다 */
+    val separateComparisons: Map<EvalQueryTypeEnum, BaselineComparison> = baseline?.let { base ->
+        scores.filter { it.type.separate }
+            .groupBy { it.type }
+            .mapValues { (_, typeScores) -> compare(typeScores, base) }
+    }.orEmpty()
+
+    val isRegression: Boolean
+        get() = comparison?.isRegression == true || separateComparisons.values.any { it.isRegression }
 
     /** 현재 점수를 다음 비교의 기준값으로 만든다 */
     fun toBaseline(): EvalBaseline = EvalBaseline(
         scores.associate { it.query to BaselineScore(it.ndcg, it.rr, it.labelHash) },
     )
 
-    private fun compare(baseline: EvalBaseline): BaselineComparison {
+    private fun compare(scores: List<QueryScore>, baseline: EvalBaseline): BaselineComparison {
         val labelChanged = mutableListOf<String>()
         val newQueries = mutableListOf<String>()
         val compared = mutableListOf<Pair<QueryScore, BaselineScore>>()

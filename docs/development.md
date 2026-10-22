@@ -154,6 +154,10 @@ docker compose -f compose.yml -f compose.local.yml run --rm api --cineseek.job=<
 - 라벨: `kotlin/src/main/resources/eval/queries.json` (쿼리별 정답 tmdbId와 등급 1~2)
 - 기준값: 같은 폴더 `baseline.json`. 서버에서 `eval`을 돌린 뒤 로그 마지막에 찍힌 기준값 JSON으로 덮어써 갱신한다
 - 라벨을 고친 쿼리는 해시가 바뀌어 비교에서 자동으로 빠진다
+- 유형: 줄거리(PLOT), 분위기(MOOD), 영어(EN), 제목 검색(TITLE)
+  - TITLE은 영화 제목을 그대로 검색해 그 영화가 위에 오는지 본다. 이 유형은 전체 평균에 넣지 않고 기준값과 따로 비교한다. 제목 일치를 해치는 순위 조정을 잡기 위해서다(#95)
+  - TITLE 정답 중 투표 수 10 미만 신작은 개봉 1년이 지나면 기본 하한에 걸려 검색에서 빠진다. 그 무렵 다른 신작으로 바꾼다
+- 회귀 판정: 전체 평균 또는 TITLE 평균의 nDCG·MRR이 0.02보다 많이 떨어지면 종료 코드 1이다
 
 ## 코드 규칙
 

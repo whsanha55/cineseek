@@ -43,8 +43,7 @@ class EvalRunner(
         val report = EvalReport(scores, loadBaseline())
         log.info { summary(report) }
         log.info { "기준값 JSON (eval/baseline.json에 저장하면 다음 실행의 비교 기준이 된다)\n" + baselineJson(report) }
-        val isRegression = report.comparison?.isRegression == true
-        exitProcess(if (isRegression) 1 else 0) // 배치 성격 — 출력 후 종료
+        exitProcess(if (report.isRegression) 1 else 0) // 배치 성격 — 출력 후 종료
     }
 
     /**
@@ -86,23 +85,30 @@ class EvalRunner(
 
     private fun summary(report: EvalReport): String = buildString {
         appendLine("== 평가 요약 (nDCG@$K / MRR) ==")
-        appendLine("전체  ${fmt(report.overall)}")
+        appendLine("전체  ${fmt(report.overall)}  — 제목 검색(TITLE) 제외")
         report.byType.forEach { (type, mean) -> appendLine("$type  ${fmt(mean)}") }
         val comparison = report.comparison
         if (comparison == null) {
             append("기준값 없음 — $BASELINE_RESOURCE 를 추가하면 변화가 표시된다")
             return@buildString
         }
+        appendComparison("기준값 대비", comparison)
+        report.separateComparisons.forEach { (type, typeComparison) ->
+            appendComparison("$type 기준값 대비", typeComparison)
+        }
+        append(if (report.isRegression) "결과: REGRESSION" else "결과: OK")
+    }
+
+    private fun StringBuilder.appendComparison(label: String, comparison: BaselineComparison) {
         val (base, current) = comparison.baseline to comparison.current
         appendLine(
-            "기준값 대비 (공통 ${current.count}개)  " +
+            "$label (공통 ${current.count}개)  " +
                 "nDCG ${fmt(base.ndcg)} → ${fmt(current.ndcg)} (${delta(comparison.ndcgDelta)})  " +
                 "MRR ${fmt(base.rr)} → ${fmt(current.rr)} (${delta(comparison.rrDelta)})",
         )
         if (comparison.labelChanged.isNotEmpty()) appendLine("라벨 변경으로 비교 제외: ${comparison.labelChanged}")
         if (comparison.newQueries.isNotEmpty()) appendLine("기준값에 없는 쿼리: ${comparison.newQueries}")
         comparison.drops.forEach { (query, d) -> appendLine("  하락(참고) $query  nDCG ${delta(d)}") }
-        append(if (comparison.isRegression) "결과: REGRESSION" else "결과: OK")
     }
 
     private fun baselineJson(report: EvalReport): String = objectMapper.writerWithDefaultPrettyPrinter()
