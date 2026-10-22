@@ -239,11 +239,11 @@ class MovieMoodTaggerTest {
     }
 
     @Test
-    fun `version — 모델명과 프롬프트 해시 8자리를 담는다`() {
+    fun `version — 모델명과 프롬프트 해시 8자리를 담고 해시는 고정돼 있다`() {
         // when
         val version = tagger.version()
 
-        // then
-        assertThat(version).matches("gpt-4o-mini/mood-[0-9a-f]{8}")
+        // then — 해시가 바뀌면 운영의 모든 영화가 LLM으로 다시 태깅된다. 후보 어휘를 검색과 공유해도 프롬프트는 그대로여야 한다
+        assertThat(version).isEqualTo("gpt-4o-mini/mood-eb37efa1")
     }
 }

@@ -5,6 +5,7 @@ import com.whsanha55.cineseek.external.llm.client.LlmContentFilteredException
 import com.whsanha55.cineseek.external.llm.config.LlmProperties
 import com.whsanha55.cineseek.movie.entity.MovieEntity
 import com.whsanha55.cineseek.movie.repository.MovieRepository
+import com.whsanha55.cineseek.movie.vo.MoodVocabulary
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 import tools.jackson.databind.ObjectMapper
@@ -23,7 +24,7 @@ private val SYSTEM_PROMPT = """
 태그는 제공된 후보 어휘에서 우선 고르고, 맞는 게 없을 때만 새 태그를 만든다(공백 없는 짧은 단어).
 tags는 3~6개, description은 40자 이내 한 문장이다.
 
-후보 어휘: 잔잔한, 서정적, 긴장감 있는, 유쾌한, 어두운, 감동적인, 소름 돋는, 몽환적인, 힐링, 처절한, 잔혹한, 로맨틱, 냉소적, 희망적, 애절한, 코미디, 미스터리, 누아르, 판타지, 아늑한, 슬픈, 뜨거운, 차가운, 아련한, 절망적인
+후보 어휘: ${MoodVocabulary.CANDIDATE_TAGS.joinToString(", ")}
 
 응답 형식:
 {"tags": ["태그1", "태그2", "태그3"], "description": "한 문장 설명"}

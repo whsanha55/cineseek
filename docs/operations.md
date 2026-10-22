@@ -56,6 +56,16 @@ docker compose -f compose.yml -f compose.prod.yml run --rm api --cineseek.job=co
 
 현재 모드, 작업 유형별 상태, 연도별 한국 영화 수, 줄거리 누락 수, 시드 배우 10명의 필모그래피 확보율, PG 대비 색인이 안 된 영화 수를 보여준다. 같은 지표가 매 틱 로그에도 남는다.
 
+### 분위기 태그 payload 동기화
+
+검색은 Qdrant payload의 `mood_tags`로 분위기 태그 후보 목록을 만든다. `mood_tags`가 생기기 전에 색인된 포인트는 이 값이 없으므로, 그 코드를 배포한 뒤 한 번 돌린다. 임베딩 없이 payload만 바꾸고, 다시 돌려도 된다.
+
+```bash
+docker compose -f compose.yml -f compose.prod.yml run --rm --no-deps api --cineseek.job=mood-tag-sync
+```
+
+로그 마지막 줄에 PG 영화 수, 태그가 있는 영화 수, 갱신한 포인트 수가 찍힌다. 이후 새로 태깅·색인되는 영화는 색인할 때 `mood_tags`가 함께 들어간다.
+
 ### 설정
 
 `kotlin/src/main/resources/application.yml`의 `cineseek.collect.*`에서 조정한다. 추가 비밀값은 없고 TMDB 토큰만 쓴다.

@@ -62,6 +62,35 @@ class MovieIndexer(
         return upsertByHash(movies, stored)
     }
 
+    /**
+     * 분위기 태그 payload 동기화(MoodTagSyncJob) — 색인된 포인트의 mood_tags만 덮어쓴다. 임베딩은 다시 하지 않는다.
+     * mood_tags를 payload에 넣기 전에 색인된 포인트를 채우는 용도다. PG에만 있고 색인되지 않은 영화는 건너뛴다.
+     * @return mood_tags를 쓴 포인트 수
+     */
+    fun syncMoodTags(moodTags: Map<Long, List<String>>): Int {
+        ensureCollection()
+        createMoodTagsIndex()
+        val targets = storedHashes().keys.filter { it in moodTags }
+        targets.chunked(SET_PAYLOAD_BATCH).forEachIndexed { i, batch ->
+            val operations = batch.map { movieId ->
+                val tags = ValueFactory.list(moodTags.getValue(movieId).map { ValueFactory.value(it) })
+                Points.PointsUpdateOperation.newBuilder()
+                    .setSetPayload(
+                        Points.PointsUpdateOperation.SetPayload.newBuilder()
+                            .putPayload(MOOD_TAGS, tags)
+                            .setPointsSelector(
+                                Points.PointsSelector.newBuilder()
+                                    .setPoints(Points.PointsIdsList.newBuilder().addIds(PointIdFactory.id(movieId))),
+                            ),
+                    )
+                    .build()
+            }
+            qdrantClient.batchUpdateAsync(qdrantProperties.collection, operations).get()
+            log.info { "mood_tags 동기화. ${minOf((i + 1) * SET_PAYLOAD_BATCH, targets.size)}/${targets.size}" }
+        }
+        return targets.size
+    }
+
     /** 컬렉션의 포인트 수 — 수집 통계(색인 미완료 = PG 영화 수 − 포인트 수)용. 컬렉션이 없으면 0 */
     fun countPoints(): Long {
         if (!qdrantClient.collectionExistsAsync(qdrantProperties.collection).get()) {
@@ -133,7 +162,21 @@ class MovieIndexer(
                 )
                 .build(),
         ).get()
+        createMoodTagsIndex()
         log.info { "컬렉션 생성(dense+sparse). collection=${qdrantProperties.collection}" }
+    }
+
+    /** mood_tags keyword payload 인덱스 — 검색의 태그 일치 필터용. 이미 있으면 Qdrant가 그대로 둔다 */
+    private fun createMoodTagsIndex() {
+        qdrantClient.createPayloadIndexAsync(
+            qdrantProperties.collection,
+            MOOD_TAGS,
+            Collections.PayloadSchemaType.Keyword,
+            null,
+            true,
+            null,
+            null,
+        ).get()
     }
 
     /** 저장된 포인트별 임베딩 입력 해시 — 해시가 없는 포인트(이전 방식 색인)는 다시 임베딩된다 */
@@ -169,6 +212,7 @@ class MovieIndexer(
         put("cast_ids", ValueFactory.list(castIds.map { ValueFactory.value(it) }))
         runtime?.let { put("runtime", ValueFactory.value(it.toLong())) }
         voteCount?.let { put("vote_count", ValueFactory.value(it.toLong())) }
+        put(MOOD_TAGS, ValueFactory.list(moodTags.map { ValueFactory.value(it) }))
     }
 
     companion object {
@@ -176,5 +220,7 @@ class MovieIndexer(
         private const val UPSERT_BATCH = 256 // 임베딩·upsert 묶음 — 묶음마다 저장돼 진행이 보존된다
         private const val SCROLL_LIMIT = 1000
         private const val INPUT_HASH = "input_hash"
+        private const val MOOD_TAGS = "mood_tags"
+        private const val SET_PAYLOAD_BATCH = 500
     }
 }

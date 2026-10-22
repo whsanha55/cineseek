@@ -12,6 +12,7 @@ import io.qdrant.client.PointIdFactory
 import io.qdrant.client.QdrantClient
 import io.qdrant.client.QdrantGrpcClient
 import io.qdrant.client.ValueFactory
+import io.qdrant.client.grpc.Collections
 import io.qdrant.client.grpc.JsonWithInt
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
@@ -135,6 +136,27 @@ class MovieIndexerTest {
         // then
         assertThat(point.payloadMap["runtime"]?.integerValue).isEqualTo(142L)
         assertThat(point.payloadMap["vote_count"]?.integerValue).isEqualTo(25000L)
+    }
+
+    @Test
+    fun `payload에 mood_tags가 내려가고 새 컬렉션에 mood_tags keyword 인덱스가 생긴다`() {
+        // given
+        stubEmbed()
+        val moodTags = listOf("잔잔한", "힐링")
+        val payload = MoviePayload("영화", 2000, 8.0, listOf(28L), listOf(100L), listOf(200L), moodTags = moodTags)
+        indexer.index(listOf(IndexedMovie(1L, "임베딩 입력", payload)))
+
+        // when
+        val point = qdrantClient
+            .retrieveAsync("movies", listOf(PointIdFactory.id(1L)), true, false, null)
+            .get()
+            .single()
+        val schema = qdrantClient.getCollectionInfoAsync("movies").get().payloadSchemaMap
+
+        // then
+        assertThat(point.payloadMap["mood_tags"]?.listValue?.valuesList?.map { it.stringValue })
+            .containsExactly("잔잔한", "힐링")
+        assertThat(schema["mood_tags"]?.dataType).isEqualTo(Collections.PayloadSchemaType.Keyword)
     }
 
     @Test

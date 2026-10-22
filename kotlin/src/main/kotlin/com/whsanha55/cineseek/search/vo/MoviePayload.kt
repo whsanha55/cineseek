@@ -12,4 +12,6 @@ data class MoviePayload(
     val runtime: Int? = null,
     /** 숨은 명작 걸러내기용 투표 수 */
     val voteCount: Int? = null,
+    /** 분위기 태그 — 검색의 세 번째 후보 목록(태그 일치 필터)용 */
+    val moodTags: List<String> = emptyList(),
 )

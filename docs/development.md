@@ -112,7 +112,8 @@ pnpm lint
 | `directorId`, `castId` | 감독·배우 TMDB id |
 | `limit`, `offset` | 페이지. `limit`은 1~50 |
 
-- dense·sparse 각 상위 50개를 RRF로 합친 상위 50개를 `RRF 점수 + 0.1 × log10(1 + 투표 수)`로 다시 정렬한다. `offset + limit`이 50을 넘으면 후보를 그만큼 늘린다
+- dense·sparse·분위기 태그 각 상위 50개를 RRF로 합친 상위 50개를 `RRF 점수 + 0.1 × log10(1 + 투표 수)`로 다시 정렬한다. `offset + limit`이 50을 넘으면 후보를 그만큼 늘린다
+- 분위기 태그 목록은 분위기 후보 어휘 25개 중 쿼리 dense와 코사인이 가장 큰 2개 태그를 하나라도 가진 영화의 dense 순위다 (같은 필터 적용). 태그 단어 임베딩은 첫 검색 때 한 번 받아 두고, 실패하면 이 목록 없이 검색한 뒤 다음 검색에서 다시 받는다
 - 응답은 `items`(영화 카드 + `score`)와 `page{limit, offset, hasNext, total}`이다. `total`은 항상 `null`이다
 - `items[].matchedTerms`는 검색 근거다. 쿼리 sparse와 결과의 저장 sparse에 함께 있는 토큰을 쿼리 원문 단어로 되돌려 기여도 순 최대 3개를 준다. 비어 있으면 의미(dense)로만 찾은 결과다
 - 잘못된 값은 400 ProblemDetail(`code`, `requestId`, `errors`)로 응답한다
@@ -144,6 +145,7 @@ docker compose -f compose.yml -f compose.local.yml run --rm api --cineseek.job=<
 | 이름 | 하는 일 |
 |---|---|
 | `reindex` | TMDB 수집 → PG 저장 → 임베딩 → Qdrant 색인. 분위기 태깅은 하지 않는다 (상주 api의 수집 스케줄러가 틱마다 태깅하고 색인에 반영한다) |
+| `mood-tag-sync` | PG의 분위기 태그를 색인된 Qdrant 포인트의 `mood_tags` payload에만 덮어쓰고 `mood_tags` 인덱스를 만든다. 임베딩은 하지 않는다. `mood_tags`가 없던 때 색인된 포인트를 채울 때 한 번 돌린다 (그 뒤 색인은 `mood_tags`를 함께 쓴다) |
 | `eval` | 라벨셋으로 검색 품질(nDCG@10, MRR)을 재고 기준값과 비교한다. 떨어지면 종료 코드 1 |
 | `collect-report` | 수집 현황 보고 ([운영 가이드](operations.md#수집-보고)) |
 

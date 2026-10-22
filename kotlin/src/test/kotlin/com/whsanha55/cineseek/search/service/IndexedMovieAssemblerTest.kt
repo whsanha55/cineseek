@@ -96,6 +96,28 @@ class IndexedMovieAssemblerTest {
     }
 
     @Test
+    fun `분위기 태그를 나눠 payload와 moodTagsAll에 담는다 — 태그가 없으면 빈 목록`() {
+        // given
+        val tagged = upsertService.upsert(tmdbMovie(155L))
+        val untagged = upsertService.upsert(tmdbMovie(156L))
+        movieRepository.save(
+            movieRepository.findById(tagged).orElseThrow()
+                .apply { applyMood("잔잔한, 힐링", "따뜻한 영화", "model/mood-1", Instant.parse("2026-01-01T00:00:00Z")) },
+        )
+
+        // when
+        val indexed = assembler.assembleAll().associateBy { it.movieId }
+        val moodTags = assembler.moodTagsAll()
+
+        // then
+        assertThat(indexed.getValue(tagged).payload.moodTags).containsExactly("잔잔한", "힐링")
+        assertThat(indexed.getValue(untagged).payload.moodTags).isEmpty()
+        assertThat(moodTags).containsExactlyInAnyOrderEntriesOf(
+            mapOf(tagged to listOf("잔잔한", "힐링"), untagged to emptyList()),
+        )
+    }
+
+    @Test
     fun `assemble — 지정한 movieId만 조립하고 overview 없는 영화는 스킵한다`() {
         // given
         val withOverview = upsertService.upsert(tmdbMovie(155L))

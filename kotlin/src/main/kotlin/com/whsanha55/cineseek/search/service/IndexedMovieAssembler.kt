@@ -31,18 +31,24 @@ class IndexedMovieAssembler(
     /** 전체 재색인(ReindexJob)용 — PG의 모든 영화를 조립한다 */
     fun assembleAll(): List<IndexedMovie> = movieRepository.findAll().mapNotNull(::toIndexedMovie)
 
+    /** 분위기 태그 payload 동기화(MoodTagSyncJob)용 — PG 모든 영화의 movieId → 분위기 태그. 출연진은 읽지 않는다 */
+    fun moodTagsAll(): Map<Long, List<String>> = movieRepository.findAll().associate { movie ->
+        requireNotNull(movie.movieId) { "조회한 영화에 movieId가 없다. tmdbId=${movie.tmdbId}" } to movie.moodTagList()
+    }
+
     private fun toIndexedMovie(movie: MovieEntity): IndexedMovie? {
         val overview = movie.overview ?: return null // 임베딩 불가 → 스킵
         val movieId = requireNotNull(movie.movieId) { "조회한 영화에 movieId가 없다. tmdbId=${movie.tmdbId}" }
         val directors = movieDirectorRepository.findAllByMovieId(movieId)
         val cast = movieCastRepository.findAllByMovieId(movieId)
+        val moodTags = movie.moodTagList()
         return IndexedMovie(
             movieId = movieId,
             embeddingInput = EmbeddingText.assemble(
                 title = movie.title,
                 originalTitle = movie.originalTitle,
                 genreNames = movie.genres.map { it.name },
-                moodTags = movie.moodTags?.split(", ")?.filter { it.isNotBlank() } ?: emptyList(),
+                moodTags = moodTags,
                 moodDesc = movie.moodDesc,
                 overview = overview,
             ),
@@ -55,7 +61,12 @@ class IndexedMovieAssembler(
                 castIds = cast.sortedBy { it.castOrder }.map { it.personId },
                 runtime = movie.runtime,
                 voteCount = movie.voteCount,
+                moodTags = moodTags,
             ),
         )
     }
+
+    /** PG에는 ", "로 이어 붙여 저장한다 (MovieMoodTagger) */
+    private fun MovieEntity.moodTagList(): List<String> =
+        moodTags?.split(", ")?.filter { it.isNotBlank() } ?: emptyList()
 }
