@@ -112,7 +112,7 @@ pnpm lint
 | `directorId`, `castId` | 감독·배우 TMDB id |
 | `limit`, `offset` | 페이지. `limit`은 1~50 |
 
-- dense·sparse·분위기 태그 각 상위 50개를 RRF로 합친 상위 50개를 `RRF 점수 + 0.1 × log10(1 + 투표 수)`로 다시 정렬한다. `offset + limit`이 50을 넘으면 후보를 그만큼 늘린다
+- dense·sparse·분위기 태그 각 상위 50개를 RRF(k=10, 점수 `1 / (10 + 순위)`)로 합친 상위 50개를 `RRF 점수 + 0.05 × log10(1 + 투표 수)`로 다시 정렬한다. `offset + limit`이 50을 넘으면 후보를 그만큼 늘린다
 - 분위기 태그 목록은 분위기 후보 어휘 25개 중 쿼리 dense와 코사인이 가장 큰 2개 태그를 하나라도 가진 영화의 dense 순위다 (같은 필터 적용). 태그 단어 임베딩은 첫 검색 때 한 번 받아 두고, 실패하면 이 목록 없이 검색한 뒤 다음 검색에서 다시 받는다
 - 응답은 `items`(영화 카드 + `score`)와 `page{limit, offset, hasNext, total}`이다. `total`은 항상 `null`이다
 - `items[].matchedTerms`는 검색 근거다. 쿼리 sparse와 결과의 저장 sparse에 함께 있는 토큰을 쿼리 원문 단어로 되돌려 기여도 순 최대 3개를 준다. 비어 있으면 의미(dense)로만 찾은 결과다
