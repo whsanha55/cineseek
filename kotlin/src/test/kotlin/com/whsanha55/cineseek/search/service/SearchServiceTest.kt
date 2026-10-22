@@ -7,9 +7,13 @@ import com.whsanha55.cineseek.external.embedding.client.EmbeddingClient
 import com.whsanha55.cineseek.external.embedding.config.EmbeddingProperties
 import com.whsanha55.cineseek.external.qdrant.config.QdrantProperties
 import com.whsanha55.cineseek.global.exception.ExternalApiException
+import com.whsanha55.cineseek.movie.repository.MovieRepository
 import com.whsanha55.cineseek.movie.vo.MoodVocabulary
+import com.whsanha55.cineseek.movie.vo.MovieTitle
 import com.whsanha55.cineseek.search.vo.Embedding
 import com.whsanha55.cineseek.search.vo.SearchFilter
+import io.mockk.every
+import io.mockk.mockk
 import io.qdrant.client.PointIdFactory
 import io.qdrant.client.QdrantClient
 import io.qdrant.client.QdrantGrpcClient
@@ -40,6 +44,8 @@ class SearchServiceTest {
     private lateinit var embedStub: WireMockServer
     private lateinit var qdrantClient: QdrantClient
     private lateinit var service: SearchService
+    private val movieRepository = mockk<MovieRepository> { every { findAllTitles() } returns emptyList() }
+    private val fixedClock = Clock.fixed(TODAY.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC)
 
     @BeforeEach
     fun setUp() {
@@ -57,7 +63,8 @@ class SearchServiceTest {
             embeddingClient,
             QdrantProperties(grpcUrl = "unused", collection = "movies"),
             MoodTagMatcher(embeddingClient),
-            Clock.fixed(TODAY.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC),
+            TitleMatcher(movieRepository, fixedClock),
+            fixedClock,
         )
 
         createCollection()
@@ -236,6 +243,77 @@ class SearchServiceTest {
         // then
         assertThat(page.hits.map { it.movieId }).containsExactly(8L, 7L)
         assertThat(page.hits[0].score).isGreaterThan(page.hits[1].score)
+    }
+
+    @Test
+    fun `RRF k=10 — 한 목록 1위보다 두 목록 모두 2위인 영화가 앞선다`() {
+        // given — 장르 98 영화 5편, 투표 수는 같다. sparse 순위는 쿼리 토큰을 많이 가진 순서다.
+        // dense 순위: 11(1위) 12(2위) 13(3위) 15(4위) 14(5위) / sparse 순위: 14(1위) 12(2위) 13(3위) 11(4위)
+        // k=2면 11이 1/2 + 1/5 = 0.70으로 12(1/3 + 1/3 = 0.67)를 앞서고, k=10이면 12가 2/11 = 0.182로 11(1/10 + 1/13 = 0.177)을 앞선다
+        val movie = { id: Long, dense: List<Float>, tokens: List<Int> ->
+            point(id, dense, tokens, 2015, 7.0, listOf(98L), emptyList(), emptyList(), 100, 100)
+        }
+        qdrantClient.upsertAsync(
+            "movies",
+            listOf(
+                movie(11L, listOf(0f, 0f, 0f, 1f), listOf(91)),
+                movie(12L, listOf(0f, 0f, 0.2f, 1f), listOf(91, 92, 93)),
+                movie(13L, listOf(0f, 0f, 0.5f, 1f), listOf(91, 92)),
+                movie(14L, listOf(0f, 0f, 1f, 0.1f), listOf(91, 92, 93, 94)),
+                movie(15L, listOf(0f, 0f, 1f, 0.5f), emptyList()),
+            ),
+        ).get()
+        stubEmbed(sparse = """{"indices":[91,92,93,94],"values":[0.9,0.9,0.9,0.9]}""", dense = "[0.0,0.0,0.0,1.0]")
+
+        // when
+        val page = service.search("쿼리", SearchFilter(genreIds = listOf(98L), limit = 5))
+
+        // then
+        assertThat(page.hits.map { it.movieId }.take(2)).containsExactly(12L, 11L)
+    }
+
+    @Test
+    fun `제목이 일치하는 영화는 벡터 순위와 투표 수가 낮아도 맨 앞에 온다`() {
+        // given — 영화9는 쿼리 방향과 멀고 sparse 토큰도 없으며 투표 12. 쿼리가 영화9의 제목이다
+        upsertTitleMatchTarget()
+        every { movieRepository.findAllTitles() } returns listOf(MovieTitle(9, "실낙원", null))
+
+        // when
+        val page = service.search("실낙원", SearchFilter(limit = 5))
+
+        // then
+        assertThat(page.hits.first().movieId).isEqualTo(9L)
+    }
+
+    @Test
+    fun `임베딩을 넘기는 eval 경로도 query가 있으면 제목 일치를 반영하고 매칭 단어는 계산하지 않는다`() {
+        // given
+        upsertTitleMatchTarget()
+        every { movieRepository.findAllTitles() } returns listOf(MovieTitle(9, "실낙원", null))
+        val embedding = Embedding(
+            dense = listOf(0.9f, 0.1f, 0f, 0f),
+            sparse = Embedding.Sparse(listOf(1L), listOf(0.9f), listOf("▁실")),
+        )
+
+        // when
+        val page = service.search(embedding, SearchFilter(limit = 5), "실낙원", withTerms = false)
+
+        // then
+        assertThat(page.hits.first().movieId).isEqualTo(9L)
+        assertThat(page.hits).allSatisfy { assertThat(it.matchedTerms).isEmpty() }
+    }
+
+    @Test
+    fun `제목이 일치해도 사용자 필터에 걸리면 나오지 않는다`() {
+        // given
+        upsertTitleMatchTarget()
+        every { movieRepository.findAllTitles() } returns listOf(MovieTitle(9, "실낙원", null))
+
+        // when
+        val page = service.search("실낙원", SearchFilter(genreIds = listOf(28L), limit = 5))
+
+        // then
+        assertThat(page.hits.map { it.movieId }).doesNotContain(9L)
     }
 
     @Test
@@ -497,7 +575,8 @@ class SearchServiceTest {
             embeddingClient,
             QdrantProperties(grpcUrl = "unused", collection = "movies"),
             MoodTagMatcher(embeddingClient),
-            Clock.fixed(TODAY.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC),
+            TitleMatcher(movieRepository, fixedClock),
+            fixedClock,
         )
 
         // when & then
@@ -557,6 +636,13 @@ class SearchServiceTest {
             ),
         )
         qdrantClient.upsertAsync("movies", points).get()
+    }
+
+    /** 제목 일치 대상 — 쿼리 기본 방향(영화1)과 반대쪽이고 투표 12, 장르 18 */
+    private fun upsertTitleMatchTarget() {
+        val target =
+            point(9L, listOf(0f, 0f, 0f, 1f), emptyList(), 2026, 0.0, listOf(18L), emptyList(), emptyList(), 101, 12)
+        qdrantClient.upsertAsync("movies", listOf(target)).get()
     }
 
     private fun upsertNearMovie1() {

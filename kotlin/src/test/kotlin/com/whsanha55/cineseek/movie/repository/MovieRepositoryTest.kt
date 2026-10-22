@@ -6,6 +6,7 @@ import com.whsanha55.cineseek.movie.entity.GenreEntity
 import com.whsanha55.cineseek.movie.entity.MovieCastEntity
 import com.whsanha55.cineseek.movie.entity.MovieDirectorEntity
 import com.whsanha55.cineseek.movie.entity.MovieEntity
+import com.whsanha55.cineseek.movie.vo.MovieTitle
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -130,5 +131,21 @@ class MovieRepositoryTest {
 
         // then
         assertThat(targets.map { it.movieId }).containsExactlyInAnyOrder(untagged.movieId, oldFailure.movieId)
+    }
+
+    @Test
+    fun `findAllTitles — id와 제목, 원제만 읽는다`() {
+        // given
+        val withOriginal = movieRepository.save(MovieEntity(tmdbId = 1L, title = "스타게이트", originalTitle = "Stargate"))
+        val koreanOnly = movieRepository.save(MovieEntity(tmdbId = 2L, title = "실낙원"))
+
+        // when
+        val titles = movieRepository.findAllTitles()
+
+        // then
+        assertThat(titles).containsExactlyInAnyOrder(
+            MovieTitle(requireNotNull(withOriginal.movieId), "스타게이트", "Stargate"),
+            MovieTitle(requireNotNull(koreanOnly.movieId), "실낙원", null),
+        )
     }
 }

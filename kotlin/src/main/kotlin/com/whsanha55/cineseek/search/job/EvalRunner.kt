@@ -37,7 +37,7 @@ class EvalRunner(
         val embeddings = embeddingClient.embed(queries.map { it.query }) // python처럼 한 번의 배치로
         val existing = movieTmdbIdService.existingTmdbIds(queries.flatMap { q -> q.labels.map { it.tmdbId } })
         val scores = queries.mapIndexedNotNull { i, query ->
-            val items = searchFacade.search(embeddings[i], SearchFilter(limit = FETCH)).items
+            val items = searchFacade.search(embeddings[i], SearchFilter(limit = FETCH), query.query).items
             score(query, items, existing)
         }
         val report = EvalReport(scores, loadBaseline())
