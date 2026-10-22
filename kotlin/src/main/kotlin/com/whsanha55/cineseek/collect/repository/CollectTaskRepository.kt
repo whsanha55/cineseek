@@ -3,8 +3,10 @@ package com.whsanha55.cineseek.collect.repository
 import com.whsanha55.cineseek.collect.entity.CollectTaskEntity
 import com.whsanha55.cineseek.collect.enums.CollectTaskStatusEnum
 import com.whsanha55.cineseek.collect.enums.CollectTaskTypeEnum
+import jakarta.persistence.LockModeType
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import java.time.Instant
@@ -36,6 +38,14 @@ interface CollectTaskRepository : JpaRepository<CollectTaskEntity, Long> {
     fun resetRetryExhausted(pending: CollectTaskStatusEnum, failed: CollectTaskStatusEnum, maxAttempts: Int): Int
 
     fun findAllByTaskIdInAndStatus(taskIds: Collection<Long>, status: CollectTaskStatusEnum): List<CollectTaskEntity>
+
+    /** 소유 확인 — 이 워커가 잡은 RUNNING 작업이면 행을 잠그고 돌려준다. lease가 회수·재클레임됐으면 null */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    fun findByTaskIdAndStatusAndLockedBy(
+        taskId: Long,
+        status: CollectTaskStatusEnum,
+        lockedBy: String,
+    ): CollectTaskEntity?
 
     /** 클레임 1단계 — 예약 시각이 도래한 PENDING 후보 id를 priority DESC, taskId ASC로 조회 */
     @Query(
