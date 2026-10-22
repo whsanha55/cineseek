@@ -18,6 +18,7 @@ const RESPONSE: SearchResponse = {
 			posterPath: null,
 			genres: [],
 			score: 0.91,
+			matchedTerms: [],
 		},
 	],
 	page: { limit: 10, offset: 0, hasNext: false, total: null },
