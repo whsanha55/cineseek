@@ -79,6 +79,11 @@ get /cineseek/search q="고장 난 우주 정거장에 홀로 남은 우주비�
 expect_status 200
 expect_true "[.items[].movieId] | index($A) != null" "필터 없이도 검색된다"
 
+# 제목을 그대로 검색하면 내용과 무관하게 그 영화가 1위다 (제목 일치 신호)
+get /cineseek/search q="$TITLE_C"
+expect_status 200
+expect_eq '.items[0].movieId' "$C"
+
 step "GET /cineseek/search — 투표 수 기본 하한"
 get /cineseek/search q="마지막 산소 한 통으로 구조를 기다리는 우주비행사" directorId="$DIRECTOR_ID"
 expect_status 200

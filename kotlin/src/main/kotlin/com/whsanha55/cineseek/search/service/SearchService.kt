@@ -18,6 +18,7 @@ import io.qdrant.client.ValueFactory
 import io.qdrant.client.VectorInputFactory
 import io.qdrant.client.WithPayloadSelectorFactory
 import io.qdrant.client.WithVectorsSelectorFactory
+import io.qdrant.client.grpc.Common
 import io.qdrant.client.grpc.Points
 import org.springframework.stereotype.Service
 import java.time.Clock
@@ -36,6 +37,7 @@ class SearchService(
     private val embeddingClient: EmbeddingClient,
     private val qdrantProperties: QdrantProperties,
     private val moodTagMatcher: MoodTagMatcher,
+    private val titleMatcher: TitleMatcher,
     private val clock: Clock,
 ) {
 
@@ -46,56 +48,40 @@ class SearchService(
      * 쿼리 묶음을 한 번의 임베딩 배치로 처리하는 진입점 (EvalRunner용 — python eval.py와 같은 배치).
      * query가 있으면 결과의 저장 sparse를 함께 받아 매칭 단어를 계산한다 (재색인 없이 저장 벡터만 사용)
      *
-     * dense·sparse 후보를 RRF로 합친 상위 [CANDIDATE_LIMIT]개를 인기도로 재정렬한다 (#78).
+     * dense·sparse 후보를 RRF(k=[RRF_K])로 합친 상위 [CANDIDATE_LIMIT]개를 인기도로 재정렬한다 (#78).
      * 후보 수를 dense·sparse·RRF 단계 모두 같게 두어 offset+limit이 후보 수 안이면 페이지마다 같은 후보 집합을
      * 재정렬하므로 페이지 사이에 중복·누락이 없다. 더 깊은 페이지는 offset+limit만큼 후보를 늘린다.
      *
      * RRF에는 세 번째 후보 목록으로 쿼리와 가까운 분위기 태그(MoodTagMatcher)를 하나라도 가진 영화의 dense 순위를 넣는다 (#40).
      * 분위기 쿼리에서 줄거리 단어보다 태그가 맞는 영화를 끌어올리기 위해서다. 같은 payload 필터를 걸고, 태그를 못 고르면 빠진다
+     *
+     * query가 영화 제목과 일치하면(TitleMatcher) 그 영화들의 dense 순위를 네 번째 후보 목록으로 넣고 [TITLE_MATCH_WEIGHT]를 더한다 (#40).
+     * RRF k를 키우면 한 목록 1위의 점수가 작아져 제목 일치가 인기작에 묻히기 때문이다.
+     * withTerms가 false면 매칭 단어를 계산하지 않는다 (eval 경로)
      */
-    fun search(embedding: Embedding, filter: SearchFilter, query: String? = null): SearchPage {
+    fun search(
+        embedding: Embedding,
+        filter: SearchFilter,
+        query: String? = null,
+        withTerms: Boolean = true,
+    ): SearchPage {
         val fetch = filter.limit + 1 // hasNext 판단용 1건 초과 조회
         val payloadFilter = buildFilter(filter)
         val candidateLimit = maxOf(CANDIDATE_LIMIT, (filter.offset + fetch).toLong())
-        val dense = QueryFactory.nearest(VectorInputFactory.vectorInput(embedding.dense))
-        val fused = Points.PrefetchQuery.newBuilder()
-            .addPrefetch(
-                prefetch(dense, "dense", payloadFilter, candidateLimit),
-            )
-            .addPrefetch(
-                prefetch(
-                    QueryFactory.nearest(
-                        VectorInputFactory.vectorInput(
-                            embedding.sparse.values,
-                            embedding.sparse.indices.map(Long::toInt),
-                        ),
-                    ),
-                    "sparse",
-                    payloadFilter,
-                    candidateLimit,
-                ),
-            )
-            .apply {
-                val moodTags = moodTagMatcher.topTags(embedding.dense)
-                if (moodTags.isNotEmpty()) {
-                    val moodFilter = payloadFilter.toBuilder()
-                        .addMust(ConditionFactory.matchKeywords(MOOD_TAGS, moodTags))
-                        .build()
-                    addPrefetch(prefetch(dense, "dense", moodFilter, candidateLimit))
-                }
-            }
-            .setQuery(QueryFactory.fusion(Points.Fusion.RRF))
-            .setLimit(candidateLimit)
-            .build()
+        val titleIds = query?.let { titleMatcher.match(it) }.orEmpty()
+        val titleMatch = titleIds.takeIf { it.isNotEmpty() }
+            ?.let { ids -> ConditionFactory.hasId(ids.map { PointIdFactory.id(it) }) }
+        val includeTerms = query != null && withTerms
+        val fused = candidates(embedding, payloadFilter, candidateLimit, titleMatch)
         val request = Points.QueryPoints.newBuilder()
             .setCollectionName(qdrantProperties.collection)
             .addPrefetch(fused)
-            .setQuery(QueryFactory.formula(POPULARITY_BOOST))
+            .setQuery(QueryFactory.formula(score(titleMatch)))
             .setOffset(filter.offset.toLong())
             .setLimit(fetch.toLong())
             .setWithPayload(WithPayloadSelectorFactory.enable(false))
             .setWithVectors(
-                if (query == null) {
+                if (!includeTerms) {
                     WithVectorsSelectorFactory.enable(false)
                 } else {
                     WithVectorsSelectorFactory.include(listOf("sparse"))
@@ -106,7 +92,8 @@ class SearchService(
         val scored = qdrant(qdrantClient.queryAsync(request))
         return SearchPage(
             hits = scored.take(filter.limit).map { point ->
-                val terms = query?.let { MatchedTerms.extract(it, embedding.sparse, storedSparse(point.vectors)) }
+                val terms = query?.takeIf { includeTerms }
+                    ?.let { MatchedTerms.extract(it, embedding.sparse, storedSparse(point.vectors)) }
                 SearchHit(point.id.num, point.score, terms.orEmpty())
             },
             limit = filter.limit,
@@ -124,7 +111,7 @@ class SearchService(
             .setQuery(QueryFactory.nearest(VectorInputFactory.vectorInput(dense.toList())))
             .setUsing("dense")
             .setFilter(
-                Points.Filter.newBuilder()
+                Common.Filter.newBuilder()
                     .addMust(voteCountFloor(Instant.now(clock)))
                     .addMustNot(ConditionFactory.hasId(listOf(PointIdFactory.id(movieId))))
                     .build(),
@@ -162,7 +149,7 @@ class SearchService(
             )
             .setUsing("dense")
             .setFilter(
-                Points.Filter.newBuilder()
+                Common.Filter.newBuilder()
                     .addMust(voteCountFloor(Instant.now(clock)))
                     .addMustNot(ConditionFactory.hasId(excluded.map { PointIdFactory.id(it) }))
                     .build(),
@@ -222,17 +209,48 @@ class SearchService(
         throw ExternalApiException(QDRANT, e)
     }
 
-    private fun prefetch(
-        query: Points.Query,
-        using: String,
-        filter: Points.Filter,
-        limit: Long,
-    ): Points.PrefetchQuery = Points.PrefetchQuery.newBuilder()
-        .setQuery(query)
-        .setUsing(using)
-        .setFilter(filter)
-        .setLimit(limit)
-        .build()
+    /** dense·sparse·분위기 태그·제목 일치 후보 목록을 RRF로 합친다. 분위기 태그와 제목 일치 목록은 해당될 때만 넣는다 */
+    private fun candidates(
+        embedding: Embedding,
+        payloadFilter: Common.Filter,
+        candidateLimit: Long,
+        titleMatch: Common.Condition?,
+    ): Points.PrefetchQuery {
+        val dense = QueryFactory.nearest(VectorInputFactory.vectorInput(embedding.dense))
+        return Points.PrefetchQuery.newBuilder()
+            .addPrefetch(
+                prefetch(dense, "dense", payloadFilter, candidateLimit),
+            )
+            .addPrefetch(
+                prefetch(
+                    QueryFactory.nearest(
+                        VectorInputFactory.vectorInput(
+                            embedding.sparse.values,
+                            embedding.sparse.indices.map(Long::toInt),
+                        ),
+                    ),
+                    "sparse",
+                    payloadFilter,
+                    candidateLimit,
+                ),
+            )
+            .apply {
+                val moodTags = moodTagMatcher.topTags(embedding.dense)
+                if (moodTags.isNotEmpty()) {
+                    val moodFilter = payloadFilter.toBuilder()
+                        .addMust(ConditionFactory.matchKeywords(MOOD_TAGS, moodTags))
+                        .build()
+                    addPrefetch(prefetch(dense, "dense", moodFilter, candidateLimit))
+                }
+                titleMatch?.let { condition ->
+                    val titleFilter = payloadFilter.toBuilder().addMust(condition).build()
+                    addPrefetch(prefetch(dense, "dense", titleFilter, candidateLimit))
+                }
+            }
+            .setQuery(QueryFactory.rrf(Points.Rrf.newBuilder().setK(RRF_K).build()))
+            .setLimit(candidateLimit)
+            .build()
+    }
 
     /**
      * payload 필터 — 장르는 OR(should), 제외 장르는 must_not, 나머지는 AND(must). 이름이 아닌 ID 기준.
@@ -240,15 +258,15 @@ class SearchService(
      * 줄거리가 짧은 무명작은 제목 단어만으로 상위에 올라오기 때문이다. 하나라도 명시하면 명시값만 쓴다
      * ("숨은 명작" 50~500, 무명작 탐색 등)
      */
-    private fun buildFilter(filter: SearchFilter): Points.Filter {
+    private fun buildFilter(filter: SearchFilter): Common.Filter {
         val must = buildList {
-            filter.yearMin?.let { add(range("release_year", Points.Range.newBuilder().setGte(it.toDouble()))) }
-            filter.yearMax?.let { add(range("release_year", Points.Range.newBuilder().setLte(it.toDouble()))) }
-            filter.ratingMin?.let { add(range("rating", Points.Range.newBuilder().setGte(it))) }
-            filter.runtimeMin?.let { add(range("runtime", Points.Range.newBuilder().setGte(it.toDouble()))) }
-            filter.runtimeMax?.let { add(range("runtime", Points.Range.newBuilder().setLte(it.toDouble()))) }
-            filter.voteCountMin?.let { add(range("vote_count", Points.Range.newBuilder().setGte(it.toDouble()))) }
-            filter.voteCountMax?.let { add(range("vote_count", Points.Range.newBuilder().setLte(it.toDouble()))) }
+            filter.yearMin?.let { add(range("release_year", Common.Range.newBuilder().setGte(it.toDouble()))) }
+            filter.yearMax?.let { add(range("release_year", Common.Range.newBuilder().setLte(it.toDouble()))) }
+            filter.ratingMin?.let { add(range("rating", Common.Range.newBuilder().setGte(it))) }
+            filter.runtimeMin?.let { add(range("runtime", Common.Range.newBuilder().setGte(it.toDouble()))) }
+            filter.runtimeMax?.let { add(range("runtime", Common.Range.newBuilder().setLte(it.toDouble()))) }
+            filter.voteCountMin?.let { add(range("vote_count", Common.Range.newBuilder().setGte(it.toDouble()))) }
+            filter.voteCountMax?.let { add(range("vote_count", Common.Range.newBuilder().setLte(it.toDouble()))) }
             if (filter.voteCountMin == null && filter.voteCountMax == null) {
                 add(voteCountFloor(Instant.now(clock)))
             }
@@ -257,10 +275,10 @@ class SearchService(
         }
         val should = filter.genreIds.map { ConditionFactory.match("genre_ids", it) }
         val mustNot = filter.excludeGenreIds.map { ConditionFactory.match("genre_ids", it) }
-        return Points.Filter.newBuilder().addAllMust(must).addAllShould(should).addAllMustNot(mustNot).build()
+        return Common.Filter.newBuilder().addAllMust(must).addAllShould(should).addAllMustNot(mustNot).build()
     }
 
-    private fun range(key: String, range: Points.Range.Builder) = ConditionFactory.range(key, range.build())
+    private fun range(key: String, range: Common.Range.Builder) = ConditionFactory.range(key, range.build())
 
     companion object {
         private const val QDRANT = "qdrant"
@@ -270,35 +288,59 @@ class SearchService(
         private const val RECENT_RELEASE_DAYS = 365L // 이 기간 안에 개봉했거나 개봉 예정인 장편은 하한에서 뺀다 (#85)
         private const val FEATURE_RUNTIME_MIN = 60 // 하한 예외를 받는 장편의 최소 러닝타임(분) — 단편 제외 (#85)
         private const val RELEASE_DATE = "release_date"
-        private const val POPULARITY_WEIGHT = 0.1f // log10(1 + vote_count) 가중치 — eval로 정했다 (#78)
+        private const val POPULARITY_WEIGHT = 0.05f // log10(1 + vote_count) 가중치 — RRF_K와 함께 eval로 정했다 (#78, #40)
+        private const val RRF_K = 10 // RRF 순위 상수 1/(k + rank). Qdrant 기본값 2보다 완만하게 해 한 목록의 1위가 독주하지 않게 한다 (#40)
 
-        /** `$score + w * log10(1 + vote_count)` — 투표 수가 많을수록 조금씩 올린다. vote_count가 없으면 0으로 본다 */
-        private val POPULARITY_BOOST: Points.Formula = Points.Formula.newBuilder()
-            .setExpression(
-                ExpressionFactory.sum(
-                    Points.SumExpression.newBuilder()
-                        .addSum(ExpressionFactory.variable("\$score"))
-                        .addSum(
-                            ExpressionFactory.mult(
-                                Points.MultExpression.newBuilder()
-                                    .addMult(ExpressionFactory.constant(POPULARITY_WEIGHT))
-                                    .addMult(
-                                        ExpressionFactory.log10(
-                                            ExpressionFactory.sum(
-                                                Points.SumExpression.newBuilder()
-                                                    .addSum(ExpressionFactory.constant(1f))
-                                                    .addSum(ExpressionFactory.variable("vote_count"))
-                                                    .build(),
-                                            ),
-                                        ),
-                                    )
-                                    .build(),
-                            ),
-                        )
-                        .build(),
-                ),
-            )
-            .putDefaults("vote_count", ValueFactory.value(0L))
+        private const val TITLE_MATCH_WEIGHT = 1f // 제목 일치 가산점 — RRF·인기도 점수 합보다 커서 제목이 일치하는 영화가 맨 앞에 온다 (#40)
+
+        /** `w * log10(1 + vote_count)` — 투표 수가 많을수록 조금씩 올린다. vote_count가 없으면 0으로 본다 */
+        private val POPULARITY: Points.Expression = ExpressionFactory.mult(
+            Points.MultExpression.newBuilder()
+                .addMult(ExpressionFactory.constant(POPULARITY_WEIGHT))
+                .addMult(
+                    ExpressionFactory.log10(
+                        ExpressionFactory.sum(
+                            Points.SumExpression.newBuilder()
+                                .addSum(ExpressionFactory.constant(1f))
+                                .addSum(ExpressionFactory.variable("vote_count"))
+                                .build(),
+                        ),
+                    ),
+                )
+                .build(),
+        )
+
+        /** `$score + 인기도 (+ 제목 일치면 [TITLE_MATCH_WEIGHT])` */
+        private fun score(titleMatch: Common.Condition?): Points.Formula {
+            val sum = Points.SumExpression.newBuilder()
+                .addSum(ExpressionFactory.variable("\$score"))
+                .addSum(POPULARITY)
+            titleMatch?.let { condition ->
+                sum.addSum(
+                    ExpressionFactory.mult(
+                        Points.MultExpression.newBuilder()
+                            .addMult(ExpressionFactory.constant(TITLE_MATCH_WEIGHT))
+                            .addMult(ExpressionFactory.condition(condition))
+                            .build(),
+                    ),
+                )
+            }
+            return Points.Formula.newBuilder()
+                .setExpression(ExpressionFactory.sum(sum.build()))
+                .putDefaults("vote_count", ValueFactory.value(0L))
+                .build()
+        }
+
+        private fun prefetch(
+            query: Points.Query,
+            using: String,
+            filter: Common.Filter,
+            limit: Long,
+        ): Points.PrefetchQuery = Points.PrefetchQuery.newBuilder()
+            .setQuery(query)
+            .setUsing(using)
+            .setFilter(filter)
+            .setLimit(limit)
             .build()
 
         /**
@@ -307,13 +349,13 @@ class SearchService(
          * 러닝타임 조건은 투표가 적은 단편을 계속 걸러낸다.
          * vote_count·release_date·runtime payload가 없는 포인트는 해당 조건을 만족하지 못한다
          */
-        private fun voteCountFloor(now: Instant): Points.Condition {
+        private fun voteCountFloor(now: Instant): Common.Condition {
             val recentFrom = now.minus(Duration.ofDays(RECENT_RELEASE_DAYS))
-            val recentFeature = Points.Filter.newBuilder()
+            val recentFeature = Common.Filter.newBuilder()
                 .addMust(
                     ConditionFactory.datetimeRange(
                         RELEASE_DATE,
-                        Points.DatetimeRange.newBuilder()
+                        Common.DatetimeRange.newBuilder()
                             .setGte(Timestamp.newBuilder().setSeconds(recentFrom.epochSecond).setNanos(recentFrom.nano))
                             .build(),
                     ),
@@ -321,16 +363,16 @@ class SearchService(
                 .addMust(
                     ConditionFactory.range(
                         "runtime",
-                        Points.Range.newBuilder().setGte(FEATURE_RUNTIME_MIN.toDouble()).build(),
+                        Common.Range.newBuilder().setGte(FEATURE_RUNTIME_MIN.toDouble()).build(),
                     ),
                 )
                 .build()
             val voteCountMin = ConditionFactory.range(
                 "vote_count",
-                Points.Range.newBuilder().setGte(DEFAULT_VOTE_COUNT_MIN.toDouble()).build(),
+                Common.Range.newBuilder().setGte(DEFAULT_VOTE_COUNT_MIN.toDouble()).build(),
             )
             return ConditionFactory.filter(
-                Points.Filter.newBuilder()
+                Common.Filter.newBuilder()
                     .addShould(voteCountMin)
                     .addShould(ConditionFactory.filter(recentFeature))
                     .build(),

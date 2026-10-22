@@ -16,9 +16,9 @@ class SearchFacade(private val searchService: SearchService, private val movieQu
 
     fun search(query: String, filter: SearchFilter): SearchItems = assemble(searchService.search(query, filter))
 
-    /** EvalRunner용 — 이미 배치로 만든 임베딩을 재사용한다 */
-    fun search(embedding: Embedding, filter: SearchFilter): SearchItems =
-        assemble(searchService.search(embedding, filter))
+    /** EvalRunner용 — 이미 배치로 만든 임베딩을 재사용한다. 제목 매칭에는 query를 쓰고 매칭 단어는 계산하지 않는다 */
+    fun search(embedding: Embedding, filter: SearchFilter, query: String): SearchItems =
+        assemble(searchService.search(embedding, filter, query, withTerms = false))
 
     fun similar(movieId: Long, limit: Int): List<ScoredMovieCard> = toCards(searchService.similar(movieId, limit))
 

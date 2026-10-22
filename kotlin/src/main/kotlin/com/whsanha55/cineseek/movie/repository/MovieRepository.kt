@@ -1,6 +1,7 @@
 package com.whsanha55.cineseek.movie.repository
 
 import com.whsanha55.cineseek.movie.entity.MovieEntity
+import com.whsanha55.cineseek.movie.vo.MovieTitle
 import jakarta.persistence.Tuple
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.EntityGraph
@@ -33,6 +34,15 @@ interface MovieRepository :
         """,
     )
     fun findAllTmdbIds(): List<Long>
+
+    /** 검색 제목 매칭(TitleMatcher)용 — 엔티티 전체 대신 id·제목·원제만 */
+    @Query(
+        """
+        SELECT new com.whsanha55.cineseek.movie.vo.MovieTitle(m.movieId, m.title, m.originalTitle)
+        FROM MovieEntity m
+        """,
+    )
+    fun findAllTitles(): List<MovieTitle>
 
     /**
      * 분위기 태그가 필요한 영화 — overview 있고 현재 태그 버전과 다르며, 현재 버전에서 영구 실패하지 않은 것
