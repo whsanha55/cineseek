@@ -161,7 +161,7 @@ class MovieMoodTaggerTest {
         )
 
         // when
-        val tagged = keylessTagger.tagAll()
+        val tagged = keylessTagger.tagAll(limit = 10)
 
         // then
         assertThat(tagged).isEmpty()
@@ -190,7 +190,7 @@ class MovieMoodTaggerTest {
         }
 
         // when
-        val tagged = tagger.tagAll()
+        val tagged = tagger.tagAll(limit = 10)
 
         // then
         assertThat(tagged).containsExactly(1L)
@@ -213,7 +213,7 @@ class MovieMoodTaggerTest {
         every { llmClient.chat(any()) } returns """{"tags":["긴장감 있는"],"description":"차갑게 빛나는 SF"}"""
 
         // when
-        val tagged = tagger.tagAll()
+        val tagged = tagger.tagAll(limit = 10)
 
         // then
         assertThat(tagged).containsExactly(1L)

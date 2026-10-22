@@ -1,7 +1,6 @@
 package com.whsanha55.cineseek.search.job
 
 import com.whsanha55.cineseek.external.tmdb.client.TmdbClient
-import com.whsanha55.cineseek.movie.service.MovieMoodTagger
 import com.whsanha55.cineseek.movie.service.MovieUpsertService
 import com.whsanha55.cineseek.movie.vo.TmdbMovie
 import com.whsanha55.cineseek.search.service.IndexedMovieAssembler
@@ -19,6 +18,8 @@ private val log = KotlinLogging.logger {}
 
 /**
  * 재색인 배치 — 수집(TMDB) → PG(SoT) → 임베딩 → Qdrant (pipeline.main 이식).
+ * 분위기 태깅은 하지 않는다 — 상주 api의 수집 틱(CollectPipeline.finishTick)이 미태깅 영화를 태깅하고 다시 색인한다.
+ * 여기서도 태깅하면 lease 잠금 없이 같은 영화를 두 프로세스가 동시에 LLM으로 태깅하게 된다.
  * 실행: docker compose run --rm api --cineseek.job=reindex
  */
 @Component
@@ -27,7 +28,6 @@ class ReindexJob(
     private val tmdbClient: TmdbClient,
     private val upsertService: MovieUpsertService,
     private val assembler: IndexedMovieAssembler,
-    private val moodTagger: MovieMoodTagger,
     private val indexer: MovieIndexer,
 ) : ApplicationRunner {
 
@@ -40,9 +40,6 @@ class ReindexJob(
 
         val stored = movies.mapNotNull { upsertSafe(it) }
         log.info { "PG 적재 완료. stored=${stored.size}" }
-
-        val tagged = moodTagger.tagAll()
-        log.info { "분위기 태그. tagged=${tagged.size}" }
 
         val indexed = assembler.assembleAll()
         val embedded = indexer.index(indexed)

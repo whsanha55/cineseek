@@ -319,7 +319,7 @@ class CollectPipeline(
      */
     private fun finishTick(movieIds: List<Long>): Int {
         val tagged = runCatching { moodTagger.tagAll(MOOD_TAG_LIMIT_PER_TICK) }
-            .onFailure { log.error(it) { "분위기 태깅 실패 — 다음 틱/재색인에서 회복된다" } }
+            .onFailure { log.error(it) { "분위기 태깅 실패 — 다음 틱에서 회복된다" } }
             .getOrDefault(emptyList())
         val targets = (movieIds + tagged).distinct()
         if (targets.isEmpty()) return 0
