@@ -117,7 +117,7 @@ docker compose -f compose.yml -f compose.local.yml run --rm api --cineseek.job=<
 
 | 이름 | 하는 일 |
 |---|---|
-| `reindex` | TMDB 수집 → PG 저장 → 분위기 태깅 → 임베딩 → Qdrant 색인 |
+| `reindex` | TMDB 수집 → PG 저장 → 임베딩 → Qdrant 색인. 분위기 태깅은 하지 않는다 (상주 api의 수집 스케줄러가 틱마다 태깅하고 색인에 반영한다) |
 | `eval` | 라벨셋으로 검색 품질(nDCG@10, MRR)을 재고 기준값과 비교한다. 떨어지면 종료 코드 1 |
 | `collect-report` | 수집 현황 보고 ([운영 가이드](operations.md#수집-보고)) |
 

@@ -39,7 +39,7 @@
 
 - 도메인 우선 — `docs/convention/backend/kotlin/spring.md` 1절을 따른다:
   - `global/config/` — 공용 HTTP(`http1RestClient()`), `@EnableScheduling`(SchedulingConfig)
-  - `external/{tmdb,embedding,qdrant,llm}/` — 외부 시스템별 `client/`·`config/`(`@ConfigurationProperties`, 빈)·`dto/`(와이어 DTO). llm은 OpenAI 호환 chat completions(재색인 배치의 분위기 태깅 전용 — 검색 경로에 LLM 없음)
+  - `external/{tmdb,embedding,qdrant,llm}/` — 외부 시스템별 `client/`·`config/`(`@ConfigurationProperties`, 빈)·`dto/`(와이어 DTO). llm은 OpenAI 호환 chat completions(상주 api 수집 틱의 분위기 태깅 전용 — 검색 경로에 LLM 없음)
   - `movie/` — `entity/`(엔티티 + 복합키), `repository/`, `service/`(MovieUpsertService, MovieMoodTagger), `vo/`(TmdbMovie — TmdbClient가 변환해 넘기는 수집 모델)
   - `collect/` — 수집 운영(작업 큐·스케줄러·모드 전환). `config/`(CollectProperties), `entity/`+`enums/`(CollectTask, CollectState), `repository/`, `service/`(CollectTaskService, CollectPipeline, CollectScheduler, CollectStatsService), `job/`(CollectReportRunner)
   - `search/` — `SearchController`, `service/`(SearchService, MovieIndexer, IndexedMovieAssembler), `dto/`(API 요청·응답 — `from()`으로 vo를 변환), `vo/`(Embedding, SearchResult, MoviePayload, IndexedMovie), `job/`
