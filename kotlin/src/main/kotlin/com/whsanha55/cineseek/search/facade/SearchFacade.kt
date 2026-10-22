@@ -22,6 +22,13 @@ class SearchFacade(private val searchService: SearchService, private val movieQu
 
     fun similar(movieId: Long, limit: Int): List<ScoredMovieCard> = toCards(searchService.similar(movieId, limit))
 
+    fun recommend(
+        likedIds: List<Long>,
+        dislikedIds: List<Long>,
+        watchedIds: List<Long>,
+        limit: Int,
+    ): List<ScoredMovieCard> = toCards(searchService.recommend(likedIds, dislikedIds, watchedIds, limit))
+
     private fun assemble(page: SearchPage) = SearchItems(
         items = toCards(page.hits),
         limit = page.limit,

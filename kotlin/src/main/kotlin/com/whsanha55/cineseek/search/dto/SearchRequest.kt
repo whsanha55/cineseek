@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Size
 
 /** GET /cineseek/search 쿼리 파라미터 */
 data class SearchRequest(
@@ -96,5 +97,31 @@ data class SimilarRequest(
     companion object {
         const val DEFAULT_LIMIT = 8
         const val MAX_LIMIT = 20L
+    }
+}
+
+/** GET /cineseek/recommendations 쿼리 파라미터 — 브라우저에 저장한 찜·관심없음·봤어요 영화 id */
+data class RecommendRequest(
+    @field:Schema(description = "찜한 영화 id (반복 파라미터, 1~50개) — 추천 기준", example = "[1, 2, 3]")
+    @field:Size(min = 1, max = MAX_IDS)
+    val likedId: List<Long> = emptyList(),
+
+    @field:Schema(description = "관심없음 영화 id (반복 파라미터, 최대 50개) — 이 방향에서 멀어진다", example = "[4]")
+    @field:Size(max = MAX_IDS)
+    val dislikedId: List<Long> = emptyList(),
+
+    @field:Schema(description = "봤어요 영화 id (반복 파라미터, 최대 50개) — 결과에서만 제외", example = "[5]")
+    @field:Size(max = MAX_IDS)
+    val watchedId: List<Long> = emptyList(),
+
+    @field:Schema(description = "결과 수 (1~50)", example = "20")
+    @field:Min(1)
+    @field:Max(MAX_LIMIT)
+    val limit: Int = DEFAULT_LIMIT,
+) {
+    companion object {
+        const val MAX_IDS = 50
+        const val DEFAULT_LIMIT = 20
+        const val MAX_LIMIT = 50L
     }
 }

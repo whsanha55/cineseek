@@ -90,6 +90,21 @@ pnpm lint
 - 잘못된 값은 400 ProblemDetail(`code`, `requestId`, `errors`)로 응답한다
 - 전체 엔드포인트는 Swagger(`/swagger-ui.html`)에서 본다
 
+## 취향 추천 API
+
+`GET /cineseek/recommendations`
+
+| 파라미터 | 설명 |
+|---|---|
+| `likedId` | 필수. 찜한 영화 id. 반복 파라미터, 1~50개 |
+| `dislikedId` | 관심없음 영화 id. 최대 50개 |
+| `watchedId` | 봤어요 영화 id. 최대 50개. 결과에서만 뺀다 |
+| `limit` | 1~50. 기본 20 |
+
+- Qdrant recommend API에 찜을 positive, 관심없음을 negative 포인트 id(= `movieId`)로 넘기고 `dense` 벡터로 찾는다
+- 찜·관심없음·봤어요 영화는 결과에 나오지 않는다. 아직 색인되지 않은 id는 무시하고, 남는 찜이 없으면 빈 목록이다
+- 응답 형태는 유사 영화와 같다 (`items[].score`는 코사인 유사도, `page.hasNext`는 항상 `false`)
+
 ## 배치 작업
 
 api 이미지에 `--cineseek.job=<이름>`을 주면 해당 작업만 돌고 종료한다.

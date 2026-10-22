@@ -96,6 +96,53 @@ class SearchService(
         return qdrant(qdrantClient.queryAsync(request)).map { SearchHit(it.id.num, it.score) }
     }
 
+    /**
+     * 취향 추천 — Qdrant recommend(기본 average_vector)에 찜을 positive, 관심없음을 negative 포인트 id로 넘긴다.
+     * 예시로 쓴 영화와 봤어요 영화는 결과에서 뺀다. 없는 포인트 id를 넘기면 Qdrant가 요청 전체를 거절하므로
+     * 색인된 id만 남기고, 남은 찜이 없으면 빈 목록이다
+     */
+    fun recommend(likedIds: List<Long>, dislikedIds: List<Long>, watchedIds: List<Long>, limit: Int): List<SearchHit> {
+        val indexed = indexedIds(likedIds + dislikedIds)
+        val positives = likedIds.filter { it in indexed }.distinct()
+        if (positives.isEmpty()) {
+            return emptyList()
+        }
+        val negatives = dislikedIds.filter { it in indexed }.distinct()
+        val excluded = (likedIds + dislikedIds + watchedIds).distinct()
+
+        val request = Points.QueryPoints.newBuilder()
+            .setCollectionName(qdrantProperties.collection)
+            .setQuery(
+                QueryFactory.recommend(
+                    Points.RecommendInput.newBuilder()
+                        .addAllPositive(positives.map { VectorInputFactory.vectorInput(it) })
+                        .addAllNegative(negatives.map { VectorInputFactory.vectorInput(it) })
+                        .build(),
+                ),
+            )
+            .setUsing("dense")
+            .setFilter(
+                Points.Filter.newBuilder()
+                    .addMustNot(ConditionFactory.hasId(excluded.map { PointIdFactory.id(it) }))
+                    .build(),
+            )
+            .setLimit(limit.toLong())
+            .setWithPayload(WithPayloadSelectorFactory.enable(false))
+            .build()
+
+        return qdrant(qdrantClient.queryAsync(request)).map { SearchHit(it.id.num, it.score) }
+    }
+
+    private fun indexedIds(movieIds: List<Long>): Set<Long> = qdrant(
+        qdrantClient.retrieveAsync(
+            qdrantProperties.collection,
+            movieIds.distinct().map { PointIdFactory.id(it) },
+            WithPayloadSelectorFactory.enable(false),
+            WithVectorsSelectorFactory.enable(false),
+            null,
+        ),
+    ).map { it.id.num }.toSet()
+
     /** VectorOutput oneof — 신규는 dense(DenseVector), 레거시는 data(repeated float) */
     private fun storedDense(movieId: Long): List<Float>? {
         val point = qdrant(

@@ -13,7 +13,7 @@
   "tags": [
     {
       "name": "검색",
-      "description": "줄거리 의미 검색 (dense + sparse 하이브리드) · 유사 영화"
+      "description": "줄거리 의미 검색 (dense + sparse 하이브리드) · 유사 영화 · 취향 추천"
     },
     {
       "name": "영화",
@@ -243,6 +243,128 @@
               "minimum": 0
             },
             "example": 0
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cineseek/recommendations": {
+      "get": {
+        "tags": [
+          "검색"
+        ],
+        "summary": "찜·관심없음 기반 취향 추천 (봤어요는 제외)",
+        "operationId": "recommend",
+        "parameters": [
+          {
+            "name": "likedId",
+            "in": "query",
+            "description": "찜한 영화 id (반복 파라미터, 1~50개) — 추천 기준",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "description": "찜한 영화 id (반복 파라미터, 1~50개) — 추천 기준",
+              "example": [
+                1,
+                2,
+                3
+              ],
+              "items": {
+                "type": "integer",
+                "format": "int64",
+                "description": "찜한 영화 id (반복 파라미터, 1~50개) — 추천 기준",
+                "example": [
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "maxItems": 50,
+              "minItems": 1
+            },
+            "example": [
+              1,
+              2,
+              3
+            ]
+          },
+          {
+            "name": "dislikedId",
+            "in": "query",
+            "description": "관심없음 영화 id (반복 파라미터, 최대 50개) — 이 방향에서 멀어진다",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "description": "관심없음 영화 id (반복 파라미터, 최대 50개) — 이 방향에서 멀어진다",
+              "example": [
+                4
+              ],
+              "items": {
+                "type": "integer",
+                "format": "int64",
+                "description": "관심없음 영화 id (반복 파라미터, 최대 50개) — 이 방향에서 멀어진다",
+                "example": [
+                  4
+                ]
+              },
+              "maxItems": 50,
+              "minItems": 0
+            },
+            "example": [
+              4
+            ]
+          },
+          {
+            "name": "watchedId",
+            "in": "query",
+            "description": "봤어요 영화 id (반복 파라미터, 최대 50개) — 결과에서만 제외",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "description": "봤어요 영화 id (반복 파라미터, 최대 50개) — 결과에서만 제외",
+              "example": [
+                5
+              ],
+              "items": {
+                "type": "integer",
+                "format": "int64",
+                "description": "봤어요 영화 id (반복 파라미터, 최대 50개) — 결과에서만 제외",
+                "example": [
+                  5
+                ]
+              },
+              "maxItems": 50,
+              "minItems": 0
+            },
+            "example": [
+              5
+            ]
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "결과 수 (1~50)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "description": "결과 수 (1~50)",
+              "example": 20,
+              "maximum": 50,
+              "minimum": 1
+            },
+            "example": 20
           }
         ],
         "responses": {
