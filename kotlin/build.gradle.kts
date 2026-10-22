@@ -31,9 +31,9 @@ dependencies {
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.flywaydb:flyway-database-postgresql")
-    implementation("io.qdrant:client:1.19.0") // Query API(prefetch + RRF k 지정) 지원 — 서버 1.19와 맞춘다
-    implementation("io.grpc:grpc-protobuf:1.83.0") // qdrant client가 runtime scope로만 선언 — 생성 타입 컴파일에 필요
-    implementation("io.grpc:grpc-stub:1.83.0")
+    implementation("io.qdrant:client:1.14.1") // Query API(prefetch + RRF) 지원
+    implementation("io.grpc:grpc-protobuf:1.65.1") // qdrant client가 runtime scope로만 선언 — 생성 타입 컴파일에 필요
+    implementation("io.grpc:grpc-stub:1.65.1")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("io.github.oshai:kotlin-logging-jvm:8.0.4")

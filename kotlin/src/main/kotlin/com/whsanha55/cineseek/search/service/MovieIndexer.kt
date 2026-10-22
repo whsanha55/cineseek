@@ -14,7 +14,6 @@ import io.qdrant.client.VectorsFactory
 import io.qdrant.client.WithPayloadSelectorFactory
 import io.qdrant.client.WithVectorsSelectorFactory
 import io.qdrant.client.grpc.Collections
-import io.qdrant.client.grpc.Common
 import io.qdrant.client.grpc.JsonWithInt
 import io.qdrant.client.grpc.Points
 import org.springframework.stereotype.Component
@@ -187,7 +186,7 @@ class MovieIndexer(
 
     /** 저장된 포인트별 임베딩 입력 해시 — 해시가 없는 포인트(이전 방식 색인)는 다시 임베딩된다 */
     private fun storedHashes(): Map<Long, String> = buildMap {
-        var offset: Common.PointId? = null
+        var offset: Points.PointId? = null
         do {
             val request = Points.ScrollPoints.newBuilder()
                 .setCollectionName(qdrantProperties.collection)
