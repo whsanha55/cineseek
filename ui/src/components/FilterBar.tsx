@@ -70,7 +70,10 @@ export function FilterBar({ state, onChange, onReset }: FilterBarProps) {
 	}, [sheetOpen]);
 
 	const genreById = new Map((genres?.items ?? []).map((g) => [g.id, g]));
-	const activeCount = state.genreIds.length + FILTER_KEYS.filter((k) => state[k] !== null).length;
+	const activeCount =
+		state.genreIds.length +
+		state.excludeGenreIds.length +
+		FILTER_KEYS.filter((k) => state[k] !== null).length;
 
 	const controls = (
 		<>
@@ -102,6 +105,24 @@ export function FilterBar({ state, onChange, onReset }: FilterBarProps) {
 				})}
 			</div>
 			<div className="flex flex-wrap items-center gap-2">
+				<Select
+					aria-label="제외할 장르"
+					value=""
+					onChange={(e) => {
+						if (e.target.value) {
+							onChange({ excludeGenreIds: [...state.excludeGenreIds, Number(e.target.value)] });
+						}
+					}}
+				>
+					<option value="">장르 제외</option>
+					{(genres?.items ?? [])
+						.filter((g) => !state.excludeGenreIds.includes(g.id))
+						.map((g) => (
+							<option key={g.id} value={g.id}>
+								{g.name} 제외
+							</option>
+						))}
+				</Select>
 				<Select
 					aria-label="개봉 연도 시작"
 					value={state.yearMin?.toString() ?? ""}
@@ -227,6 +248,18 @@ export function FilterBar({ state, onChange, onReset }: FilterBarProps) {
 							<Chip key={id} label={g ? g.name : `장르 ${id}`} onRemove={() =>
 								onChange({ genreIds: state.genreIds.filter((x) => x !== id) })
 							} />
+						);
+					})}
+					{state.excludeGenreIds.map((id) => {
+						const g = genreById.get(id);
+						return (
+							<Chip
+								key={`exclude-${id}`}
+								label={`제외 ${g ? g.name : `장르 ${id}`}`}
+								onRemove={() =>
+									onChange({ excludeGenreIds: state.excludeGenreIds.filter((x) => x !== id) })
+								}
+							/>
 						);
 					})}
 					{state.yearMin !== null && (

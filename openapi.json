@@ -67,6 +67,30 @@
             ]
           },
           {
+            "name": "excludeGenreId",
+            "in": "query",
+            "description": "제외할 장르 id (반복 파라미터, 하나라도 겹치면 제외)",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "description": "제외할 장르 id (반복 파라미터, 하나라도 겹치면 제외)",
+              "example": [
+                27
+              ],
+              "items": {
+                "type": "integer",
+                "format": "int64",
+                "description": "제외할 장르 id (반복 파라미터, 하나라도 겹치면 제외)",
+                "example": [
+                  27
+                ]
+              }
+            },
+            "example": [
+              27
+            ]
+          },
+          {
             "name": "yearMin",
             "in": "query",
             "description": "개봉 연도 하한",

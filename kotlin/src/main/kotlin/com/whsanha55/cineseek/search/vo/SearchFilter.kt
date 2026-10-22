@@ -3,6 +3,7 @@ package com.whsanha55.cineseek.search.vo
 /** 검색 조건 — URL 쿼리 파라미터와 1:1 */
 data class SearchFilter(
     val genreIds: List<Long> = emptyList(), // OR
+    val excludeGenreIds: List<Long> = emptyList(), // 하나라도 겹치면 제외
     val yearMin: Int? = null,
     val yearMax: Int? = null,
     val ratingMin: Double? = null,

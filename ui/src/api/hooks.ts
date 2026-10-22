@@ -20,6 +20,7 @@ export function useSearch(state: SearchState, enabled = true) {
 			apiGet<SearchResponse>("/cineseek/search", {
 				q: state.q,
 				genreId: state.genreIds,
+				excludeGenreId: state.excludeGenreIds,
 				yearMin: state.yearMin,
 				yearMax: state.yearMax,
 				ratingMin: state.ratingMin,
