@@ -74,9 +74,10 @@ class MovieMoodTaggerTest {
         every { llmClient.chat(any()) } returns "```json\n{\"tags\":[\"잔잔한\",\"서정적\"],\"description\":\"아련한 영화\"}\n```"
 
         // when
-        tagger.tagOne(1L)
+        val tagged = tagger.tagOne(1L)
 
         // then
+        assertThat(tagged).isTrue()
         verify(exactly = 1) { movieRepository.save(matrix) }
         assertThat(matrix.moodTags).isEqualTo("잔잔한, 서정적")
         assertThat(matrix.moodDesc).isEqualTo("아련한 영화")
@@ -98,21 +99,22 @@ class MovieMoodTaggerTest {
     }
 
     @Test
-    fun `tagOne —줄거리가 없으면 스킵한다`() {
+    fun `tagOne —줄거리가 없으면 태깅하지 않았다고 false를 반환한다`() {
         // given
         val noOverview = MovieEntity(tmdbId = 1L, title = "줄거리 없음", overview = null)
         every { movieRepository.findAllById(listOf(2L)) } returns listOf(noOverview)
 
         // when
-        tagger.tagOne(2L)
+        val tagged = tagger.tagOne(2L)
 
         // then
+        assertThat(tagged).isFalse()
         verify { llmClient wasNot Called }
         verify(exactly = 0) { movieRepository.save(any()) }
     }
 
     @Test
-    fun `tagAll —API 키가 비어 있으면 0을 반환하고 아무것도 호출하지 않는다`() {
+    fun `tagAll —API 키가 비어 있으면 빈 목록을 반환하고 아무것도 호출하지 않는다`() {
         // given
         val keylessTagger = MovieMoodTagger(
             llmClient,
@@ -123,16 +125,16 @@ class MovieMoodTaggerTest {
         )
 
         // when
-        val succeeded = keylessTagger.tagAll()
+        val tagged = keylessTagger.tagAll()
 
         // then
-        assertThat(succeeded).isZero()
+        assertThat(tagged).isEmpty()
         verify { movieRepository wasNot Called }
         verify { llmClient wasNot Called }
     }
 
     @Test
-    fun `tagAll —한 건이 실패해도 나머지를 태깅해 성공 수를 반환한다`() {
+    fun `tagAll —한 건이 실패해도 나머지를 태깅해 태깅한 movieId를 반환한다`() {
         // given
         val id1 = mockk<MovieEntity>()
         every { id1.movieId } returns 1L
@@ -152,12 +154,33 @@ class MovieMoodTaggerTest {
         }
 
         // when
-        val succeeded = tagger.tagAll()
+        val tagged = tagger.tagAll()
 
         // then
-        assertThat(succeeded).isEqualTo(1)
+        assertThat(tagged).containsExactly(1L)
         verify(exactly = 1) { movieRepository.save(matrix) }
         verify(exactly = 0) { movieRepository.save(bleak) }
+    }
+
+    @Test
+    fun `tagAll —줄거리가 없어 건너뛴 영화는 태깅 결과에 넣지 않는다`() {
+        // given
+        val id1 = mockk<MovieEntity>()
+        every { id1.movieId } returns 1L
+        val id2 = mockk<MovieEntity>()
+        every { id2.movieId } returns 2L
+        every { movieRepository.findRequiringMoodTag(any()) } returns listOf(id1, id2)
+        every { movieRepository.findAllById(listOf(1L)) } returns listOf(matrix)
+        every { movieRepository.findAllById(listOf(2L)) } returns
+            listOf(MovieEntity(tmdbId = 1L, title = "줄거리 없음", overview = null))
+        every { movieRepository.save(matrix) } returns matrix
+        every { llmClient.chat(any()) } returns """{"tags":["긴장감 있는"],"description":"차갑게 빛나는 SF"}"""
+
+        // when
+        val tagged = tagger.tagAll()
+
+        // then
+        assertThat(tagged).containsExactly(1L)
     }
 
     @Test

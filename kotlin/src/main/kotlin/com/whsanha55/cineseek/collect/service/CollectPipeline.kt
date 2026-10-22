@@ -45,7 +45,7 @@ private class PermanentTaskFailure(message: String) : RuntimeException(message)
  * 수집 파이프라인 실행기 — 큐에서 클레임한 작업을 타입별로 실행한다.
  * 외부 API 호출은 이 레벨(트랜잭션 밖)에서 하고, 저장은 각 Service의 트랜잭션에 맡긴다.
  * MOVIE_DETAIL은 가상 스레드 + Semaphore(concurrency)로 병렬 처리하고,
- * 묶음이 끝나면 이번 틱에서 저장·갱신된 영화만 분위기 태깅 + 증분 색인한다(입력 해시로 재임베딩 스킵)
+ * 묶음이 끝나면 분위기 태깅(상한)을 돌리고, 이번 틱에서 저장·갱신되거나 새로 태깅된 영화를 증분 색인한다(입력 해시로 재임베딩 스킵)
  */
 @Service
 class CollectPipeline(
@@ -121,10 +121,10 @@ class CollectPipeline(
         val failedPermanent = counts.getOrDefault(Outcome.PERMANENT, 0)
         val released = counts.getOrDefault(Outcome.RELEASED, 0)
         val touchedMovieIds = touched.distinct()
-        finishTick(touchedMovieIds)
+        val indexTargets = finishTick(touchedMovieIds)
         log.info {
             "수집 틱 완료. 클레임=${tasks.size}, 성공=$succeeded, 재시도=$failedRetryable, " +
-                "영구실패=$failedPermanent, 반납=$released, 색인대상=${touchedMovieIds.size}"
+                "영구실패=$failedPermanent, 반납=$released, 색인대상=$indexTargets"
         }
         return BatchResult(
             processed = outcomes.size - released,
@@ -312,15 +312,20 @@ class CollectPipeline(
     }.getOrElse { fail(task, it) }
 
     /**
-     * 틱 마무리 — 미태깅 영화의 분위기 태깅(상한)과 이번에 저장·갱신한 영화의 증분 색인. PG는 이미 저장됐으므로 실패는 로그만 남긴다.
-     * 태깅은 수집할 작업이 없는 틱에도 돌려 밀린 미태깅분을 따라잡는다
+     * 틱 마무리 — 미태깅 영화의 분위기 태깅(상한)과 증분 색인. 색인 대상은 이번에 저장·갱신한 영화와 새로 태깅한 영화다 —
+     * 태그가 임베딩 텍스트에 들어가므로 태깅만 된 영화도 다시 색인해야 검색에 반영된다.
+     * PG는 이미 저장됐으므로 실패는 로그만 남긴다. 태깅은 수집할 작업이 없는 틱에도 돌려 밀린 미태깅분을 따라잡는다.
+     * 색인 대상 수를 반환한다
      */
-    private fun finishTick(movieIds: List<Long>) {
-        runCatching { moodTagger.tagAll(MOOD_TAG_LIMIT_PER_TICK) }
+    private fun finishTick(movieIds: List<Long>): Int {
+        val tagged = runCatching { moodTagger.tagAll(MOOD_TAG_LIMIT_PER_TICK) }
             .onFailure { log.error(it) { "분위기 태깅 실패 — 다음 틱/재색인에서 회복된다" } }
-        if (movieIds.isEmpty()) return
-        runCatching { indexer.indexTouched(assembler.assemble(movieIds)) }
+            .getOrDefault(emptyList())
+        val targets = (movieIds + tagged).distinct()
+        if (targets.isEmpty()) return 0
+        runCatching { indexer.indexTouched(assembler.assemble(targets)) }
             .onFailure { log.error(it) { "증분 색인 실패 — PG는 저장됐고 재색인에서 회복된다" } }
+        return targets.size
     }
 
     private fun enqueueMovieDetail(tmdbId: Long, priority: Int) {

@@ -156,6 +156,7 @@ class CollectPipelineTest {
         collectTaskRepository.deleteAll()
         movieRepository.deleteAll() // 자식(movie_cast 등)은 DB의 ON DELETE CASCADE가 지운다
         personRepository.deleteAll()
+        every { moodTagger.tagAll(any<Int>()) } returns emptyList()
     }
 
     private fun tmdbMovie(tmdbId: Long) = TmdbMovie(
@@ -307,6 +308,40 @@ class CollectPipelineTest {
         assertThat(result.processed).isZero()
         verify { moodTagger.tagAll(50) }
         verify { indexer wasNot Called }
+    }
+
+    @Test
+    fun `수집 없이 새로 태깅만 된 영화도 증분 색인한다`() {
+        // given — 이미 저장된 영화가 이번 틱에 태깅된다
+        val movieId = upsertService.upsert(tmdbMovie(157L))
+        every { moodTagger.tagAll(50) } returns listOf(movieId)
+
+        // when
+        pipeline.runBatch()
+
+        // then
+        val indexed = slot<List<IndexedMovie>>()
+        verify { indexer.indexTouched(capture(indexed)) }
+        assertThat(indexed.captured.map { it.movieId }).containsExactly(movieId)
+    }
+
+    @Test
+    fun `이번 틱에 수집하고 태깅도 된 영화는 한 번만 색인한다`() {
+        // given
+        collectTaskService.enqueue(MOVIE_DETAIL, "movie:tmdb:158")
+        every { tmdbClient.fetchDetail(158L) } answers { tmdbMovie(158L) }
+        every { moodTagger.tagAll(50) } answers {
+            listOf(requireNotNull(movieRepository.findByTmdbId(158L)?.movieId))
+        }
+
+        // when
+        pipeline.runBatch()
+
+        // then
+        val movieId = requireNotNull(movieRepository.findByTmdbId(158L)?.movieId)
+        val indexed = slot<List<IndexedMovie>>()
+        verify { indexer.indexTouched(capture(indexed)) }
+        assertThat(indexed.captured.map { it.movieId }).containsExactly(movieId)
     }
 
     @Test
