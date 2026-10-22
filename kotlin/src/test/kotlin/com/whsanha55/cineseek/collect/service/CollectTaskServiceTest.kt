@@ -88,6 +88,8 @@ class CollectTaskServiceTest {
 
     @Autowired lateinit var clock: MutableClock
 
+    @Autowired lateinit var properties: CollectProperties
+
     @BeforeEach
     fun resetClock() {
         clock.reset() // 컨텍스트가 캐시되므로 모든 테스트가 같은 기준 시각에서 시작하게 한다
@@ -255,6 +257,81 @@ class CollectTaskServiceTest {
         clock.advance(Duration.ofMinutes(31)) // 클레임 시점에서 61분 경과 — 만료
         assertThat(service.recoverExpiredLeases()).isEqualTo(2)
         assertThat(service.claim(10)).hasSize(2) // 다시 잡힌다
+    }
+
+    /** A(service)가 잡은 작업의 lease가 만료돼 B가 다시 잡은 상태를 만든다. A가 들고 있던 (낡은) 작업을 돌려준다 */
+    private fun reclaimedByOtherWorker(payloadKey: String): CollectTaskEntity {
+        service.enqueue(CollectTaskTypeEnum.KR_DISCOVER, payloadKey)
+        val staleTask = service.claim(1).single()
+        clock.advance(Duration.ofMinutes(61)) // leaseTimeout=1h 초과
+        service.recoverExpiredLeases()
+        val reclaimed = CollectTaskService(collectTaskRepository, properties, clock).claim(1).single()
+        reclaimed.saveCheckpoint("""{"page":7}""")
+        collectTaskRepository.save(reclaimed)
+        return staleTask
+    }
+
+    private fun assertOwnedByOtherWorker(payloadKey: String, otherLockedBy: String?) {
+        val current = reload(CollectTaskTypeEnum.KR_DISCOVER, payloadKey)
+        assertThat(current.status).isEqualTo(RUNNING)
+        assertThat(current.lockedBy).isEqualTo(otherLockedBy)
+        assertThat(current.checkpoint).isEqualTo("""{"page":7}""")
+        assertThat(current.attempts).isZero()
+        assertThat(current.lastError).isNull()
+    }
+
+    @Test
+    fun `lease 만료 후 다른 워커가 다시 잡은 작업 — 원래 워커의 늦은 complete는 반영되지 않는다`() {
+        // given
+        val staleTask = reclaimedByOtherWorker("kr:origin:2011")
+        val otherLockedBy = reload(CollectTaskTypeEnum.KR_DISCOVER, "kr:origin:2011").lockedBy
+
+        // when
+        service.complete(staleTask, """{"page":99}""")
+
+        // then
+        assertOwnedByOtherWorker("kr:origin:2011", otherLockedBy)
+    }
+
+    @Test
+    fun `lease 만료 후 다른 워커가 다시 잡은 작업 — 원래 워커의 늦은 fail은 반영되지 않는다`() {
+        // given
+        val staleTask = reclaimedByOtherWorker("kr:origin:2012")
+        val otherLockedBy = reload(CollectTaskTypeEnum.KR_DISCOVER, "kr:origin:2012").lockedBy
+
+        // when
+        service.fail(staleTask, "늦은 오류", retryable = true, checkpointJson = """{"page":99}""")
+
+        // then
+        assertOwnedByOtherWorker("kr:origin:2012", otherLockedBy)
+    }
+
+    @Test
+    fun `lease 만료 후 다른 워커가 다시 잡은 작업 — 원래 워커의 늦은 release는 반영되지 않는다`() {
+        // given
+        val staleTask = reclaimedByOtherWorker("kr:origin:2013")
+        val otherLockedBy = reload(CollectTaskTypeEnum.KR_DISCOVER, "kr:origin:2013").lockedBy
+
+        // when
+        service.release(staleTask, """{"page":99}""")
+
+        // then
+        assertOwnedByOtherWorker("kr:origin:2013", otherLockedBy)
+    }
+
+    @Test
+    fun `lease가 회수만 되고 아직 재클레임 전이면 — 원래 워커의 늦은 complete는 반영되지 않는다`() {
+        // given
+        service.enqueue(CollectTaskTypeEnum.KR_DISCOVER, "kr:origin:2014")
+        val staleTask = service.claim(1).single()
+        clock.advance(Duration.ofMinutes(61))
+        service.recoverExpiredLeases()
+
+        // when
+        service.complete(staleTask)
+
+        // then — 회수된 PENDING 그대로 남아 다음 클레임을 기다린다
+        assertThat(reload(CollectTaskTypeEnum.KR_DISCOVER, "kr:origin:2014").status).isEqualTo(PENDING)
     }
 
     @Test

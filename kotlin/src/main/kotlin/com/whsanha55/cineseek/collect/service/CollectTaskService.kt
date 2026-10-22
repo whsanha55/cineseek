@@ -78,6 +78,9 @@ class CollectTaskService(
     /** 작업 완료 — [checkpointJson]이 있으면 마지막 지점을 남기고, lease와 재시도 예약·오류를 지운다 */
     @Transactional
     fun complete(task: CollectTaskEntity, checkpointJson: String? = null) {
+        if (!isOwned(task, "complete")) {
+            return
+        }
         checkpointJson?.let(task::saveCheckpoint)
         task.markDone()
         collectTaskRepository.save(task)
@@ -89,6 +92,9 @@ class CollectTaskService(
      */
     @Transactional
     fun fail(task: CollectTaskEntity, error: String, retryable: Boolean, checkpointJson: String? = null) {
+        if (!isOwned(task, "fail")) {
+            return
+        }
         checkpointJson?.let(task::saveCheckpoint)
         task.markFailed(error) // 오류 기록과 lease 해제
         if (retryable && task.attempts < properties.retryMaxAttempts) {
@@ -106,9 +112,25 @@ class CollectTaskService(
      */
     @Transactional
     fun release(task: CollectTaskEntity, checkpointJson: String? = null) {
+        if (!isOwned(task, "release")) {
+            return
+        }
         checkpointJson?.let(task::saveCheckpoint)
         task.release()
         collectTaskRepository.save(task)
+    }
+
+    /**
+     * 소유 확인 — 이 워커가 잡은 RUNNING 행을 잠근 채 확인한다. lease가 회수됐거나 다른 워커가 다시 잡았으면
+     * 늦은 저장이 새 상태를 덮어쓰지 않게 경고만 남기고 false
+     */
+    private fun isOwned(task: CollectTaskEntity, action: String): Boolean {
+        val taskId = requireNotNull(task.taskId)
+        if (collectTaskRepository.findByTaskIdAndStatusAndLockedBy(taskId, RUNNING, workerId) != null) {
+            return true
+        }
+        log.warn { "lease를 잃은 작업의 $action 무시. taskId=$taskId, workerId=$workerId" }
+        return false
     }
 
     /** 만료 lease 회수 — leaseTimeout 넘게 RUNNING인 작업을 죽은 워커로 보고 PENDING으로 되돌린다 */
