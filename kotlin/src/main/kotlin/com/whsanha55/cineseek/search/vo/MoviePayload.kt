@@ -1,5 +1,7 @@
 package com.whsanha55.cineseek.search.vo
 
+import java.time.LocalDate
+
 /** Qdrant payload — 필터 대상 사본 (pipeline.build_payload 이식). 표시 필드는 PG에서 조립하므로 ID만 담는다 */
 data class MoviePayload(
     val title: String?, // Qdrant 대시보드 디버깅용
@@ -14,4 +16,6 @@ data class MoviePayload(
     val voteCount: Int? = null,
     /** 분위기 태그 — 검색의 세 번째 후보 목록(태그 일치 필터)용 */
     val moodTags: List<String> = emptyList(),
+    /** 개봉일 — 투표 수 하한에서 최근 개봉한 장편을 빼 주는 조건용 (#85) */
+    val releaseDate: LocalDate? = null,
 )

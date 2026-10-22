@@ -108,7 +108,7 @@ pnpm lint
 | `excludeGenreId` | 제외 장르. 여러 번 주면 하나라도 겹치는 영화를 뺀다 |
 | `yearMin`, `yearMax` | 개봉 연도 범위 |
 | `ratingMin` | 최소 평점 |
-| `voteCountMin`, `voteCountMax` | 투표 수 범위. 둘 다 생략하면 하한 10을 적용하고, 하나라도 주면 준 값만 적용한다 |
+| `voteCountMin`, `voteCountMax` | 투표 수 범위. 둘 다 생략하면 하한 10을 적용하고, 하나라도 주면 준 값만 적용한다. 기본 하한은 최근 365일 안에 개봉했거나 개봉 예정인 60분 이상 영화에는 걸지 않는다 (TMDB 투표가 적은 신작) |
 | `directorId`, `castId` | 감독·배우 TMDB id |
 | `limit`, `offset` | 페이지. `limit`은 1~50 |
 
@@ -131,7 +131,7 @@ pnpm lint
 | `limit` | 1~50. 기본 20 |
 
 - Qdrant recommend API에 찜을 positive, 관심없음을 negative 포인트 id(= `movieId`)로 넘기고 `dense` 벡터로 찾는다
-- 찜·관심없음·봤어요 영화와 투표 수 10 미만 영화는 결과에 나오지 않는다 (유사 영화도 같은 하한). 아직 색인되지 않은 id는 무시하고, 남는 찜이 없으면 빈 목록이다
+- 찜·관심없음·봤어요 영화와 투표 수 10 미만 영화는 결과에 나오지 않는다 (유사 영화도 같은 하한, 최근 개봉작 예외도 검색과 같다). 아직 색인되지 않은 id는 무시하고, 남는 찜이 없으면 빈 목록이다
 - 응답 형태는 유사 영화와 같다 (`items[].score`는 코사인 유사도, `page.hasNext`는 항상 `false`)
 
 ## 배치 작업
@@ -145,7 +145,7 @@ docker compose -f compose.yml -f compose.local.yml run --rm api --cineseek.job=<
 | 이름 | 하는 일 |
 |---|---|
 | `reindex` | TMDB 수집 → PG 저장 → 임베딩 → Qdrant 색인. 분위기 태깅은 하지 않는다 (상주 api의 수집 스케줄러가 틱마다 태깅하고 색인에 반영한다) |
-| `mood-tag-sync` | PG의 분위기 태그를 색인된 Qdrant 포인트의 `mood_tags` payload에만 덮어쓰고 `mood_tags` 인덱스를 만든다. 임베딩은 하지 않는다. `mood_tags`가 없던 때 색인된 포인트를 채울 때 한 번 돌린다 (그 뒤 색인은 `mood_tags`를 함께 쓴다) |
+| `payload-sync` | PG의 분위기 태그·개봉일을 색인된 Qdrant 포인트의 `mood_tags`·`release_date` payload에만 덮어쓰고 두 필드의 payload 인덱스를 만든다. 임베딩은 하지 않고 다른 payload 키는 그대로 둔다. 이 필드가 없던 때 색인된 포인트를 채울 때 한 번 돌린다 (그 뒤 색인은 두 필드를 함께 쓴다) |
 | `eval` | 라벨셋으로 검색 품질(nDCG@10, MRR)을 재고 기준값과 비교한다. 떨어지면 종료 코드 1 |
 | `collect-report` | 수집 현황 보고 ([운영 가이드](operations.md#수집-보고)) |
 

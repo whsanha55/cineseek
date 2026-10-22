@@ -5,6 +5,7 @@ import com.whsanha55.cineseek.external.embedding.config.EmbeddingProperties
 import com.whsanha55.cineseek.external.qdrant.config.QdrantProperties
 import com.whsanha55.cineseek.search.service.IndexedMovieAssembler
 import com.whsanha55.cineseek.search.service.MovieIndexer
+import com.whsanha55.cineseek.search.vo.PayloadSyncFields
 import io.mockk.every
 import io.mockk.mockk
 import io.qdrant.client.PointIdFactory
@@ -22,18 +23,19 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
+import java.time.LocalDate
 
 /**
- * MoodTagSyncJob — 실제 Qdrant 컨테이너에 mood_tags 없이 색인된 포인트(이전 방식)를 두고 동기화를 검증한다.
- * PG 조립(IndexedMovieAssembler.moodTagsAll)은 IndexedMovieAssemblerTest가 검증하므로 MockK로 대신한다.
+ * PayloadSyncJob — 실제 Qdrant 컨테이너에 mood_tags·release_date 없이 색인된 포인트(이전 방식)를 두고 동기화를 검증한다.
+ * PG 조립(IndexedMovieAssembler.payloadSyncFieldsAll)은 IndexedMovieAssemblerTest가 검증하므로 MockK로 대신한다.
  * 임베딩 서버는 닿지 않는 주소다 — 동기화가 임베딩을 부르면 실패한다
  */
-class MoodTagSyncJobTest {
+class PayloadSyncJobTest {
 
     private lateinit var qdrant: GenericContainer<*>
     private lateinit var qdrantClient: QdrantClient
     private val assembler = mockk<IndexedMovieAssembler>()
-    private lateinit var job: MoodTagSyncJob
+    private lateinit var job: PayloadSyncJob
 
     @BeforeEach
     fun setUp() {
@@ -48,7 +50,7 @@ class MoodTagSyncJobTest {
             QdrantProperties(grpcUrl = "unused", collection = "movies"),
             EmbeddingClient(EmbeddingProperties(baseUrl = "http://localhost:1", batchSize = 64)),
         )
-        job = MoodTagSyncJob(assembler, indexer)
+        job = PayloadSyncJob(assembler, indexer)
 
         createLegacyCollection()
     }
@@ -60,12 +62,12 @@ class MoodTagSyncJobTest {
     }
 
     @Test
-    fun `색인된 포인트의 mood_tags만 덮어쓰고 색인되지 않은 영화는 건너뛴다`() {
-        // given — 영화2는 예전 태그가 남아 있고, 영화99는 PG에만 있다
-        every { assembler.moodTagsAll() } returns mapOf(
-            1L to listOf("잔잔한", "힐링"),
-            2L to emptyList(),
-            99L to listOf("유쾌한"),
+    fun `색인된 포인트의 mood_tags·release_date만 덮어쓰고 색인되지 않은 영화는 건너뛴다`() {
+        // given — 영화2는 예전 태그가 남아 있고 개봉일이 없다. 영화99는 PG에만 있다
+        every { assembler.payloadSyncFieldsAll() } returns mapOf(
+            1L to PayloadSyncFields(listOf("잔잔한", "힐링"), LocalDate.of(2026, 10, 21)),
+            2L to PayloadSyncFields(emptyList(), null),
+            99L to PayloadSyncFields(listOf("유쾌한"), LocalDate.of(2026, 1, 1)),
         )
 
         // when
@@ -79,15 +81,21 @@ class MoodTagSyncJobTest {
         assertThat(synced).isEqualTo(2)
         assertThat(points.getValue(1L).payloadMap.tags()).containsExactly("잔잔한", "힐링")
         assertThat(points.getValue(2L).payloadMap.tags()).isEmpty()
-        assertThat(points.getValue(1L).payloadMap["rating"]?.doubleValue).isEqualTo(8.0)
-        assertThat(points.getValue(1L).payloadMap["input_hash"]?.stringValue).isEqualTo("hash1")
+        assertThat(points.getValue(1L).payloadMap["release_date"]?.stringValue).isEqualTo("2026-10-21T00:00:00Z")
+        assertThat(points.getValue(2L).payloadMap).doesNotContainKey("release_date")
+        points.values.forEach { point ->
+            assertThat(point.payloadMap["rating"]?.doubleValue).isEqualTo(8.0)
+            assertThat(point.payloadMap["input_hash"]?.stringValue).isEqualTo("hash${point.id.num}")
+        }
         assertThat(qdrantClient.countAsync("movies").get()).isEqualTo(2L)
     }
 
     @Test
-    fun `기존 컬렉션에 mood_tags keyword 인덱스를 만든다 — 다시 실행해도 된다`() {
+    fun `기존 컬렉션에 mood_tags keyword·release_date datetime 인덱스를 만든다 — 다시 실행해도 된다`() {
         // given
-        every { assembler.moodTagsAll() } returns mapOf(1L to listOf("잔잔한"))
+        every { assembler.payloadSyncFieldsAll() } returns mapOf(
+            1L to PayloadSyncFields(listOf("잔잔한"), LocalDate.of(2026, 10, 21)),
+        )
 
         // when
         job.sync()
@@ -96,11 +104,12 @@ class MoodTagSyncJobTest {
 
         // then
         assertThat(schema["mood_tags"]?.dataType).isEqualTo(Collections.PayloadSchemaType.Keyword)
+        assertThat(schema["release_date"]?.dataType).isEqualTo(Collections.PayloadSchemaType.Datetime)
     }
 
     private fun Map<String, JsonWithInt.Value>.tags() = get("mood_tags")?.listValue?.valuesList?.map { it.stringValue }
 
-    /** mood_tags payload와 인덱스가 없던 때의 컬렉션 — 포인트 1, 2 */
+    /** mood_tags·release_date payload와 인덱스가 없던 때의 컬렉션 — 포인트 1, 2 */
     private fun createLegacyCollection() {
         qdrantClient.createCollectionAsync(
             Collections.CreateCollection.newBuilder()

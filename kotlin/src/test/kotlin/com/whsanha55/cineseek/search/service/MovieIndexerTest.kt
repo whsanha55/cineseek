@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
 import java.security.MessageDigest
+import java.time.LocalDate
 
 /** MovieIndexer — 실제 Qdrant 컨테이너 + 임베딩 스텁으로 컬렉션 재생성·upsert 검증 */
 class MovieIndexerTest {
@@ -180,6 +181,53 @@ class MovieIndexerTest {
         assertThat(point.payloadMap["mood_tags"]?.listValue?.valuesList?.map { it.stringValue })
             .containsExactly("잔잔한", "힐링")
         assertThat(schema["mood_tags"]?.dataType).isEqualTo(Collections.PayloadSchemaType.Keyword)
+    }
+
+    @Test
+    fun `payload에 release_date가 RFC 3339 문자열로 내려가고 새 컬렉션에 datetime 인덱스가 생긴다`() {
+        // given
+        stubEmbed()
+        val payload = MoviePayload(
+            "영화",
+            2026,
+            8.0,
+            listOf(28L),
+            listOf(100L),
+            listOf(200L),
+            releaseDate = LocalDate.of(2026, 10, 21),
+        )
+        indexer.index(listOf(IndexedMovie(1L, "임베딩 입력", payload)))
+
+        // when
+        val point = qdrantClient
+            .retrieveAsync("movies", listOf(PointIdFactory.id(1L)), true, false, null)
+            .get()
+            .single()
+        val schema = qdrantClient.getCollectionInfoAsync("movies").get().payloadSchemaMap
+
+        // then
+        assertThat(point.payloadMap["release_date"]?.stringValue).isEqualTo("2026-10-21T00:00:00Z")
+        assertThat(schema["release_date"]?.dataType).isEqualTo(Collections.PayloadSchemaType.Datetime)
+    }
+
+    @Test
+    fun `증분 색인 — 이미 색인된 영화도 release_date가 payload에 반영된다`() {
+        // given — 개봉일 없이 색인된 영화 (payload-sync 전)
+        stubEmbed()
+        val before = MoviePayload("영화", 2026, 0.0, listOf(28L), listOf(100L), listOf(200L), voteCount = 0)
+        indexer.indexTouched(listOf(IndexedMovie(1L, "임베딩 입력", before)))
+        val after = before.copy(releaseDate = LocalDate.of(2026, 9, 23))
+
+        // when
+        val embedded = indexer.indexTouched(listOf(IndexedMovie(1L, "임베딩 입력", after)))
+        val point = qdrantClient
+            .retrieveAsync("movies", listOf(PointIdFactory.id(1L)), true, false, null)
+            .get()
+            .single()
+
+        // then
+        assertThat(embedded).isZero()
+        assertThat(point.payloadMap["release_date"]?.stringValue).isEqualTo("2026-09-23T00:00:00Z")
     }
 
     @Test

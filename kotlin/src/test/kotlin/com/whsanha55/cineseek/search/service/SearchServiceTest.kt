@@ -25,7 +25,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
+import java.time.Clock
 import java.time.Duration
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 /**
  * SearchService 통합 테스트 — 실제 Qdrant 컨테이너(dense 4차원 + sparse) + WireMock 임베딩 스텁.
@@ -54,6 +57,7 @@ class SearchServiceTest {
             embeddingClient,
             QdrantProperties(grpcUrl = "unused", collection = "movies"),
             MoodTagMatcher(embeddingClient),
+            Clock.fixed(TODAY.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC),
         )
 
         createCollection()
@@ -426,6 +430,62 @@ class SearchServiceTest {
     }
 
     @Test
+    fun `투표 수 조건을 주지 않으면 최근 1년 안에 개봉했거나 개봉 예정인 장편은 투표 수가 적어도 검색된다`() {
+        // given
+        upsertLowVoteReleases()
+
+        // when
+        val page = service.search("쿼리", SearchFilter(limit = 10))
+
+        // then — 400일 전 개봉작과 최근 단편은 하한에 걸린다
+        assertThat(page.hits.map { it.movieId }).containsExactlyInAnyOrder(1L, 2L, 3L, RECENT, UPCOMING)
+    }
+
+    @Test
+    fun `투표 수 조건을 명시하면 최근 개봉작 예외 없이 명시값만 쓴다`() {
+        // given
+        upsertLowVoteReleases()
+
+        // when
+        val byVoteCountMax = service.search("쿼리", SearchFilter(voteCountMax = 100, limit = 10))
+        val byVoteCountMin = service.search("쿼리", SearchFilter(voteCountMin = 10, limit = 10))
+
+        // then
+        assertThat(byVoteCountMax.hits.map { it.movieId })
+            .containsExactlyInAnyOrder(3L, RECENT, OLD, RECENT_SHORT, UPCOMING)
+        assertThat(byVoteCountMin.hits.map { it.movieId }).containsExactlyInAnyOrder(1L, 2L, 3L)
+    }
+
+    @Test
+    fun `similar — 최근 1년 안에 개봉했거나 개봉 예정인 장편은 투표 수가 적어도 나온다`() {
+        // given
+        upsertLowVoteReleases()
+
+        // when
+        val hits = service.similar(movieId = 1L, limit = 10)
+
+        // then
+        assertThat(hits.map { it.movieId }).containsExactlyInAnyOrder(2L, 3L, RECENT, UPCOMING)
+    }
+
+    @Test
+    fun `recommend — 최근 1년 안에 개봉했거나 개봉 예정인 장편은 투표 수가 적어도 추천된다`() {
+        // given
+        upsertLowVoteReleases()
+
+        // when
+        val hits = service.recommend(
+            likedIds = listOf(1L),
+            dislikedIds = emptyList(),
+            watchedIds = emptyList(),
+            limit = 10,
+        )
+
+        // then
+        assertThat(hits.map { it.movieId }).containsExactlyInAnyOrder(2L, 3L, RECENT, UPCOMING)
+    }
+
+    @Test
     fun `Qdrant에 연결할 수 없으면 ExternalApiException이 발생한다`() {
         // given
         val unreachable = QdrantClient(
@@ -437,6 +497,7 @@ class SearchServiceTest {
             embeddingClient,
             QdrantProperties(grpcUrl = "unused", collection = "movies"),
             MoodTagMatcher(embeddingClient),
+            Clock.fixed(TODAY.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC),
         )
 
         // when & then
@@ -534,6 +595,35 @@ class SearchServiceTest {
     }
 
     /**
+     * 영화1 방향·같은 sparse 토큰의 투표 3 영화들 — 개봉일과 러닝타임만 다르다. 기준일은 [TODAY].
+     * 최근(30일 전) 장편, 오래된(400일 전) 장편, 최근 단편(20분), 개봉 예정(30일 뒤) 장편
+     */
+    private fun upsertLowVoteReleases() {
+        fun lowVote(id: Long, releaseDate: LocalDate, runtime: Int) = point(
+            id,
+            listOf(1f, 0.05f, 0f, 0f),
+            listOf(1),
+            releaseDate.year,
+            7.0,
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            runtime = runtime,
+            voteCount = 3,
+            releaseDate = releaseDate,
+        )
+        qdrantClient.upsertAsync(
+            "movies",
+            listOf(
+                lowVote(RECENT, TODAY.minusDays(30), 100),
+                lowVote(OLD, TODAY.minusDays(400), 100),
+                lowVote(RECENT_SHORT, TODAY.minusDays(30), 20),
+                lowVote(UPCOMING, TODAY.plusDays(30), 100),
+            ),
+        ).get()
+    }
+
+    /**
      * 장르 99의 분위기 비교용 영화 — 영화7은 쿼리 방향에 가깝고 태그가 없다. 영화9는 더 멀지만 잔잔한 태그를 갖는다.
      * 투표 수를 같게 두어 인기도 보정이 순위에 끼어들지 않게 하고, sparse는 쿼리와 겹치지 않는다
      */
@@ -582,6 +672,7 @@ class SearchServiceTest {
         runtime: Int? = null,
         voteCount: Int? = null,
         moodTags: List<String> = emptyList(),
+        releaseDate: LocalDate? = null,
     ): Points.PointStruct = Points.PointStruct.newBuilder()
         .setId(PointIdFactory.id(id))
         .setVectors(
@@ -603,6 +694,7 @@ class SearchServiceTest {
                 runtime?.let { put("runtime", ValueFactory.value(it.toLong())) }
                 voteCount?.let { put("vote_count", ValueFactory.value(it.toLong())) }
                 put("mood_tags", ValueFactory.list(moodTags.map { ValueFactory.value(it) }))
+                releaseDate?.let { put("release_date", ValueFactory.value("${it}T00:00:00Z")) }
             },
         )
         .build()
@@ -641,5 +733,14 @@ class SearchServiceTest {
                 .atPriority(1)
                 .willReturn(WireMock.okJson("""{"model":"stub","items":[${items.joinToString(",")}]}""")),
         )
+    }
+
+    companion object {
+        /** 서비스 Clock의 오늘 (UTC 자정) */
+        private val TODAY: LocalDate = LocalDate.of(2026, 10, 22)
+        private const val RECENT = 12L
+        private const val OLD = 13L
+        private const val RECENT_SHORT = 14L
+        private const val UPCOMING = 15L
     }
 }

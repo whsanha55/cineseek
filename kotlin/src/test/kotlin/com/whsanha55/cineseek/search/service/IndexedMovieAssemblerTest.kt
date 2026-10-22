@@ -24,6 +24,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneOffset
 
 /** IndexedMovieAssembler — payload의 cast/director가 PG 전체 목록과 일치하는지, overview 없는 영화 스킵 검증 */
@@ -93,10 +94,11 @@ class IndexedMovieAssemblerTest {
             .isEqualTo(movieCastRepository.findAllByMovieId(movieId).sortedBy { it.castOrder }.map { it.personId })
         assertThat(movie.payload.directorIds).containsExactly(1L, 2L, 3L, 4L)
         assertThat(movie.embeddingInput).contains("줄거리")
+        assertThat(movie.payload.releaseDate).isEqualTo(LocalDate.of(2008, 7, 16))
     }
 
     @Test
-    fun `분위기 태그를 나눠 payload와 moodTagsAll에 담는다 — 태그가 없으면 빈 목록`() {
+    fun `분위기 태그를 나눠 payload와 payloadSyncFieldsAll에 담는다 — 태그가 없으면 빈 목록`() {
         // given
         val tagged = upsertService.upsert(tmdbMovie(155L))
         val untagged = upsertService.upsert(tmdbMovie(156L))
@@ -107,14 +109,30 @@ class IndexedMovieAssemblerTest {
 
         // when
         val indexed = assembler.assembleAll().associateBy { it.movieId }
-        val moodTags = assembler.moodTagsAll()
+        val synced = assembler.payloadSyncFieldsAll()
 
         // then
         assertThat(indexed.getValue(tagged).payload.moodTags).containsExactly("잔잔한", "힐링")
         assertThat(indexed.getValue(untagged).payload.moodTags).isEmpty()
-        assertThat(moodTags).containsExactlyInAnyOrderEntriesOf(
+        assertThat(synced.mapValues { it.value.moodTags }).containsExactlyInAnyOrderEntriesOf(
             mapOf(tagged to listOf("잔잔한", "힐링"), untagged to emptyList()),
         )
+    }
+
+    @Test
+    fun `payloadSyncFieldsAll — PG 개봉일을 담고 개봉일이 없는 영화는 null`() {
+        // given
+        val dated = upsertService.upsert(tmdbMovie(155L))
+        val undated = requireNotNull(
+            movieRepository.save(MovieEntity(tmdbId = 156L, title = "개봉일 없음", overview = "줄거리")).movieId,
+        )
+
+        // when
+        val synced = assembler.payloadSyncFieldsAll()
+
+        // then
+        assertThat(synced.getValue(dated).releaseDate).isEqualTo(LocalDate.of(2008, 7, 16))
+        assertThat(synced.getValue(undated).releaseDate).isNull()
     }
 
     @Test
