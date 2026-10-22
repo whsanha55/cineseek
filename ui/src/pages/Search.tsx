@@ -21,7 +21,7 @@ export function Search() {
 	const state = parseSearchState(searchParams);
 	const { data, isPending, isError, refetch } = useSearch(state);
 
-	// 필터 한 항목 변경 — replace (§3)
+	// 필터 한 항목 변경 — replace (§3). 같은 화면 안의 변경이라 스크롤을 맨 위로 되돌리지 않는다 ("더 보기" 후 제자리)
 	const patch = useCallback(
 		(p: Partial<SearchState>) => {
 			const next = { ...state, ...p };
@@ -30,7 +30,7 @@ export function Search() {
 				navigate(`/explore?${serializeExploreState(searchToExploreState(next))}`, { replace: true });
 				return;
 			}
-			setSearchParams(serializeSearchState(next), { replace: true });
+			setSearchParams(serializeSearchState(next), { replace: true, preventScrollReset: true });
 		},
 		[state, navigate, setSearchParams],
 	);
@@ -61,7 +61,7 @@ export function Search() {
 			{isError ? (
 				<ErrorState onRetry={() => refetch()} />
 			) : isPending ? (
-				<MovieGridSkeleton />
+				<MovieGridSkeleton count={state.limit} />
 			) : data!.items.length === 0 ? (
 				<EmptyState
 					onResetFilters={clearFilters}
