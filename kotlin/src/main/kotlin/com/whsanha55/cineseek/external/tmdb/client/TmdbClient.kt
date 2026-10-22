@@ -6,6 +6,8 @@ import com.whsanha55.cineseek.external.tmdb.dto.DetailBody
 import com.whsanha55.cineseek.external.tmdb.dto.DiscoverBody
 import com.whsanha55.cineseek.external.tmdb.dto.PersonBody
 import com.whsanha55.cineseek.external.tmdb.dto.PersonCreditsBody
+import com.whsanha55.cineseek.external.tmdb.dto.WatchProviderItem
+import com.whsanha55.cineseek.external.tmdb.dto.WatchProvidersBody
 import com.whsanha55.cineseek.global.config.http1RestClient
 import com.whsanha55.cineseek.global.exception.ExternalApiException
 import com.whsanha55.cineseek.movie.vo.TmdbCastMember
@@ -15,6 +17,8 @@ import com.whsanha55.cineseek.movie.vo.TmdbMovie
 import com.whsanha55.cineseek.movie.vo.TmdbPerson
 import com.whsanha55.cineseek.movie.vo.TmdbPersonCredit
 import com.whsanha55.cineseek.movie.vo.TmdbPersonInfo
+import com.whsanha55.cineseek.movie.vo.WatchProvider
+import com.whsanha55.cineseek.movie.vo.WatchProviders
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -153,11 +157,31 @@ class TmdbClient(private val properties: TmdbProperties) {
     }
 
     /**
+     * 시청처(JustWatch 제공) 중 region 결과만 돌려준다. 영화 404·해당 국가 결과 없음은 빈 결과.
+     * 사용자 요청 경로라 재시도로 응답을 늦추지 않는다 — 실패는 바로 ExternalApiException
+     */
+    fun fetchWatchProviders(tmdbId: Long, region: String): WatchProviders {
+        val body = call(notFoundAsNull = true, maxRetries = 0) {
+            restClient.get()
+                .uri { builder -> builder.path("/movie/{id}/watch/providers").build(tmdbId) }
+                .retrieve()
+                .body(WatchProvidersBody::class.java)
+        }
+        val result = body?.results?.get(region) ?: return WatchProviders.EMPTY
+        return WatchProviders(
+            link = result.link,
+            flatrate = result.flatrate.toProviders(),
+            rent = result.rent.toProviders(),
+            buy = result.buy.toProviders(),
+        )
+    }
+
+    /**
      * 외부 호출 래퍼 — 429·일시 5xx는 재시도하고, 재시도 소진·나머지 HTTP 오류·타임아웃은 status를 담은
      * ExternalApiException으로 바꾼다(타임아웃·연결 실패는 status=null). notFoundAsNull이면 404를
-     * null로 돌려준다(영구 실패라 재시도하지 않는다).
+     * null로 돌려준다(영구 실패라 재시도하지 않는다). maxRetries가 0이면 재시도하지 않는다.
      */
-    private fun <T> call(notFoundAsNull: Boolean = false, request: () -> T): T? {
+    private fun <T> call(notFoundAsNull: Boolean = false, maxRetries: Int = MAX_RETRIES, request: () -> T): T? {
         var attempt = 0
         while (true) {
             try {
@@ -167,7 +191,7 @@ class TmdbClient(private val properties: TmdbProperties) {
                 throw ExternalApiException(TARGET, e, e.statusCode.value())
             } catch (e: RestClientException) {
                 val status = (e as? HttpStatusCodeException)?.statusCode?.value()
-                if (status == null || status !in RETRYABLE_STATUSES || attempt >= MAX_RETRIES) {
+                if (status == null || status !in RETRYABLE_STATUSES || attempt >= maxRetries) {
                     throw ExternalApiException(TARGET, e, status)
                 }
                 Thread.sleep(retryDelay(attempt, e).toMillis())
@@ -186,6 +210,9 @@ class TmdbClient(private val properties: TmdbProperties) {
         }
         return Duration.ofMillis(RETRY_BACKOFF_BASE_MILLIS shl attempt)
     }
+
+    private fun List<WatchProviderItem>.toProviders() = sortedBy { it.displayPriority ?: Int.MAX_VALUE }
+        .map { WatchProvider(providerId = it.providerId, name = it.providerName.orEmpty(), logoPath = it.logoPath) }
 
     private fun DetailBody.toMovie(credits: CreditsBody) = TmdbMovie(
         tmdbId = id,

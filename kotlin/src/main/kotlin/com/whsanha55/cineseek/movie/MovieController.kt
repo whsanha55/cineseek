@@ -10,6 +10,8 @@ import com.whsanha55.cineseek.movie.dto.PeopleRequest
 import com.whsanha55.cineseek.movie.dto.PeopleResponse
 import com.whsanha55.cineseek.movie.dto.PersonItemResponse
 import com.whsanha55.cineseek.movie.dto.PersonRequest
+import com.whsanha55.cineseek.movie.dto.WatchProvidersResponse
+import com.whsanha55.cineseek.movie.facade.WatchProviderFacade
 import com.whsanha55.cineseek.movie.service.MovieQueryService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -22,11 +24,19 @@ import org.springframework.web.bind.annotation.RestController
 
 @Tag(name = "영화", description = "상세 · 탐색 · 장르 · 인물 조회 (PG 기준)")
 @RestController
-class MovieController(private val movieQueryService: MovieQueryService) {
+class MovieController(
+    private val movieQueryService: MovieQueryService,
+    private val watchProviderFacade: WatchProviderFacade,
+) {
 
     @Operation(summary = "영화 상세")
     @GetMapping("/cineseek/movies/{id}")
     fun detail(@PathVariable id: Long): MovieDetailResponse = MovieDetailResponse.from(movieQueryService.detail(id))
+
+    @Operation(summary = "영화 시청처 (KR, JustWatch 제공) — TMDB 장애는 503")
+    @GetMapping("/cineseek/movies/{id}/watch-providers")
+    fun watchProviders(@PathVariable id: Long): WatchProvidersResponse =
+        WatchProvidersResponse.from(watchProviderFacade.watchProviders(id))
 
     @Operation(summary = "장르·인물 조건으로 영화 탐색")
     @GetMapping("/cineseek/movies")

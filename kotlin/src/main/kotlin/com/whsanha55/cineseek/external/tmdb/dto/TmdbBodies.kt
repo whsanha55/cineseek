@@ -66,3 +66,22 @@ internal data class PersonCastItem(
     val order: Int? = null,
     @JsonProperty("release_date") val releaseDate: String? = null,
 )
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+internal data class WatchProvidersBody(val results: Map<String, WatchProviderRegion> = emptyMap())
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+internal data class WatchProviderRegion(
+    val link: String? = null,
+    val flatrate: List<WatchProviderItem> = emptyList(),
+    val rent: List<WatchProviderItem> = emptyList(),
+    val buy: List<WatchProviderItem> = emptyList(),
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+internal data class WatchProviderItem(
+    @JsonProperty("provider_id") val providerId: Long,
+    @JsonProperty("provider_name") val providerName: String? = null,
+    @JsonProperty("logo_path") val logoPath: String? = null,
+    @JsonProperty("display_priority") val displayPriority: Int? = null,
+)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { posterUrl, profileUrl } from "./tmdb";
+import { logoUrl, posterUrl, profileUrl } from "./tmdb";
 
 describe("posterUrl", () => {
 	it("경로와 크기를 조립한다", () => {
@@ -24,5 +24,13 @@ describe("profileUrl", () => {
 		expect(profileUrl(null)).toBeNull();
 		expect(profileUrl(undefined)).toBeNull();
 		expect(profileUrl("")).toBeNull();
+	});
+});
+
+describe("logoUrl", () => {
+	it("경로를 로고 규격 크기로 조립하고 없으면 null", () => {
+		expect(logoUrl("/n.jpg")).toBe("https://image.tmdb.org/t/p/w92/n.jpg");
+		expect(logoUrl(null)).toBeNull();
+		expect(logoUrl("")).toBeNull();
 	});
 });

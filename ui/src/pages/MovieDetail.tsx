@@ -4,6 +4,7 @@ import { useMovie } from "../api/hooks";
 import { CastOtherWorks } from "../components/CastOtherWorks";
 import { PosterImage } from "../components/PosterImage";
 import { SimilarRow } from "../components/SimilarRow";
+import { WatchProviders } from "../components/WatchProviders";
 import { ErrorState } from "../components/StateViews";
 import { Skeleton } from "../components/ui/skeleton";
 
@@ -109,6 +110,8 @@ export function MovieDetail() {
 							)}
 						</div>
 					)}
+
+					<WatchProviders movieId={Number(id)} />
 				</div>
 			</div>
 

@@ -621,6 +621,38 @@
         }
       }
     },
+    "/cineseek/movies/{id}/watch-providers": {
+      "get": {
+        "tags": [
+          "영화"
+        ],
+        "summary": "영화 시청처 (KR, JustWatch 제공) — TMDB 장애는 503",
+        "operationId": "watchProviders",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchProvidersResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/cineseek/movies/{id}/similar": {
       "get": {
         "tags": [
@@ -1004,6 +1036,63 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "WatchProvidersResponse": {
+        "type": "object",
+        "properties": {
+          "link": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "TMDB 시청처 안내 페이지 — 출처(JustWatch) 링크로 쓴다"
+          },
+          "flatrate": {
+            "type": "array",
+            "description": "정액제 스트리밍",
+            "items": {
+              "$ref": "#/components/schemas/WatchProviderResponse"
+            }
+          },
+          "rent": {
+            "type": "array",
+            "description": "대여",
+            "items": {
+              "$ref": "#/components/schemas/WatchProviderResponse"
+            }
+          },
+          "buy": {
+            "type": "array",
+            "description": "구매",
+            "items": {
+              "$ref": "#/components/schemas/WatchProviderResponse"
+            }
+          }
+        }
+      },
+      "WatchProviderResponse": {
+        "type": "object",
+        "properties": {
+          "providerId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "TMDB 시청처 id",
+            "example": 8
+          },
+          "name": {
+            "type": "string",
+            "description": "시청처 이름",
+            "example": "Netflix"
+          },
+          "logoPath": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "로고 이미지 경로 (TMDB 이미지 CDN)",
+            "example": "/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg"
           }
         }
       },

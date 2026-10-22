@@ -15,3 +15,9 @@ export function profileUrl(
 	if (!profilePath) return null;
 	return `https://image.tmdb.org/t/p/${size}${profilePath}`;
 }
+
+/** 시청처 로고 CDN URL — 로고 규격 크기 중 작은 것. 없으면 null (이름 텍스트로) */
+export function logoUrl(logoPath: string | null | undefined): string | null {
+	if (!logoPath) return null;
+	return `https://image.tmdb.org/t/p/w92${logoPath}`;
+}

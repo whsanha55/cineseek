@@ -9,6 +9,8 @@ import com.whsanha55.cineseek.global.exception.ExternalApiException
 import com.whsanha55.cineseek.movie.vo.TmdbGenre
 import com.whsanha55.cineseek.movie.vo.TmdbPerson
 import com.whsanha55.cineseek.movie.vo.TmdbPersonCredit
+import com.whsanha55.cineseek.movie.vo.WatchProvider
+import com.whsanha55.cineseek.movie.vo.WatchProviders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -339,6 +341,75 @@ class TmdbClientTest {
         assertThat(exception.message).contains("target=tmdb")
         assertThat(exception.status).isEqualTo(503)
         wiremock.verify(4, WireMock.getRequestedFor(WireMock.urlPathEqualTo("/discover/movie")))
+    }
+
+    @Test
+    fun `시청처는 요청한 국가 결과만 구분별 노출 우선순위 순으로 매핑한다`() {
+        // given
+        wiremock.stubFor(
+            WireMock.get(WireMock.urlPathEqualTo("/movie/155/watch/providers")).willReturn(
+                WireMock.okJson(
+                    """
+                    {"id":155,"results":{
+                      "KR":{"link":"https://www.themoviedb.org/movie/155/watch?locale=KR",
+                            "flatrate":[{"provider_id":337,"provider_name":"Disney Plus","logo_path":"/d.jpg","display_priority":2},
+                                        {"provider_id":8,"provider_name":"Netflix","logo_path":"/n.jpg","display_priority":0}],
+                            "buy":[{"provider_id":3,"provider_name":"Google Play Movies","logo_path":"/g.jpg","display_priority":5}]},
+                      "US":{"link":"https://example.com/us","rent":[{"provider_id":2,"provider_name":"Apple TV","logo_path":"/a.jpg"}]}
+                    }}
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        // when
+        val providers = client.fetchWatchProviders(155L, "KR")
+
+        // then — US는 버리고, 없는 구분(rent)은 빈 목록
+        assertThat(providers).isEqualTo(
+            WatchProviders(
+                link = "https://www.themoviedb.org/movie/155/watch?locale=KR",
+                flatrate = listOf(WatchProvider(8L, "Netflix", "/n.jpg"), WatchProvider(337L, "Disney Plus", "/d.jpg")),
+                rent = emptyList(),
+                buy = listOf(WatchProvider(3L, "Google Play Movies", "/g.jpg")),
+            ),
+        )
+    }
+
+    @Test
+    fun `시청처에 해당 국가 결과가 없거나 영화가 404면 빈 결과를 반환한다`() {
+        // given
+        wiremock.stubFor(
+            WireMock.get(WireMock.urlPathEqualTo("/movie/155/watch/providers"))
+                .willReturn(WireMock.okJson("""{"id":155,"results":{"US":{"link":"https://example.com/us"}}}""")),
+        )
+        wiremock.stubFor(
+            WireMock.get(WireMock.urlPathEqualTo("/movie/999/watch/providers")).willReturn(WireMock.notFound()),
+        )
+
+        // when
+        val noRegion = client.fetchWatchProviders(155L, "KR")
+        val missing = client.fetchWatchProviders(999L, "KR")
+
+        // then
+        assertThat(noRegion).isEqualTo(WatchProviders.EMPTY)
+        assertThat(missing).isEqualTo(WatchProviders.EMPTY)
+    }
+
+    @Test
+    fun `시청처 조회는 5xx에 재시도하지 않고 바로 ExternalApiException이 발생한다`() {
+        // given
+        wiremock.stubFor(
+            WireMock.get(WireMock.urlPathEqualTo("/movie/155/watch/providers"))
+                .willReturn(WireMock.serviceUnavailable()),
+        )
+
+        // when
+        val exception = assertThrows<ExternalApiException> { client.fetchWatchProviders(155L, "KR") }
+
+        // then — 사용자 요청 경로라 1번만 호출
+        assertThat(exception.status).isEqualTo(503)
+        wiremock.verify(1, WireMock.getRequestedFor(WireMock.urlPathEqualTo("/movie/155/watch/providers")))
     }
 
     @Test
