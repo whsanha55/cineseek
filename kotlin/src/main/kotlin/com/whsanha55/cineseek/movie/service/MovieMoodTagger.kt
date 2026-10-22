@@ -52,17 +52,18 @@ class MovieMoodTagger(
     /**
      * 분위기 태그가 없거나 버전이 다른 영화 전체를 병렬 태깅한다 — 재색인 배치용
      */
-    fun tagAll(): Int = tagAll(Int.MAX_VALUE)
+    fun tagAll(): List<Long> = tagAll(Int.MAX_VALUE)
 
     /**
      * 분위기 태그가 없거나 버전이 다른 영화를 최대 [limit]건 병렬 태깅한다 — 고정 크기 스레드 풀로 동시 제한.
-     * 수집 틱이 갖는 LLM 호출 수를 상한으로 묶어 폭주를 막는다. 한 건 실패는 건너뛰고 성공 수를 반환한다.
-     * API 키가 비어 있으면 경고 후 0
+     * 수집 틱이 갖는 LLM 호출 수를 상한으로 묶어 폭주를 막는다. 한 건 실패는 건너뛰고 실제로 태깅해 저장한 movieId를 반환한다.
+     * 태그는 임베딩 텍스트에 들어가므로 호출하는 쪽이 이 영화들을 다시 색인해야 검색에 반영된다.
+     * API 키가 비어 있으면 경고 후 빈 목록
      */
-    fun tagAll(limit: Int): Int {
+    fun tagAll(limit: Int): List<Long> {
         if (llmProperties.apiKey.isBlank()) {
             log.warn { "LLM API 키 미설정 — 분위기 태깅을 건너뛴다" }
-            return 0
+            return emptyList()
         }
         val ids = movieRepository.findRequiringMoodTag(version()).mapNotNull { it.movieId }.take(limit)
         val results = Executors.newFixedThreadPool(TAG_CONCURRENCY).use { executor ->
@@ -72,25 +73,27 @@ class MovieMoodTagger(
                 },
             )
         }
-        val succeeded = results.count { it.get().isSuccess }
-        log.info { "분위기 태깅 완료. 대상=${ids.size}, 성공=$succeeded" }
-        return succeeded
+        val tagged = ids.filterIndexed { i, _ -> results[i].get().getOrDefault(false) }
+        log.info { "분위기 태깅 완료. 대상=${ids.size}, 성공=${tagged.size}" }
+        return tagged
     }
 
     /**
-     * 영화 한 건 태깅 — 프롬프트 조립 → LLM → JSON 파싱 → applyMood 저장.
+     * 영화 한 건 태깅 — 프롬프트 조립 → LLM → JSON 파싱 → applyMood 저장. 저장했으면 true,
+     * 영화가 없거나 줄거리가 없어 태깅할 재료가 없으면 false.
      * @Transactional은 쓰지 않는다: tagAll에서의 자기호출은 프록시를 우회해 어노테이션이 무효고,
      * 갱신은 movieRepository.save(SimpleJpaRepository)의 자체 트랜잭션 하나로 충분하다.
      * 조회는 genres까지 한 번에 가져오는 findAllById로 — OSIV=false라 findById의 지연 로딩은 프롬프트 조립에서 터진다
      */
-    fun tagOne(movieId: Long) {
-        val movie = movieRepository.findAllById(listOf(movieId)).firstOrNull() ?: return
-        val overview = movie.overview ?: return // 줄거리가 없으면 태깅 재료가 없다 → 스킵
+    fun tagOne(movieId: Long): Boolean {
+        val movie = movieRepository.findAllById(listOf(movieId)).firstOrNull()
+        val overview = movie?.overview ?: return false
         val content = llmClient.chat(prompt(movie, overview))
         val mood = objectMapper.readValue<LlmMoodResult>(extractJson(content))
         check(mood.tags.isNotEmpty() && mood.description.isNotBlank()) { "분위기 태깅 결과가 비어 있다. movieId=$movieId" }
         movie.applyMood(mood.tags.joinToString(", "), mood.description, version(), Instant.now(clock))
         movieRepository.save(movie)
+        return true
     }
 
     /** 태깅 버전 — 모델명과 프롬프트 해시 앞 8자리. 프롬프트를 고치면 값이 변해 전체 재태깅된다 */

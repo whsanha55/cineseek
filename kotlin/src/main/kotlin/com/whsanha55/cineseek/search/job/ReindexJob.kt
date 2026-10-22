@@ -42,7 +42,7 @@ class ReindexJob(
         log.info { "PG 적재 완료. stored=${stored.size}" }
 
         val tagged = moodTagger.tagAll()
-        log.info { "분위기 태그. tagged=$tagged" }
+        log.info { "분위기 태그. tagged=${tagged.size}" }
 
         val indexed = assembler.assembleAll()
         val embedded = indexer.index(indexed)
