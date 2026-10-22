@@ -7,6 +7,7 @@ import com.whsanha55.cineseek.external.embedding.client.EmbeddingClient
 import com.whsanha55.cineseek.external.embedding.config.EmbeddingProperties
 import com.whsanha55.cineseek.external.qdrant.config.QdrantProperties
 import com.whsanha55.cineseek.global.exception.ExternalApiException
+import com.whsanha55.cineseek.search.vo.Embedding
 import com.whsanha55.cineseek.search.vo.SearchFilter
 import io.qdrant.client.PointIdFactory
 import io.qdrant.client.QdrantClient
@@ -72,6 +73,36 @@ class SearchServiceTest {
         // then
         assertThat(page.hits.map { it.movieId }).containsExactly(1L, 2L, 3L)
         assertThat(page.hasNext).isFalse()
+    }
+
+    @Test
+    fun `쿼리와 저장 sparse의 공통 토큰을 매칭 단어로 돌려준다 — dense로만 걸린 결과는 빈 목록`() {
+        // given — 토큰 1은 영화1, 토큰 2는 영화2만 갖고 있다
+        stubEmbed("""{"indices":[1,2],"values":[0.9,0.5],"tokens":["▁탈출","▁감옥"]}""")
+
+        // when
+        val page = service.search("탈출 감옥", SearchFilter(limit = 5))
+
+        // then
+        assertThat(page.hits.associate { it.movieId to it.matchedTerms }).containsExactlyInAnyOrderEntriesOf(
+            mapOf(1L to listOf("탈출"), 2L to listOf("감옥"), 3L to emptyList()),
+        )
+    }
+
+    @Test
+    fun `임베딩만 넘기는 eval 경로는 매칭 단어를 계산하지 않는다`() {
+        // given
+        val embedding = Embedding(
+            dense = listOf(0.9f, 0.1f, 0f, 0f),
+            sparse = Embedding.Sparse(listOf(1L), listOf(0.9f), listOf("▁탈출")),
+        )
+
+        // when
+        val page = service.search(embedding, SearchFilter(limit = 5))
+
+        // then
+        assertThat(page.hits.map { it.movieId }).containsExactly(1L, 2L, 3L)
+        assertThat(page.hits).allSatisfy { assertThat(it.matchedTerms).isEmpty() }
     }
 
     @Test
@@ -347,14 +378,14 @@ class SearchServiceTest {
         )
         .build()
 
-    /** 쿼리 임베딩 스텁 — dense는 영화A 방향, sparse는 토큰 1번(영화A가 보유) */
-    private fun stubEmbed() {
+    /** 쿼리 임베딩 스텁 — dense는 영화A 방향, sparse는 기본 토큰 1번(영화A가 보유) */
+    private fun stubEmbed(sparse: String = """{"indices":[1],"values":[0.9]}""") {
         embedStub.stubFor(
             WireMock.post("/embed").willReturn(
                 WireMock.okJson(
                     """
 					{"model":"stub","items":[
-						{"dense":[0.9,0.1,0.0,0.0],"sparse":{"indices":[1],"values":[0.9]}}
+						{"dense":[0.9,0.1,0.0,0.0],"sparse":$sparse}
 					]}
                     """.trimIndent(),
                 ),

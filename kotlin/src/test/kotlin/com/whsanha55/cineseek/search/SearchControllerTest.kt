@@ -29,7 +29,7 @@ class SearchControllerTest {
         // given
         val filter = SearchFilter(genreIds = listOf(80L, 18L), yearMin = 2000, limit = 3)
         every { searchFacade.search("탈출", filter) } returns
-            SearchItems(listOf(ScoredMovieCard(card(), 0.032)), limit = 3, offset = 0, hasNext = true)
+            SearchItems(listOf(ScoredMovieCard(card(), 0.032, listOf("탈출"))), limit = 3, offset = 0, hasNext = true)
 
         // when
         val result = mockMvc.get("/cineseek/search") {
@@ -50,6 +50,7 @@ class SearchControllerTest {
             jsonPath("$.items[0].genres[0].id") { value(80) }
             jsonPath("$.items[0].genres[0].name") { value("범죄") }
             jsonPath("$.items[0].score") { value(0.032) }
+            jsonPath("$.items[0].matchedTerms[0]") { value("탈출") }
             jsonPath("$.page.limit") { value(3) }
             jsonPath("$.page.hasNext") { value(true) }
             jsonPath("$.page.total") { value(nullValue()) }

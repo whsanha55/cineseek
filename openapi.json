@@ -938,6 +938,17 @@
             "format": "double",
             "description": "검색은 RRF 점수, 유사 영화는 코사인 유사도",
             "example": 0.032
+          },
+          "matchedTerms": {
+            "type": "array",
+            "description": "쿼리와 줄거리 등 색인 텍스트에 함께 있는 단어 (sparse 기여도 순, 최대 3개). 비어 있으면 의미(dense)로만 찾은 결과. 유사 영화는 항상 빈 목록",
+            "example": [
+              "탈출",
+              "감옥"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

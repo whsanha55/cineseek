@@ -218,6 +218,14 @@ export interface components {
              * @example 0.032
              */
             score?: number;
+            /**
+             * @description 쿼리와 줄거리 등 색인 텍스트에 함께 있는 단어 (sparse 기여도 순, 최대 3개). 비어 있으면 의미(dense)로만 찾은 결과. 유사 영화는 항상 빈 목록
+             * @example [
+             *       "탈출",
+             *       "감옥"
+             *     ]
+             */
+            matchedTerms?: string[];
         };
         SearchResponse: {
             /** @description 검색 결과 (점수 내림차순) */

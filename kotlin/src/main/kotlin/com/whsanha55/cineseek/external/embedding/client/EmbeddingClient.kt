@@ -34,7 +34,9 @@ class EmbeddingClient(properties: EmbeddingProperties) {
             } catch (e: RestClientException) {
                 throw ExternalApiException(TARGET, e)
             } ?: throw ExternalApiException(TARGET)
-            response.items.map { Embedding(it.dense, Embedding.Sparse(it.sparse.indices, it.sparse.values)) }
+            response.items.map {
+                Embedding(it.dense, Embedding.Sparse(it.sparse.indices, it.sparse.values, it.sparse.tokens))
+            }
         }
     }
 

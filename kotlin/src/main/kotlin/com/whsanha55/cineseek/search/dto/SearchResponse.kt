@@ -37,6 +37,12 @@ data class SearchItemResponse(
     val genres: List<GenreResponse>,
     @field:Schema(description = "검색은 RRF 점수, 유사 영화는 코사인 유사도", example = "0.032")
     val score: Double,
+    @field:Schema(
+        description = "쿼리와 줄거리 등 색인 텍스트에 함께 있는 단어 (sparse 기여도 순, 최대 3개). " +
+            "비어 있으면 의미(dense)로만 찾은 결과. 유사 영화는 항상 빈 목록",
+        example = "[\"탈출\", \"감옥\"]",
+    )
+    val matchedTerms: List<String>,
 ) {
     companion object {
         fun from(scored: ScoredMovieCard) = SearchItemResponse(
@@ -49,6 +55,7 @@ data class SearchItemResponse(
             posterPath = scored.card.posterPath,
             genres = scored.card.genres.map(GenreResponse::from),
             score = scored.score,
+            matchedTerms = scored.matchedTerms,
         )
     }
 }

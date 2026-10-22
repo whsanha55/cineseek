@@ -26,7 +26,7 @@ const mockCard = {
 	],
 };
 
-const mockSearchItem = { ...mockCard, score: 0.75 };
+const mockSearchItem = { ...mockCard, score: 0.75, matchedTerms: ["탈출", "감옥"] };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
 	return (

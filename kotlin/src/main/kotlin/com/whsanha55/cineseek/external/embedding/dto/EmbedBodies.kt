@@ -6,5 +6,6 @@ internal data class EmbedRequestBody(val texts: List<String>)
 internal data class EmbedResponseBody(val model: String, val items: List<Item>) {
     data class Item(val dense: List<Float>, val sparse: Sparse)
 
-    data class Sparse(val indices: List<Long>, val values: List<Float>)
+    /** tokens — 이전 embed 서버는 내려주지 않는다 */
+    data class Sparse(val indices: List<Long>, val values: List<Float>, val tokens: List<String>? = null)
 }
