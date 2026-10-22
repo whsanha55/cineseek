@@ -97,6 +97,23 @@ data class OrderResponse(
 - 연관관계는 지연 로딩을 쓴다. 양방향 연관관계는 필요한 경우에만 쓴다.
 - `toString()`에 연관관계를 포함하지 않는다.
 
+상태 판단과 전이는 Entity가 맡는다.
+
+- Service에서 getter로 상태를 확인해 분기한 뒤 값을 바꾸지 않는다. `order.cancel()`처럼 Entity 메서드를 호출한다.
+- 허용되지 않는 전이는 Entity 메서드 안에서 도메인 예외로 막는다.
+- 상태 enum을 `when`으로 분기할 때 `else`를 쓰지 않는다. 상태가 추가되면 컴파일 오류로 드러나게 한다.
+
+```kotlin
+// Service가 판단하지 않는다
+if (order.status == OrderStatusEnum.RECEIVED) order.cancel()
+
+// Entity가 판단한다
+fun cancel() {
+    if (status != OrderStatusEnum.RECEIVED) throw OrderException(ErrorCodeEnum.ORDER_NOT_CANCELABLE)
+    status = OrderStatusEnum.CANCELED
+}
+```
+
 ```kotlin
 @Entity
 @Table(name = "orders")
