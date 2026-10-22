@@ -20,6 +20,7 @@ data class CollectProperties(
     val kr: Kr = Kr(),
     val seedPersonIds: List<Long> = emptyList(), // 시드 인물 — 기본 10명은 application.yml에 둔다
     val filmoTtlDays: Int = 30, // 필모그래피 재확인 주기(일)
+    val detailRefreshDays: Int = 90, // 개봉일이 최근 N일 안이거나 개봉 예정인 영화는 일일 틱마다 상세(투표 수·평점 등)를 다시 받는다
     val dailyCron: String = "0 0 4 * * *", // 일일 증분 배치 시각
     val zone: String = "Asia/Seoul", // 구간 계산 기준 타임존 — 시각 자체는 Instant로 다룬다
 ) {

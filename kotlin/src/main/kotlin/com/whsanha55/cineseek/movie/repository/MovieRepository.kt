@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import org.springframework.data.jpa.repository.Query
+import java.time.LocalDate
 
 interface MovieRepository :
     JpaRepository<MovieEntity, Long>,
@@ -66,6 +67,17 @@ interface MovieRepository :
     fun findTmdbIdsByOverviewIsNull(pageable: Pageable): List<Long>
 
     fun countByOverviewIsNull(): Long
+
+    /** 일일 증분용 — 개봉일이 [from] 이후(개봉 예정 포함)인 영화의 tmdbId. 개봉일 미상은 제외 */
+    @Query(
+        """
+        SELECT m.tmdbId
+        FROM MovieEntity m
+        WHERE m.releaseDate >= :from
+        ORDER BY m.movieId ASC
+        """,
+    )
+    fun findTmdbIdsReleasedSince(from: LocalDate): List<Long>
 
     /** 한국 영화(제작국가 KR)의 연도별 수 — 수집 통계용. 연도 내림차순 (yr=연도, total=수) */
     @Query(

@@ -31,7 +31,7 @@ private val log = KotlinLogging.logger {}
 /**
  * 수집 스케줄러 — interval 틱(큐 소진)과 일일 증분 틱을 운영한다.
  * BOOTSTRAP 모드에서는 초기 enqueue(1회) 후 큐를 반복 소진해, PENDING/RUNNING이 비면 DAILY로 전환한다.
- * DAILY 모드에서는 매일 정시에 신작 창·만료 필모·줄거리 누락·재시도 소진 실패를 다시 큐에 올린다.
+ * DAILY 모드에서는 매일 정시에 신작 창·만료 필모·줄거리 누락·최근 개봉작 상세·재시도 소진 실패를 다시 큐에 올린다.
  * cineseek.collect.enabled=false(기본)면 빈 자체가 등록되지 않는다
  */
 @Component
@@ -102,13 +102,19 @@ class CollectScheduler(
         }
         val freshMovies = requeueFreshMovies()
         val expiredFilmos = requeueExpiredFilmographies()
-        val missingOverviews = requeueMissingOverviews()
+        val missingOverviews = requeueMovieDetails(
+            movieRepository.findTmdbIdsByOverviewIsNull(PageRequest.ofSize(MISSING_OVERVIEW_LIMIT)),
+        )
+        val today = LocalDate.now(clock.withZone(ZoneId.of(properties.zone)))
+        val recentDetails = requeueMovieDetails(
+            movieRepository.findTmdbIdsReleasedSince(today.minusDays(properties.detailRefreshDays.toLong())),
+        )
         val resetFailed = taskService.resetRetryExhausted()
         val result = pipeline.runBatch()
         finishTick(result)
         log.info {
             "일일 증분 틱 완료. 신작등록=$freshMovies, 만료필모=$expiredFilmos, " +
-                "줄거리누락=$missingOverviews, 실패복귀=$resetFailed, ${result.summary()}"
+                "줄거리누락=$missingOverviews, 최근개봉상세=$recentDetails, 실패복귀=$resetFailed, ${result.summary()}"
         }
         logStats(result)
     }
@@ -160,10 +166,13 @@ class CollectScheduler(
         }
     }
 
-    /** 줄거리 누락 영화 — 오래된 순 최대 200건을 상세 재수집해 overview를 다시 채운다 */
-    private fun requeueMissingOverviews(): Int =
-        movieRepository.findTmdbIdsByOverviewIsNull(PageRequest.ofSize(MISSING_OVERVIEW_LIMIT))
-            .count { tmdbId -> requeueOrCreate(MOVIE_DETAIL, "${CollectPipeline.MOVIE_PREFIX}$tmdbId") }
+    /**
+     * 상세 재수집 — 줄거리 누락 영화(오래된 순 최대 200건, overview를 다시 채운다)와
+     * 개봉일이 detailRefreshDays 안이거나 개봉 예정인 영화(개봉 전에 수집돼 투표 수·평점이 멈추지 않게)에 쓴다.
+     * 갱신된 영화는 증분 색인이 payload를 덮어쓴다
+     */
+    private fun requeueMovieDetails(tmdbIds: List<Long>): Int =
+        tmdbIds.count { tmdbId -> requeueOrCreate(MOVIE_DETAIL, "${CollectPipeline.MOVIE_PREFIX}$tmdbId") }
 
     /** DONE 작업은 되살리고(PENDING), 행이 없으면 새로 등록한다. 대기/실행 중이면 아무것도 하지 않는다 */
     private fun requeueOrCreate(type: CollectTaskTypeEnum, payloadKey: String): Boolean =

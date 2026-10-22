@@ -90,6 +90,29 @@ class MovieIndexerTest {
         assertThat(point1.payloadMap["rating"]?.doubleValue).isEqualTo(9.5)
     }
 
+    @Test
+    fun `증분 색인 — 임베딩 입력이 같아도 바뀐 vote_count는 다시 임베딩하지 않고 payload에 반영한다`() {
+        // given — 투표 수 0으로 색인된 영화
+        stubEmbed()
+        val before = MoviePayload("영화", 2026, 0.0, listOf(28L), listOf(100L), listOf(200L), voteCount = 0)
+        indexer.indexTouched(listOf(IndexedMovie(1L, "임베딩 입력", before)))
+        val after = before.copy(rating = 7.5, voteCount = 42)
+
+        // when
+        val embedded = indexer.indexTouched(listOf(IndexedMovie(1L, "임베딩 입력", after)))
+        val point = qdrantClient
+            .retrieveAsync("movies", listOf(PointIdFactory.id(1L)), true, false, null)
+            .get()
+            .single()
+
+        // then
+        assertThat(embedded).isZero()
+        embedStub.verify(1, WireMock.postRequestedFor(WireMock.urlPathEqualTo("/embed")))
+        assertThat(point.payloadMap["vote_count"]?.integerValue).isEqualTo(42L)
+        assertThat(point.payloadMap["rating"]?.doubleValue).isEqualTo(7.5)
+        assertThat(point.payloadMap).containsKey("input_hash")
+    }
+
     private fun movie(id: Long, embeddingInput: String, rating: Double = 8.0) = IndexedMovie(
         id,
         embeddingInput,

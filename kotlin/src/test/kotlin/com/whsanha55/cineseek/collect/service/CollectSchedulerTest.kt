@@ -24,11 +24,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.Optional
 
 /**
- * CollectScheduler — 틱 흐름(회수→enqueue→배치→전환), 일일 증분 재등록 4종, 동시 실행 가드를
+ * CollectScheduler — 틱 흐름(회수→enqueue→배치→전환), 일일 증분 재등록 5종, 동시 실행 가드를
  * MockK 목으로 검증한다. 실제 스케줄 기동은 검증하지 않는다 — 애노테이션 placeholder만 확인한다
  */
 class CollectSchedulerTest {
@@ -122,11 +123,12 @@ class CollectSchedulerTest {
     }
 
     @Test
-    fun `일일 틱 — 신작 창·글로벌 첫 페이지·만료 필모·줄거리 누락·재시도 소진 실패를 재등록하고 배치를 돈다`() {
+    fun `일일 틱 — 신작 창·글로벌 첫 페이지·만료 필모·줄거리 누락·최근 개봉작·재시도 소진 실패를 재등록하고 배치를 돈다`() {
         stubState(CollectStateEntity().apply { transitionTo(CollectModeEnum.DAILY, start) })
         every { personRepository.findByFilmoCheckedAtBefore(any()) } returns
             listOf(PersonEntity(personId = 7L, name = "배우"))
         every { movieRepository.findTmdbIdsByOverviewIsNull(any()) } returns listOf(101L)
+        every { movieRepository.findTmdbIdsReleasedSince(LocalDate.parse("2026-03-18")) } returns listOf(201L)
         every { tmdbClient.fetchDiscoverIds(any(), any(), any()) } returns
             TmdbDiscoverResult(
                 tmdbIds = listOf(11L, 12L),
@@ -153,6 +155,8 @@ class CollectSchedulerTest {
         verify { taskService.enqueue(PERSON_FILMO, "person:7", CollectPipeline.PRIORITY_NORMAL) }
         // ③ 줄거리 누락 영화
         verify { taskService.enqueue(MOVIE_DETAIL, "movie:tmdb:101", CollectPipeline.PRIORITY_NORMAL) }
+        // ③ 최근 90일(KST 오늘=2026-06-16 → 2026-03-18 이후) 개봉·개봉 예정 영화
+        verify { taskService.enqueue(MOVIE_DETAIL, "movie:tmdb:201", CollectPipeline.PRIORITY_NORMAL) }
         // ④ 재시도 소진 실패 복귀
         verify(exactly = 1) { taskService.resetRetryExhausted() }
         // ⑤ 배치 실행
