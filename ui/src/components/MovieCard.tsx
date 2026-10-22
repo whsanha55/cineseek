@@ -3,11 +3,12 @@ import { Star } from "lucide-react";
 import type { MovieCard as MovieCardData, SearchItem } from "../api/types";
 import { MarkButtons } from "./MarkButtons";
 import { PosterImage } from "./PosterImage";
+import { MatchReason } from "./MatchReason";
 import { RelevanceMeter } from "./RelevanceMeter";
 
 interface MovieCardProps {
 	movie: MovieCardData | SearchItem;
-	/** 검색 결과일 때만 전달 — 관련도 등급 표시 (현재 집합 전체 점수 필요) */
+	/** 검색 결과일 때만 전달 — 관련도 등급·검색 근거 표시 (현재 집합 전체 점수 필요) */
 	allScores?: number[];
 }
 
@@ -48,7 +49,12 @@ export function MovieCard({ movie, allScores }: MovieCardProps) {
 							{genres.map((g) => g.name).join(" · ")}
 						</p>
 					)}
-					{isSearchItem(movie) && allScores && <RelevanceMeter score={movie.score} allScores={allScores} />}
+					{isSearchItem(movie) && allScores && (
+						<>
+							<RelevanceMeter score={movie.score} allScores={allScores} />
+							<MatchReason terms={movie.matchedTerms} />
+						</>
+					)}
 				</div>
 			</Link>
 			<MarkButtons movieId={movie.movieId} variant="overlay" className="absolute right-1.5 top-1.5" />

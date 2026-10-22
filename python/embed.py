@@ -27,3 +27,8 @@ def encode(texts: list[str]) -> dict:
         return_sparse=True,
         return_colbert_vecs=False,
     )
+
+
+def tokens(ids: list[int]) -> list[str]:
+    """sparse 토큰 id → 토큰 문자열 (sentencepiece 원형, 단어 시작은 "▁" 접두)."""
+    return get_model().tokenizer.convert_ids_to_tokens(ids)

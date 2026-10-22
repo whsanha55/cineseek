@@ -19,6 +19,7 @@ function searchResponse(limit: number): SearchResponse {
 			posterPath: null,
 			genres: [],
 			score: 0.5,
+			matchedTerms: [],
 		})),
 		page: { limit, offset: 0, hasNext: true, total: null },
 	};

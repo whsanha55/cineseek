@@ -22,7 +22,7 @@ class SearchFacadeTest {
         // given
         val filter = SearchFilter(limit = 3)
         every { searchService.search("쿼리", filter) } returns SearchPage(
-            hits = listOf(SearchHit(2L, 0.9f), SearchHit(999L, 0.8f), SearchHit(1L, 0.7f)),
+            hits = listOf(SearchHit(2L, 0.9f, listOf("탈출")), SearchHit(999L, 0.8f), SearchHit(1L, 0.7f)),
             limit = 3,
             offset = 0,
             hasNext = true,
@@ -35,6 +35,7 @@ class SearchFacadeTest {
         // then
         assertThat(result.items.map { it.card.movieId }).containsExactly(2L, 1L)
         assertThat(result.items.first().score).isEqualTo(0.9f.toDouble())
+        assertThat(result.items.first().matchedTerms).containsExactly("탈출")
         assertThat(result.hasNext).isTrue()
     }
 

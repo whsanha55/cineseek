@@ -38,6 +38,8 @@ class SearchFacade(private val searchService: SearchService, private val movieQu
 
     private fun toCards(hits: List<SearchHit>): List<ScoredMovieCard> {
         val cards = movieQueryService.cards(hits.map { it.movieId })
-        return hits.mapNotNull { hit -> cards[hit.movieId]?.let { ScoredMovieCard(it, hit.score.toDouble()) } }
+        return hits.mapNotNull { hit ->
+            cards[hit.movieId]?.let { ScoredMovieCard(it, hit.score.toDouble(), hit.matchedTerms) }
+        }
     }
 }

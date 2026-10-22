@@ -4,6 +4,7 @@ import com.whsanha55.cineseek.external.embedding.client.EmbeddingClient
 import com.whsanha55.cineseek.external.qdrant.config.QdrantProperties
 import com.whsanha55.cineseek.global.exception.ExternalApiException
 import com.whsanha55.cineseek.search.vo.Embedding
+import com.whsanha55.cineseek.search.vo.MatchedTerms
 import com.whsanha55.cineseek.search.vo.SearchFilter
 import com.whsanha55.cineseek.search.vo.SearchHit
 import com.whsanha55.cineseek.search.vo.SearchPage
@@ -31,10 +32,13 @@ class SearchService(
 ) {
 
     fun search(query: String, filter: SearchFilter): SearchPage =
-        search(embeddingClient.embed(listOf(query)).single(), filter)
+        search(embeddingClient.embed(listOf(query)).single(), filter, query)
 
-    /** 쿼리 묶음을 한 번의 임베딩 배치로 처리하는 진입점 (EvalRunner용 — python eval.py와 같은 배치) */
-    fun search(embedding: Embedding, filter: SearchFilter): SearchPage {
+    /**
+     * 쿼리 묶음을 한 번의 임베딩 배치로 처리하는 진입점 (EvalRunner용 — python eval.py와 같은 배치).
+     * query가 있으면 결과의 저장 sparse를 함께 받아 매칭 단어를 계산한다 (재색인 없이 저장 벡터만 사용)
+     */
+    fun search(embedding: Embedding, filter: SearchFilter, query: String? = null): SearchPage {
         val fetch = filter.limit + 1 // hasNext 판단용 1건 초과 조회
         val payloadFilter = buildFilter(filter)
         val prefetchLimit = maxOf(PREFETCH_LIMIT, (filter.offset + fetch).toLong())
@@ -65,11 +69,21 @@ class SearchService(
             .setOffset(filter.offset.toLong())
             .setLimit(fetch.toLong())
             .setWithPayload(WithPayloadSelectorFactory.enable(false))
+            .setWithVectors(
+                if (query == null) {
+                    WithVectorsSelectorFactory.enable(false)
+                } else {
+                    WithVectorsSelectorFactory.include(listOf("sparse"))
+                },
+            )
             .build()
 
         val scored = qdrant(qdrantClient.queryAsync(request))
         return SearchPage(
-            hits = scored.take(filter.limit).map { SearchHit(it.id.num, it.score) },
+            hits = scored.take(filter.limit).map { point ->
+                val terms = query?.let { MatchedTerms.extract(it, embedding.sparse, storedSparse(point.vectors)) }
+                SearchHit(point.id.num, point.score, terms.orEmpty())
+            },
             limit = filter.limit,
             offset = filter.offset,
             hasNext = scored.size > filter.limit,
@@ -161,6 +175,18 @@ class SearchService(
             output.dataCount > 0 -> output.dataList
             else -> null
         }
+    }
+
+    /** VectorOutput oneof — 신규는 sparse(SparseVector), 레거시는 indices + data */
+    private fun storedSparse(vectors: Points.VectorsOutput): Map<Long, Float> {
+        val output = vectors.vectors.vectorsMap["sparse"]
+        val pairs = when {
+            output == null -> emptyList()
+            output.hasSparse() -> output.sparse.indicesList.zip(output.sparse.valuesList)
+            output.hasIndices() -> output.indices.dataList.zip(output.dataList)
+            else -> emptyList()
+        }
+        return pairs.associate { (index, value) -> index.toLong() to value }
     }
 
     private fun <T> qdrant(future: Future<T>): T = try {

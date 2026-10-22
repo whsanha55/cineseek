@@ -25,6 +25,7 @@ class EmbedRequest(BaseModel):
 class SparseDto(BaseModel):
     indices: list[int]
     values: list[float]
+    tokens: list[str]  # indices와 같은 순서의 토큰 문자열 — 검색 근거(매칭 단어) 표시용
 
 
 class EmbedItem(BaseModel):
@@ -61,6 +62,7 @@ def embed_texts(req: EmbedRequest) -> EmbedResponse:
             sparse=SparseDto(
                 indices=[int(k) for k in w],
                 values=[float(v) for v in w.values()],
+                tokens=embed.tokens([int(k) for k in w]),
             ),
         )
         for d, w in zip(out["dense_vecs"], out["lexical_weights"])

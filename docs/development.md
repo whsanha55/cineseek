@@ -88,6 +88,7 @@ pnpm lint
 | `limit`, `offset` | 페이지. `limit`은 1~50 |
 
 - 응답은 `items`(영화 카드 + `score`)와 `page{limit, offset, hasNext, total}`이다. `total`은 항상 `null`이다
+- `items[].matchedTerms`는 검색 근거다. 쿼리 sparse와 결과의 저장 sparse에 함께 있는 토큰을 쿼리 원문 단어로 되돌려 기여도 순 최대 3개를 준다. 비어 있으면 의미(dense)로만 찾은 결과다
 - 잘못된 값은 400 ProblemDetail(`code`, `requestId`, `errors`)로 응답한다
 - 전체 엔드포인트는 Swagger(`/swagger-ui.html`)에서 본다
 

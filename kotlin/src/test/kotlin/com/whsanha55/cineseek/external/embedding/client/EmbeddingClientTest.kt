@@ -30,13 +30,13 @@ class EmbeddingClientTest {
         wiremock.stop()
     }
 
-    private fun stubEmbed() {
+    private fun stubEmbed(sparse: String = """{"indices":[10,20],"values":[0.5,0.25],"tokens":["▁탈","출"]}""") {
         wiremock.stubFor(
             WireMock.post("/embed").willReturn(
                 WireMock.okJson(
                     """
 					{"model":"BAAI/bge-m3","items":[
-						{"dense":[0.1,0.2],"sparse":{"indices":[10,20],"values":[0.5,0.25]}}
+						{"dense":[0.1,0.2],"sparse":$sparse}
 					]}
                     """.trimIndent(),
                 ),
@@ -57,7 +57,21 @@ class EmbeddingClientTest {
         assertThat(embedding.dense).containsExactly(0.1f, 0.2f)
         assertThat(embedding.sparse.indices).containsExactly(10L, 20L)
         assertThat(embedding.sparse.values).containsExactly(0.5f, 0.25f)
+        assertThat(embedding.sparse.tokens).containsExactly("▁탈", "출")
         wiremock.verify(1, WireMock.postRequestedFor(WireMock.urlEqualTo("/embed")))
+    }
+
+    @Test
+    fun `tokens가 없는 이전 embed 응답도 읽는다`() {
+        // given
+        stubEmbed("""{"indices":[10,20],"values":[0.5,0.25]}""")
+
+        // when
+        val embedding = client.embed(listOf("a")).single()
+
+        // then
+        assertThat(embedding.sparse.indices).containsExactly(10L, 20L)
+        assertThat(embedding.sparse.tokens).isNull()
     }
 
     @Test
