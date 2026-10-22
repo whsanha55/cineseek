@@ -37,6 +37,27 @@ function stubSearchFetch() {
 	vi.stubGlobal("fetch", fetchMock);
 }
 
+/** 첫 검색만 바로 응답하고, 이후 검색은 release()를 부를 때까지 응답을 붙잡아 두는 fetch 흉내 */
+function stubHeldSearchFetch() {
+	const held: (() => void)[] = [];
+	let searchCount = 0;
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async (input: RequestInfo | URL) => {
+			const url = new URL(String(input), "http://localhost");
+			const body = url.pathname.endsWith("/genres")
+				? { items: [] }
+				: searchResponse(Number(url.searchParams.get("limit") ?? 20));
+			const res = { ok: true, json: async () => body } as unknown as Response;
+			if (url.pathname.endsWith("/genres") || searchCount++ === 0) return res;
+			return new Promise<Response>((resolve) => held.push(() => resolve(res)));
+		}),
+	);
+	return {
+		release: () => act(() => held.splice(0).forEach((resolve) => resolve())),
+	};
+}
+
 /** jsdom은 스크롤을 구현하지 않아 scrollY·scrollTo를 흉내 낸다 */
 function stubScroll() {
 	let y = 0;
@@ -128,5 +149,47 @@ describe("Search 스크롤 복원", () => {
 		expect(screen.getByRole("link", { name: "영화 40 (2000) 상세 보기" })).toBeInTheDocument();
 		expect(router.state.location.search).toBe("?q=우주&genreId=878&limit=40");
 		await waitFor(() => expect(scroll.scrollTo).toHaveBeenLastCalledWith(0, 1800));
+	});
+});
+
+describe("Search 더 보기 로딩", () => {
+	it("다음 개수를 불러오는 동안 기존 결과와 버튼을 그대로 두고 버튼을 비활성화한다", async () => {
+		const fetch = stubHeldSearchFetch();
+		stubScroll();
+		renderApp("/search?q=우주");
+		await screen.findByRole("link", { name: "영화 20 (2000) 상세 보기" });
+
+		await userEvent.click(screen.getByRole("button", { name: "더 보기" }));
+
+		// 포커스된 버튼이 DOM에서 빠지면 실제 브라우저는 스크롤을 맨 위로 보낸다 (#72)
+		expect(screen.getByRole("link", { name: "영화 20 (2000) 상세 보기" })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "불러오는 중…" })).toBeDisabled();
+
+		await fetch.release();
+		expect(await screen.findByRole("link", { name: "영화 40 (2000) 상세 보기" })).toBeInTheDocument();
+
+		// 마지막 단계(50)를 불러오는 동안에도 버튼이 남는다
+		await userEvent.click(screen.getByRole("button", { name: "더 보기" }));
+		expect(screen.getByRole("link", { name: "영화 40 (2000) 상세 보기" })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "불러오는 중…" })).toBeDisabled();
+
+		await fetch.release();
+		expect(await screen.findByRole("link", { name: "영화 50 (2000) 상세 보기" })).toBeInTheDocument();
+		expect(screen.queryByRole("button", { name: /더 보기|불러오는 중/ })).not.toBeInTheDocument();
+	});
+
+	it("검색어가 바뀌면 이전 검색 결과를 남기지 않는다", async () => {
+		const fetch = stubHeldSearchFetch();
+		stubScroll();
+		const router = renderApp("/search?q=우주");
+		await screen.findByRole("link", { name: "영화 20 (2000) 상세 보기" });
+
+		await act(() => router.navigate("/search?q=바다", { replace: true }));
+
+		expect(screen.queryByRole("link", { name: "영화 1 (2000) 상세 보기" })).not.toBeInTheDocument();
+		expect(screen.queryByRole("button", { name: /더 보기|불러오는 중/ })).not.toBeInTheDocument();
+
+		await fetch.release();
+		expect(await screen.findByRole("link", { name: "영화 20 (2000) 상세 보기" })).toBeInTheDocument();
 	});
 });

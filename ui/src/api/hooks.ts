@@ -1,5 +1,5 @@
 /** TanStack Query 훅 — A1~A6 조회. URL 상태가 원천이므로 훅은 파라미터만 받는다 */
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { hashKey, keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiGet } from "./client";
 import { recentIds, type Marks } from "../lib/marks";
 import type { ExploreState, SearchState } from "../lib/urlState";
@@ -14,10 +14,22 @@ import type {
 	WatchProviders,
 } from "./types";
 
+/** limit만 다른 검색인지 — "더 보기"로 늘린 경우 */
+function sameExceptLimit(a: SearchState, b: SearchState): boolean {
+	return hashKey([{ ...a, limit: 0 }]) === hashKey([{ ...b, limit: 0 }]);
+}
+
+/**
+ * "더 보기"로 limit만 늘린 동안에는 이전 결과를 유지한다 (isPlaceholderData).
+ * 결과와 포커스된 버튼이 스켈레톤으로 바뀌면 브라우저가 스크롤을 맨 위로 보낸다 (#72).
+ * 검색어·필터가 바뀌면 다른 검색의 결과를 보여주지 않도록 스켈레톤을 그대로 쓴다
+ */
 export function useSearch(state: SearchState, enabled = true) {
 	return useQuery({
 		queryKey: ["search", state] as const,
 		enabled: enabled && state.q !== "",
+		placeholderData: (prev, prevQuery) =>
+			prevQuery && sameExceptLimit(prevQuery.queryKey[1], state) ? prev : undefined,
 		queryFn: () =>
 			apiGet<SearchResponse>("/cineseek/search", {
 				q: state.q,
