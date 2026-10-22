@@ -4,6 +4,7 @@ import com.whsanha55.cineseek.external.embedding.client.EmbeddingClient
 import com.whsanha55.cineseek.external.qdrant.config.QdrantProperties
 import com.whsanha55.cineseek.search.vo.IndexedMovie
 import com.whsanha55.cineseek.search.vo.MoviePayload
+import com.whsanha55.cineseek.search.vo.PayloadSyncFields
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.qdrant.client.PointIdFactory
 import io.qdrant.client.QdrantClient
@@ -17,6 +18,8 @@ import io.qdrant.client.grpc.JsonWithInt
 import io.qdrant.client.grpc.Points
 import org.springframework.stereotype.Component
 import java.security.MessageDigest
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 private val log = KotlinLogging.logger {}
 
@@ -63,21 +66,23 @@ class MovieIndexer(
     }
 
     /**
-     * 분위기 태그 payload 동기화(MoodTagSyncJob) — 색인된 포인트의 mood_tags만 덮어쓴다. 임베딩은 다시 하지 않는다.
-     * mood_tags를 payload에 넣기 전에 색인된 포인트를 채우는 용도다. PG에만 있고 색인되지 않은 영화는 건너뛴다.
-     * @return mood_tags를 쓴 포인트 수
+     * payload 동기화(PayloadSyncJob) — 색인된 포인트의 mood_tags·release_date만 set_payload로 덮어쓴다.
+     * 다른 키(input_hash 포함)는 그대로 두고 임베딩은 다시 하지 않는다. 이 필드가 payload에 들어가기 전에 색인된 포인트를
+     * 채우는 용도다. PG에만 있고 색인되지 않은 영화는 건너뛰고, 개봉일이 없는 영화는 release_date를 쓰지 않는다.
+     * @return payload를 쓴 포인트 수
      */
-    fun syncMoodTags(moodTags: Map<Long, List<String>>): Int {
+    fun syncPayload(fields: Map<Long, PayloadSyncFields>): Int {
         ensureCollection()
-        createMoodTagsIndex()
-        val targets = storedHashes().keys.filter { it in moodTags }
+        createPayloadIndexes()
+        val targets = storedHashes().keys.filter { it in fields }
         targets.chunked(SET_PAYLOAD_BATCH).forEachIndexed { i, batch ->
             val operations = batch.map { movieId ->
-                val tags = ValueFactory.list(moodTags.getValue(movieId).map { ValueFactory.value(it) })
+                val synced = fields.getValue(movieId)
                 Points.PointsUpdateOperation.newBuilder()
                     .setSetPayload(
                         Points.PointsUpdateOperation.SetPayload.newBuilder()
-                            .putPayload(MOOD_TAGS, tags)
+                            .putPayload(MOOD_TAGS, ValueFactory.list(synced.moodTags.map { ValueFactory.value(it) }))
+                            .apply { synced.releaseDate?.let { putPayload(RELEASE_DATE, releaseDateValue(it)) } }
                             .setPointsSelector(
                                 Points.PointsSelector.newBuilder()
                                     .setPoints(Points.PointsIdsList.newBuilder().addIds(PointIdFactory.id(movieId))),
@@ -86,7 +91,7 @@ class MovieIndexer(
                     .build()
             }
             qdrantClient.batchUpdateAsync(qdrantProperties.collection, operations).get()
-            log.info { "mood_tags 동기화. ${minOf((i + 1) * SET_PAYLOAD_BATCH, targets.size)}/${targets.size}" }
+            log.info { "payload 동기화. ${minOf((i + 1) * SET_PAYLOAD_BATCH, targets.size)}/${targets.size}" }
         }
         return targets.size
     }
@@ -162,21 +167,21 @@ class MovieIndexer(
                 )
                 .build(),
         ).get()
-        createMoodTagsIndex()
+        createPayloadIndexes()
         log.info { "컬렉션 생성(dense+sparse). collection=${qdrantProperties.collection}" }
     }
 
-    /** mood_tags keyword payload 인덱스 — 검색의 태그 일치 필터용. 이미 있으면 Qdrant가 그대로 둔다 */
-    private fun createMoodTagsIndex() {
-        qdrantClient.createPayloadIndexAsync(
-            qdrantProperties.collection,
-            MOOD_TAGS,
-            Collections.PayloadSchemaType.Keyword,
-            null,
-            true,
-            null,
-            null,
-        ).get()
+    /**
+     * payload 인덱스 — mood_tags(keyword)는 검색의 태그 일치 필터용, release_date(datetime)는 투표 수 하한의 최근 개봉 조건용.
+     * 이미 있으면 Qdrant가 그대로 둔다
+     */
+    private fun createPayloadIndexes() {
+        mapOf(
+            MOOD_TAGS to Collections.PayloadSchemaType.Keyword,
+            RELEASE_DATE to Collections.PayloadSchemaType.Datetime,
+        ).forEach { (field, type) ->
+            qdrantClient.createPayloadIndexAsync(qdrantProperties.collection, field, type, null, true, null, null).get()
+        }
     }
 
     /** 저장된 포인트별 임베딩 입력 해시 — 해시가 없는 포인트(이전 방식 색인)는 다시 임베딩된다 */
@@ -213,6 +218,7 @@ class MovieIndexer(
         runtime?.let { put("runtime", ValueFactory.value(it.toLong())) }
         voteCount?.let { put("vote_count", ValueFactory.value(it.toLong())) }
         put(MOOD_TAGS, ValueFactory.list(moodTags.map { ValueFactory.value(it) }))
+        releaseDate?.let { put(RELEASE_DATE, releaseDateValue(it)) }
     }
 
     companion object {
@@ -221,6 +227,11 @@ class MovieIndexer(
         private const val SCROLL_LIMIT = 1000
         private const val INPUT_HASH = "input_hash"
         private const val MOOD_TAGS = "mood_tags"
+        private const val RELEASE_DATE = "release_date"
         private const val SET_PAYLOAD_BATCH = 500
+
+        /** Qdrant datetime payload는 RFC 3339 문자열이다 — 개봉일 자정(UTC). 예: 2026-10-21T00:00:00Z */
+        private fun releaseDateValue(date: LocalDate): JsonWithInt.Value =
+            ValueFactory.value(date.atStartOfDay(ZoneOffset.UTC).toInstant().toString())
     }
 }

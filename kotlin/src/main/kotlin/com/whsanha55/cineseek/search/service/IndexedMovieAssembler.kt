@@ -7,6 +7,7 @@ import com.whsanha55.cineseek.movie.repository.MovieRepository
 import com.whsanha55.cineseek.search.vo.EmbeddingText
 import com.whsanha55.cineseek.search.vo.IndexedMovie
 import com.whsanha55.cineseek.search.vo.MoviePayload
+import com.whsanha55.cineseek.search.vo.PayloadSyncFields
 import org.springframework.stereotype.Component
 
 /**
@@ -31,9 +32,10 @@ class IndexedMovieAssembler(
     /** 전체 재색인(ReindexJob)용 — PG의 모든 영화를 조립한다 */
     fun assembleAll(): List<IndexedMovie> = movieRepository.findAll().mapNotNull(::toIndexedMovie)
 
-    /** 분위기 태그 payload 동기화(MoodTagSyncJob)용 — PG 모든 영화의 movieId → 분위기 태그. 출연진은 읽지 않는다 */
-    fun moodTagsAll(): Map<Long, List<String>> = movieRepository.findAll().associate { movie ->
-        requireNotNull(movie.movieId) { "조회한 영화에 movieId가 없다. tmdbId=${movie.tmdbId}" } to movie.moodTagList()
+    /** payload 동기화(PayloadSyncJob)용 — PG 모든 영화의 movieId → 분위기 태그·개봉일. 출연진은 읽지 않는다 */
+    fun payloadSyncFieldsAll(): Map<Long, PayloadSyncFields> = movieRepository.findAll().associate { movie ->
+        requireNotNull(movie.movieId) { "조회한 영화에 movieId가 없다. tmdbId=${movie.tmdbId}" } to
+            PayloadSyncFields(moodTags = movie.moodTagList(), releaseDate = movie.releaseDate)
     }
 
     private fun toIndexedMovie(movie: MovieEntity): IndexedMovie? {
@@ -62,6 +64,7 @@ class IndexedMovieAssembler(
                 runtime = movie.runtime,
                 voteCount = movie.voteCount,
                 moodTags = moodTags,
+                releaseDate = movie.releaseDate,
             ),
         )
     }

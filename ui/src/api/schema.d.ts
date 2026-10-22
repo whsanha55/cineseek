@@ -476,7 +476,7 @@ export interface operations {
                  */
                 runtimeMax?: number;
                 /**
-                 * @description 투표 수 하한 — 숨은 명작 탐색용. voteCountMin·voteCountMax를 둘 다 생략하면 기본 하한 10을 적용하고, 하나라도 주면 준 값만 적용한다
+                 * @description 투표 수 하한 — 숨은 명작 탐색용. voteCountMin·voteCountMax를 둘 다 생략하면 기본 하한 10을 적용하고(최근 1년 안에 개봉했거나 개봉 예정인 60분 이상 영화는 예외), 하나라도 주면 준 값만 적용한다
                  * @example 50
                  */
                 voteCountMin?: number;

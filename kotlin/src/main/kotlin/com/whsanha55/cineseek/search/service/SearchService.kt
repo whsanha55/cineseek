@@ -1,5 +1,6 @@
 package com.whsanha55.cineseek.search.service
 
+import com.google.protobuf.Timestamp
 import com.whsanha55.cineseek.external.embedding.client.EmbeddingClient
 import com.whsanha55.cineseek.external.qdrant.config.QdrantProperties
 import com.whsanha55.cineseek.global.exception.ExternalApiException
@@ -19,6 +20,9 @@ import io.qdrant.client.WithPayloadSelectorFactory
 import io.qdrant.client.WithVectorsSelectorFactory
 import io.qdrant.client.grpc.Points
 import org.springframework.stereotype.Service
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Future
 
@@ -32,6 +36,7 @@ class SearchService(
     private val embeddingClient: EmbeddingClient,
     private val qdrantProperties: QdrantProperties,
     private val moodTagMatcher: MoodTagMatcher,
+    private val clock: Clock,
 ) {
 
     fun search(query: String, filter: SearchFilter): SearchPage =
@@ -110,7 +115,7 @@ class SearchService(
         )
     }
 
-    /** 유사 영화 — 해당 영화의 저장 dense 벡터로 vector-to-vector 검색 (코사인). 자기 자신과 투표 수 하한 미만은 제외 */
+    /** 유사 영화 — 저장 dense 벡터로 vector-to-vector 검색 (코사인). 자기 자신과 투표 수 하한([voteCountFloor]) 미만은 제외 */
     fun similar(movieId: Long, limit: Int): List<SearchHit> {
         val dense = storedDense(movieId) ?: return emptyList() // 색인 없는 영화 → 유사 목록 없음
 
@@ -120,7 +125,7 @@ class SearchService(
             .setUsing("dense")
             .setFilter(
                 Points.Filter.newBuilder()
-                    .addMust(VOTE_COUNT_FLOOR)
+                    .addMust(voteCountFloor(Instant.now(clock)))
                     .addMustNot(ConditionFactory.hasId(listOf(PointIdFactory.id(movieId))))
                     .build(),
             )
@@ -133,7 +138,7 @@ class SearchService(
 
     /**
      * 취향 추천 — Qdrant recommend(기본 average_vector)에 찜을 positive, 관심없음을 negative 포인트 id로 넘긴다.
-     * 예시로 쓴 영화와 봤어요 영화, 투표 수 하한 미만 영화는 결과에서 뺀다. 없는 포인트 id를 넘기면 Qdrant가 요청 전체를 거절하므로
+     * 예시로 쓴 영화와 봤어요 영화, 투표 수 하한([voteCountFloor]) 미만 영화는 결과에서 뺀다. 없는 포인트 id를 넘기면 Qdrant가 요청 전체를 거절하므로
      * 색인된 id만 남기고, 남은 찜이 없으면 빈 목록이다
      */
     fun recommend(likedIds: List<Long>, dislikedIds: List<Long>, watchedIds: List<Long>, limit: Int): List<SearchHit> {
@@ -158,7 +163,7 @@ class SearchService(
             .setUsing("dense")
             .setFilter(
                 Points.Filter.newBuilder()
-                    .addMust(VOTE_COUNT_FLOOR)
+                    .addMust(voteCountFloor(Instant.now(clock)))
                     .addMustNot(ConditionFactory.hasId(excluded.map { PointIdFactory.id(it) }))
                     .build(),
             )
@@ -231,8 +236,9 @@ class SearchService(
 
     /**
      * payload 필터 — 장르는 OR(should), 제외 장르는 must_not, 나머지는 AND(must). 이름이 아닌 ID 기준.
-     * voteCountMin·voteCountMax를 둘 다 생략하면 [DEFAULT_VOTE_COUNT_MIN] 하한을 건다 (#78) — 줄거리가 짧은 무명작은
-     * 제목 단어만으로 상위에 올라오기 때문이다. 하나라도 명시하면 명시값만 쓴다 ("숨은 명작" 50~500, 무명작 탐색 등)
+     * voteCountMin·voteCountMax를 둘 다 생략하면 [DEFAULT_VOTE_COUNT_MIN] 하한을 건다 (#78, 최근 개봉 장편 예외는 [voteCountFloor]) —
+     * 줄거리가 짧은 무명작은 제목 단어만으로 상위에 올라오기 때문이다. 하나라도 명시하면 명시값만 쓴다
+     * ("숨은 명작" 50~500, 무명작 탐색 등)
      */
     private fun buildFilter(filter: SearchFilter): Points.Filter {
         val must = buildList {
@@ -244,7 +250,7 @@ class SearchService(
             filter.voteCountMin?.let { add(range("vote_count", Points.Range.newBuilder().setGte(it.toDouble()))) }
             filter.voteCountMax?.let { add(range("vote_count", Points.Range.newBuilder().setLte(it.toDouble()))) }
             if (filter.voteCountMin == null && filter.voteCountMax == null) {
-                add(VOTE_COUNT_FLOOR)
+                add(voteCountFloor(Instant.now(clock)))
             }
             filter.directorId?.let { add(ConditionFactory.match("director_ids", it)) }
             filter.castId?.let { add(ConditionFactory.match("cast_ids", it)) }
@@ -261,13 +267,10 @@ class SearchService(
         private const val MOOD_TAGS = "mood_tags"
         private const val CANDIDATE_LIMIT = 50L // 인기도 재정렬 후보 수 (dense·sparse·RRF 각 단계) — 페이지가 깊어지면 offset+limit으로 확장
         private const val DEFAULT_VOTE_COUNT_MIN = 10 // 검색 기본·유사·추천의 투표 수 하한 (#78)
+        private const val RECENT_RELEASE_DAYS = 365L // 이 기간 안에 개봉했거나 개봉 예정인 장편은 하한에서 뺀다 (#85)
+        private const val FEATURE_RUNTIME_MIN = 60 // 하한 예외를 받는 장편의 최소 러닝타임(분) — 단편 제외 (#85)
+        private const val RELEASE_DATE = "release_date"
         private const val POPULARITY_WEIGHT = 0.1f // log10(1 + vote_count) 가중치 — eval로 정했다 (#78)
-
-        /** 투표 수 하한 조건. vote_count payload가 없는 포인트는 range 조건을 만족하지 못해 함께 빠진다 */
-        private val VOTE_COUNT_FLOOR = ConditionFactory.range(
-            "vote_count",
-            Points.Range.newBuilder().setGte(DEFAULT_VOTE_COUNT_MIN.toDouble()).build(),
-        )
 
         /** `$score + w * log10(1 + vote_count)` — 투표 수가 많을수록 조금씩 올린다. vote_count가 없으면 0으로 본다 */
         private val POPULARITY_BOOST: Points.Formula = Points.Formula.newBuilder()
@@ -297,5 +300,41 @@ class SearchService(
             )
             .putDefaults("vote_count", ValueFactory.value(0L))
             .build()
+
+        /**
+         * 투표 수 하한 — vote_count가 [DEFAULT_VOTE_COUNT_MIN] 이상이거나, [now] 기준 최근 [RECENT_RELEASE_DAYS]일 안에 개봉했거나
+         * 개봉 예정인 [FEATURE_RUNTIME_MIN]분 이상 장편이면 통과한다 (#85). 한국 신작은 TMDB 투표가 적어 하한에 모두 걸리기 때문이다.
+         * 러닝타임 조건은 투표가 적은 단편을 계속 걸러낸다.
+         * vote_count·release_date·runtime payload가 없는 포인트는 해당 조건을 만족하지 못한다
+         */
+        private fun voteCountFloor(now: Instant): Points.Condition {
+            val recentFrom = now.minus(Duration.ofDays(RECENT_RELEASE_DAYS))
+            val recentFeature = Points.Filter.newBuilder()
+                .addMust(
+                    ConditionFactory.datetimeRange(
+                        RELEASE_DATE,
+                        Points.DatetimeRange.newBuilder()
+                            .setGte(Timestamp.newBuilder().setSeconds(recentFrom.epochSecond).setNanos(recentFrom.nano))
+                            .build(),
+                    ),
+                )
+                .addMust(
+                    ConditionFactory.range(
+                        "runtime",
+                        Points.Range.newBuilder().setGte(FEATURE_RUNTIME_MIN.toDouble()).build(),
+                    ),
+                )
+                .build()
+            val voteCountMin = ConditionFactory.range(
+                "vote_count",
+                Points.Range.newBuilder().setGte(DEFAULT_VOTE_COUNT_MIN.toDouble()).build(),
+            )
+            return ConditionFactory.filter(
+                Points.Filter.newBuilder()
+                    .addShould(voteCountMin)
+                    .addShould(ConditionFactory.filter(recentFeature))
+                    .build(),
+            )
+        }
     }
 }
