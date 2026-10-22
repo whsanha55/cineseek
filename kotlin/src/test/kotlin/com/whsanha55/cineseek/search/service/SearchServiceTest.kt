@@ -186,6 +186,54 @@ class SearchServiceTest {
     }
 
     @Test
+    fun `recommend — 찜과 가까운 영화를 돌려주고 찜·관심없음·봤어요 영화는 제외한다`() {
+        // given — 영화4·5는 영화1(찜) 방향, 영화4는 봤어요
+        upsertNearMovie1()
+
+        // when
+        val hits = service.recommend(
+            likedIds = listOf(1L),
+            dislikedIds = listOf(2L),
+            watchedIds = listOf(4L),
+            limit = 5,
+        )
+
+        // then
+        assertThat(hits.map { it.movieId }).containsExactly(5L, 3L)
+    }
+
+    @Test
+    fun `recommend — 색인되지 않은 id는 무시한다`() {
+        // given
+        upsertNearMovie1()
+
+        // when
+        val hits = service.recommend(
+            likedIds = listOf(1L, 99L),
+            dislikedIds = listOf(98L),
+            watchedIds = emptyList(),
+            limit = 1,
+        )
+
+        // then
+        assertThat(hits.map { it.movieId }).containsExactly(4L)
+    }
+
+    @Test
+    fun `recommend — 색인된 찜이 없으면 빈 목록`() {
+        // when
+        val hits = service.recommend(
+            likedIds = listOf(99L),
+            dislikedIds = listOf(1L),
+            watchedIds = emptyList(),
+            limit = 5,
+        )
+
+        // then
+        assertThat(hits).isEmpty()
+    }
+
+    @Test
     fun `Qdrant에 연결할 수 없으면 ExternalApiException이 발생한다`() {
         // given
         val unreachable = QdrantClient(
@@ -252,6 +300,14 @@ class SearchServiceTest {
                 120,
                 80,
             ),
+        )
+        qdrantClient.upsertAsync("movies", points).get()
+    }
+
+    private fun upsertNearMovie1() {
+        val points = listOf(
+            point(4L, listOf(0.9f, 0.1f, 0f, 0f), listOf(4), 2001, 7.0, emptyList(), emptyList(), emptyList()),
+            point(5L, listOf(0.8f, 0f, 0.2f, 0f), listOf(5), 2002, 7.0, emptyList(), emptyList(), emptyList()),
         )
         qdrantClient.upsertAsync("movies", points).get()
     }

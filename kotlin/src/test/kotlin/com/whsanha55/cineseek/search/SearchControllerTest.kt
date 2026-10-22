@@ -117,6 +117,55 @@ class SearchControllerTest {
     }
 
     @Test
+    fun `취향 추천은 찜·관심없음·봤어요 id를 반복 파라미터로 받는다`() {
+        // given
+        every { searchFacade.recommend(listOf(1L, 2L, 3L), listOf(4L), listOf(5L), 10) } returns
+            listOf(ScoredMovieCard(card(), 0.9))
+
+        // when
+        val result = mockMvc.get("/cineseek/recommendations") {
+            param("likedId", "1", "2", "3")
+            param("dislikedId", "4")
+            param("watchedId", "5")
+            param("limit", "10")
+        }
+
+        // then
+        result.andExpect {
+            status { isOk() }
+            jsonPath("$.items[0].movieId") { value(1) }
+            jsonPath("$.page.hasNext") { value(false) }
+        }
+    }
+
+    @Test
+    fun `취향 추천은 찜이 없으면 400으로 응답한다`() {
+        // when
+        val result = mockMvc.get("/cineseek/recommendations")
+
+        // then
+        result.andExpect {
+            status { isBadRequest() }
+            jsonPath("$.errors[0].field") { value("likedId") }
+        }
+    }
+
+    @Test
+    fun `취향 추천은 id가 50개를 넘으면 400으로 응답한다`() {
+        // when
+        val result = mockMvc.get("/cineseek/recommendations") {
+            param("likedId", "1")
+            param("watchedId", *Array(51) { "${it + 1}" })
+        }
+
+        // then
+        result.andExpect {
+            status { isBadRequest() }
+            jsonPath("$.errors[0].field") { value("watchedId") }
+        }
+    }
+
+    @Test
     fun `limit이 범위를 벗어나면 400과 필드 오류를 ProblemDetail로 응답한다`() {
         // when
         val result = mockMvc.get("/cineseek/search") {

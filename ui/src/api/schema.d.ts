@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cineseek/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 찜·관심없음 기반 취향 추천 (봤어요는 제외) */
+        get: operations["recommend"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cineseek/people": {
         parameters: {
             query?: never;
@@ -480,6 +497,55 @@ export interface operations {
                  * @example 0
                  */
                 offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SearchResponse"];
+                };
+            };
+        };
+    };
+    recommend: {
+        parameters: {
+            query?: {
+                /**
+                 * @description 찜한 영화 id (반복 파라미터, 1~50개) — 추천 기준
+                 * @example [
+                 *       1,
+                 *       2,
+                 *       3
+                 *     ]
+                 */
+                likedId?: number[];
+                /**
+                 * @description 관심없음 영화 id (반복 파라미터, 최대 50개) — 이 방향에서 멀어진다
+                 * @example [
+                 *       4
+                 *     ]
+                 */
+                dislikedId?: number[];
+                /**
+                 * @description 봤어요 영화 id (반복 파라미터, 최대 50개) — 결과에서만 제외
+                 * @example [
+                 *       5
+                 *     ]
+                 */
+                watchedId?: number[];
+                /**
+                 * @description 결과 수 (1~50)
+                 * @example 20
+                 */
+                limit?: number;
             };
             header?: never;
             path?: never;

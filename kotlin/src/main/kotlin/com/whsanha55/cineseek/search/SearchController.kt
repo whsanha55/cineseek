@@ -1,5 +1,6 @@
 package com.whsanha55.cineseek.search
 
+import com.whsanha55.cineseek.search.dto.RecommendRequest
 import com.whsanha55.cineseek.search.dto.SearchRequest
 import com.whsanha55.cineseek.search.dto.SearchResponse
 import com.whsanha55.cineseek.search.dto.SimilarRequest
@@ -13,7 +14,7 @@ import org.springframework.web.bind.annotation.ModelAttribute
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RestController
 
-@Tag(name = "검색", description = "줄거리 의미 검색 (dense + sparse 하이브리드) · 유사 영화")
+@Tag(name = "검색", description = "줄거리 의미 검색 (dense + sparse 하이브리드) · 유사 영화 · 취향 추천")
 @RestController
 class SearchController(private val searchFacade: SearchFacade) {
 
@@ -28,4 +29,12 @@ class SearchController(private val searchFacade: SearchFacade) {
         @PathVariable id: Long,
         @Valid @ParameterObject @ModelAttribute request: SimilarRequest,
     ): SearchResponse = SearchResponse.from(searchFacade.similar(id, request.limit), request.limit)
+
+    @Operation(summary = "찜·관심없음 기반 취향 추천 (봤어요는 제외)")
+    @GetMapping("/cineseek/recommendations")
+    fun recommend(@Valid @ParameterObject @ModelAttribute request: RecommendRequest): SearchResponse =
+        SearchResponse.from(
+            searchFacade.recommend(request.likedId, request.dislikedId, request.watchedId, request.limit),
+            request.limit,
+        )
 }
