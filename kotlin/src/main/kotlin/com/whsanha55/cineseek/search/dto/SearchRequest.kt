@@ -38,12 +38,16 @@ data class SearchRequest(
     @field:Max(MAX_RUNTIME)
     val runtimeMax: Int? = null,
 
-    @field:Schema(description = "투표 수 하한 — 숨은 명작 탐색용", example = "50")
+    @field:Schema(
+        description = "투표 수 하한 — 숨은 명작 탐색용. voteCountMin·voteCountMax를 둘 다 생략하면 기본 하한 10을 적용하고, " +
+            "하나라도 주면 준 값만 적용한다",
+        example = "50",
+    )
     @field:Min(0)
     @field:Max(MAX_VOTE_COUNT)
     val voteCountMin: Int? = null,
 
-    @field:Schema(description = "투표 수 상한 — 숨은 명작 탐색용", example = "500")
+    @field:Schema(description = "투표 수 상한 — 숨은 명작 탐색용. 주면 기본 하한 10은 적용하지 않는다", example = "500")
     @field:Min(0)
     @field:Max(MAX_VOTE_COUNT)
     val voteCountMax: Int? = null,
