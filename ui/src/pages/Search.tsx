@@ -19,7 +19,7 @@ export function Search() {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const navigate = useNavigate();
 	const state = parseSearchState(searchParams);
-	const { data, isPending, isError, refetch } = useSearch(state);
+	const { data, isPending, isPlaceholderData, isError, refetch } = useSearch(state);
 
 	// 필터 한 항목 변경 — replace (§3). 같은 화면 안의 변경이라 스크롤을 맨 위로 되돌리지 않는다 ("더 보기" 후 제자리)
 	const patch = useCallback(
@@ -38,7 +38,9 @@ export function Search() {
 	const clearFilters = () => patch({ ...DEFAULT_SEARCH_STATE, q: state.q, limit: state.limit });
 
 	const nextLimit = SEARCH_LIMITS[Math.min(SEARCH_LIMITS.findIndex((l) => l === state.limit) + 1, SEARCH_LIMITS.length - 1)];
-	const canLoadMore = data?.page.hasNext === true && state.limit < SEARCH_LIMITS[SEARCH_LIMITS.length - 1];
+	// 마지막 단계(50)를 불러오는 동안에도 버튼을 남긴다 — 포커스된 버튼이 빠지면 스크롤이 튄다 (#72)
+	const canLoadMore =
+		data?.page.hasNext === true && (isPlaceholderData || state.limit < SEARCH_LIMITS[SEARCH_LIMITS.length - 1]);
 
 	if (!state.q) {
 		// 초기 진입 — q 없으면 안내만 (폼 제출은 항상 q를 싣고 온다)
@@ -77,9 +79,10 @@ export function Search() {
 							<button
 								type="button"
 								onClick={() => patch({ limit: nextLimit })}
-								className="rounded-[var(--radius)] border border-border bg-background px-6 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-surface"
+								disabled={isPlaceholderData}
+								className="rounded-[var(--radius)] border border-border bg-background px-6 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-surface disabled:opacity-50"
 							>
-								더 보기
+								{isPlaceholderData ? "불러오는 중…" : "더 보기"}
 							</button>
 						</div>
 					)}
