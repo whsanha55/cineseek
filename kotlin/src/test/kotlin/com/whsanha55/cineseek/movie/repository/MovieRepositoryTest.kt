@@ -102,4 +102,33 @@ class MovieRepositoryTest {
         assertThat(movieDirectorRepository.count()).isZero()
         assertThat(movieCastRepository.count()).isZero()
     }
+
+    @Test
+    fun `findRequiringMoodTag — 현재 버전에서 영구 실패한 영화는 빼고 이전 버전 실패는 다시 넣는다`() {
+        // given
+        val current = "glm/mood-current"
+        val untagged = movieRepository.save(MovieEntity(tmdbId = 1L, title = "미태깅", overview = "줄거리"))
+        movieRepository.save(
+            MovieEntity(tmdbId = 2L, title = "현재 버전 실패", overview = "줄거리", moodFailedModel = current),
+        )
+        val oldFailure = movieRepository.save(
+            MovieEntity(tmdbId = 3L, title = "이전 버전 실패", overview = "줄거리", moodFailedModel = "glm/mood-old"),
+        )
+        movieRepository.save(
+            MovieEntity(
+                tmdbId = 4L,
+                title = "직접 넣은 태그",
+                overview = "줄거리",
+                moodTags = "잔혹한, 어두운",
+                moodDesc = "직접 넣은 설명",
+                moodModel = current,
+            ),
+        )
+
+        // when
+        val targets = movieRepository.findRequiringMoodTag(current)
+
+        // then
+        assertThat(targets.map { it.movieId }).containsExactlyInAnyOrder(untagged.movieId, oldFailure.movieId)
+    }
 }

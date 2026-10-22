@@ -12,3 +12,8 @@ internal data class LlmMessage(val role: String, val content: String)
 internal data class LlmChatResponse(val choices: List<LlmChoice>)
 
 internal data class LlmChoice(val message: LlmMessage)
+
+/** 오류 응답 본문 — error.code로 영구 실패(콘텐츠 필터)를 가린다. 예: {"error":{"code":"1301","message":"..."}} */
+internal data class LlmErrorResponse(val error: LlmError? = null)
+
+internal data class LlmError(val code: String? = null)

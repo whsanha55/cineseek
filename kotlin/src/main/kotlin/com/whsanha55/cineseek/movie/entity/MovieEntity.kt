@@ -40,6 +40,7 @@ class MovieEntity(
     moodDesc: String? = null,
     moodModel: String? = null,
     moodTaggedAt: Instant? = null,
+    moodFailedModel: String? = null,
 ) : BaseEntity() {
 
     @Id
@@ -90,6 +91,9 @@ class MovieEntity(
     var moodTaggedAt: Instant? = moodTaggedAt
         protected set
 
+    var moodFailedModel: String? = moodFailedModel
+        protected set
+
     @ManyToMany
     @JoinTable(
         name = "movie_genre",
@@ -118,6 +122,15 @@ class MovieEntity(
         moodDesc = desc
         moodModel = model
         moodTaggedAt = now
+        moodFailedModel = null
+    }
+
+    /**
+     * 분위기 태깅 영구 실패 기록 — 이 태깅 버전에서는 다시 시도하지 않는다.
+     * 이전 버전의 태그는 지우지 않는다 (없는 것보다 낫다)
+     */
+    fun markMoodFailed(model: String) {
+        moodFailedModel = model
     }
 
     fun replaceGenres(newGenres: Collection<GenreEntity>) {

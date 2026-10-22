@@ -33,7 +33,10 @@ interface MovieRepository :
     )
     fun findAllTmdbIds(): List<Long>
 
-    /** 분위기 태그가 필요한 영화 — overview 있고 현재 태그 버전과 다른 것 (IS NULL과 비교 혼합이라 파생 쿼리 불가) */
+    /**
+     * 분위기 태그가 필요한 영화 — overview 있고 현재 태그 버전과 다르며, 현재 버전에서 영구 실패하지 않은 것
+     * (IS NULL과 비교 혼합이라 파생 쿼리 불가)
+     */
     @Query(
         """
         SELECT m
@@ -42,6 +45,10 @@ interface MovieRepository :
             AND (
                 m.moodModel IS NULL
                 OR m.moodModel <> :version
+            )
+            AND (
+                m.moodFailedModel IS NULL
+                OR m.moodFailedModel <> :version
             )
         """,
     )
