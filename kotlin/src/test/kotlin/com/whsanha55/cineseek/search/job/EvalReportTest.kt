@@ -181,6 +181,44 @@ class EvalReportTest {
         assertThat(comparison.isRegression).isFalse()
     }
 
+    @Test
+    fun `제목 검색 쿼리는 전체 평균과 내용 검색 비교에서 빠지고 유형별로만 집계된다`() {
+        // given
+        val scores = listOf(
+            score("q1", EvalQueryTypeEnum.PLOT, ndcg = 0.5, rr = 0.5),
+            score("t1", EvalQueryTypeEnum.TITLE, ndcg = 1.0, rr = 1.0),
+        )
+        val baseline = baselineOf("q1" to BaselineScore(0.5, 0.5, HASH), "t1" to BaselineScore(1.0, 1.0, HASH))
+
+        // when
+        val report = EvalReport(scores, baseline)
+
+        // then
+        assertThat(report.overall).isEqualTo(MeanScore(0.5, 0.5, 1))
+        assertThat(report.byType[EvalQueryTypeEnum.TITLE]).isEqualTo(MeanScore(1.0, 1.0, 1))
+        assertThat(requireNotNull(report.comparison).current.count).isEqualTo(1)
+        assertThat(report.separateComparisons).containsOnlyKeys(EvalQueryTypeEnum.TITLE)
+        assertThat(report.isRegression).isFalse()
+    }
+
+    @Test
+    fun `내용 검색이 그대로여도 제목 검색 평균이 떨어지면 회귀다`() {
+        // given
+        val scores = listOf(
+            score("q1", EvalQueryTypeEnum.PLOT, ndcg = 0.5, rr = 0.5),
+            score("t1", EvalQueryTypeEnum.TITLE, ndcg = 0.63, rr = 0.5),
+        )
+        val baseline = baselineOf("q1" to BaselineScore(0.5, 0.5, HASH), "t1" to BaselineScore(1.0, 1.0, HASH))
+
+        // when
+        val report = EvalReport(scores, baseline)
+
+        // then
+        assertThat(requireNotNull(report.comparison).isRegression).isFalse()
+        assertThat(report.separateComparisons.getValue(EvalQueryTypeEnum.TITLE).isRegression).isTrue()
+        assertThat(report.isRegression).isTrue()
+    }
+
     private fun score(
         query: String,
         type: EvalQueryTypeEnum = EvalQueryTypeEnum.PLOT,

@@ -13,7 +13,7 @@ class EvalQueryTest {
         .build()
 
     @Test
-    fun `평가 쿼리 파일을 읽으면 30개 쿼리가 유형별로 로딩된다`() {
+    fun `평가 쿼리 파일을 읽으면 64개 쿼리가 유형별로 로딩된다`() {
         // given
         val resource = "eval/queries.json"
 
@@ -21,13 +21,14 @@ class EvalQueryTest {
         val queries = EvalQuery.load(mapper, resource)
 
         // then
-        assertThat(queries).hasSize(30)
+        assertThat(queries).hasSize(64)
         val countsByType = queries.groupingBy { it.type }.eachCount()
         assertThat(countsByType).containsExactlyInAnyOrderEntriesOf(
             mapOf(
                 EvalQueryTypeEnum.PLOT to 10,
                 EvalQueryTypeEnum.MOOD to 17,
                 EvalQueryTypeEnum.EN to 3,
+                EvalQueryTypeEnum.TITLE to 34,
             ),
         )
     }
