@@ -46,8 +46,8 @@ const RESPONSE: FilmographyResponse = {
 
 /** client.ts가 쓰는 ok·json만 갖춘 최소 fetch 흉내 (msw 없이) */
 function stubFetch(body: unknown, ok = true) {
-	const fetchMock = vi.fn(
-		async (_input: RequestInfo | URL) => ({ ok, json: async () => body }) as unknown as Response,
+	const fetchMock = vi.fn<(input: RequestInfo | URL) => Promise<Response>>(
+		async () => ({ ok, json: async () => body }) as unknown as Response,
 	);
 	vi.stubGlobal("fetch", fetchMock);
 	return fetchMock;
