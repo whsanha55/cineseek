@@ -58,6 +58,7 @@ API 문서는 http://localhost:8080/swagger-ui.html 에 있다.
 ## 문서
 
 - [개발 가이드](docs/development.md) — 환경변수, IDE 실행, 테스트, 프론트엔드, 검색 API, 평가
+- [E2E 실행](docs/development.md#e2e) — `scripts/e2e/server.sh start` 후 `scripts/e2e/run-all.sh`
 - [운영 가이드](docs/operations.md) — 상시 수집 스케줄러, 수집 보고, 서버 배포
 - [임베딩 서비스 계약](python/README.md) — `POST /embed`
 - [Kotlin 코드 규칙](kotlin/CLAUDE.md)

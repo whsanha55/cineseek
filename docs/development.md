@@ -10,6 +10,7 @@ cineseek/
 ├── python/             embed — 임베딩 서비스 (POST /embed)
 ├── ui/                 프론트엔드 SPA
 ├── docs/               개발·운영 문서, 코드 컨벤션
+├── scripts/e2e/        백엔드 E2E 스크립트 (curl + jq)
 ├── openapi.json        API 스펙 스냅샷 (프론트 타입 생성의 원본)
 ├── compose.yml         공통 서비스 정의
 ├── compose.local.yml   로컬용 덮어쓰기 — 전용 postgres, 포트 노출, local profile
@@ -57,6 +58,29 @@ cd kotlin && SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 cd kotlin && ./gradlew test   # Testcontainers 사용 — Docker만 떠 있으면 된다
 cd ui && pnpm test            # Vitest
 ```
+
+## E2E
+
+빌드한 bootJar를 `java -jar`로 띄우고 실제 PG·Qdrant·embed에 붙여 `curl`로 API를 호출하는 셸 스크립트다. 제3자 API인 TMDB와 LLM만 WireMock 스텁으로 바꾼다. Docker, Java 25, `jq`가 필요하다.
+
+```bash
+scripts/e2e/server.sh start    # 컨테이너 기동 → bootJar 빌드 → api 실행(e2e profile) → health 대기
+scripts/e2e/run-all.sh         # 전체 실행. 일부만: scripts/e2e/run-all.sh movie search
+scripts/e2e/server.sh stop     # api 종료, 컨테이너와 데이터 삭제
+```
+
+| 서비스 | 포트 |
+|---|---|
+| `api` | 18080 |
+| `postgres` | 15432 (`e2e` / `e2e`, DB `cineseek`) |
+| `qdrant` | 16334 (gRPC) |
+| `embed` | 18001 |
+| `stub` (WireMock) | 18089 — TMDB는 `/tmdb/3`, LLM은 `/llm/v1` 아래 |
+
+- 영화·인물은 수집 스케줄러만 만든다. 그래서 각 스크립트가 고유한 TMDB id로 스텁을 등록하고 `collect_task`를 SQL로 넣은 뒤, 수집 → 분위기 태깅 → 임베딩 → 색인이 끝날 때까지 API를 반복 호출한다
+- 설정은 `scripts/e2e/application-e2e.yml`, 기본 스텁은 `scripts/e2e/stub/`, api 로그는 `scripts/e2e/.run/app.log`에 있다
+- embed 모델은 로컬 compose의 캐시 볼륨(`gonamu-cineseek_gonamu_embed_models`)을 같이 쓴다. 볼륨이 없으면 첫 실행에서 embed 이미지 빌드와 모델(~2GB) 다운로드로 오래 걸린다
+- API를 추가하거나 동작을 바꾸면 해당 `scripts/e2e/{resource}-e2e.sh`를 함께 고친다
 
 ## 프론트엔드
 

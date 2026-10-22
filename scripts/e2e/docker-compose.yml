@@ -1,0 +1,56 @@
+# E2E 인프라 — api(bootJar)는 호스트에서 java -jar로 띄우고, 나머지만 컨테이너로 둔다.
+# 실제: postgres, qdrant, embed(bge-m3). 스텁: TMDB·LLM(WireMock, 경로 접두로 구분)
+# 포트는 로컬 compose(5432·6334·8001·8080)와 겹치지 않게 1xxxx를 쓴다. 데이터는 볼륨에 남기지 않는다 (server.sh stop이 지운다)
+name: cineseek-e2e
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: e2e
+      POSTGRES_PASSWORD: e2e
+      POSTGRES_DB: cineseek
+    ports:
+      - "15432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U e2e -d cineseek"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "16334:6334"   # gRPC (Kotlin 클라이언트)
+
+  # compose.yml과 같은 python/ 빌드. 모델(~2GB)은 로컬 compose의 캐시 볼륨을 함께 쓴다
+  embed:
+    build:
+      context: ../../python
+    environment:
+      EMBED_MODEL: BAAI/bge-m3
+      EMBED_DEVICE: cpu
+    volumes:
+      - embed-models:/models
+    ports:
+      - "18001:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 120
+      start_period: 60s   # 첫 기동은 모델 다운로드로 수 분 걸린다
+
+  # TMDB(/tmdb/3/...)·LLM(/llm/v1/...) 스텁. 기본 매핑은 stub/, 스크립트별 매핑은 admin API로 등록한다
+  stub:
+    image: wiremock/wiremock:3.13.1
+    command: ["--disable-banner"]
+    volumes:
+      - ./stub:/home/wiremock/mappings:ro
+    ports:
+      - "18089:8080"
+
+volumes:
+  embed-models:
+    external: true   # down -v로 지우지 않게 — server.sh가 없으면 만든다
+    name: ${E2E_EMBED_MODELS_VOLUME:-gonamu-cineseek_gonamu_embed_models}

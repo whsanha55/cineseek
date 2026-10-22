@@ -1,0 +1,30 @@
+# E2E 설정 — server.sh가 --spring.profiles.active=e2e와 이 폴더를 additional-location으로 넘긴다.
+# 접속 주소는 docker-compose.yml의 호스트 포트, 제3자 API(TMDB·LLM)는 WireMock 스텁으로 돌린다
+server:
+  port: 18080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:15432/cineseek
+    username: e2e
+    password: e2e
+
+cineseek:
+  collect:
+    enabled: true          # 영화·인물 데이터는 수집 스케줄러로만 만들어진다
+    interval: 1s           # 스크립트가 넣은 작업을 바로 처리하게
+    retry-base: 1s
+    seed-person-ids: ""    # 시드 인물 수집 끔 — bootstrap discover는 스텁이 빈 페이지를 준다
+    daily-cron: "-"        # 일일 증분 끔
+  embedding:
+    base-url: http://localhost:18001
+  llm:
+    base-url: http://localhost:18089/llm/v1
+    api-key: e2e-dummy     # 비어 있으면 분위기 태깅을 건너뛴다
+    model: e2e-model
+  tmdb:
+    base-url: http://localhost:18089/tmdb/3
+    access-token: e2e-dummy
+  qdrant:
+    grpc-url: localhost:16334
+    collection: movies
