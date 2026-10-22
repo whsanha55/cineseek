@@ -239,33 +239,6 @@ class SearchServiceTest {
     }
 
     @Test
-    fun `RRF k=10 — 한 목록 1위보다 두 목록 모두 2위인 영화가 앞선다`() {
-        // given — 장르 98 영화 5편, 투표 수는 같다. sparse 순위는 쿼리 토큰을 많이 가진 순서다.
-        // dense 순위: 11(1위) 12(2위) 13(3위) 15(4위) 14(5위) / sparse 순위: 14(1위) 12(2위) 13(3위) 11(4위)
-        // k=2면 11이 1/2 + 1/5 = 0.70으로 12(1/3 + 1/3 = 0.67)를 앞서고, k=10이면 12가 2/11 = 0.182로 11(1/10 + 1/13 = 0.177)을 앞선다
-        val movie = { id: Long, dense: List<Float>, tokens: List<Int> ->
-            point(id, dense, tokens, 2015, 7.0, listOf(98L), emptyList(), emptyList(), 100, 100)
-        }
-        qdrantClient.upsertAsync(
-            "movies",
-            listOf(
-                movie(11L, listOf(0f, 0f, 0f, 1f), listOf(91)),
-                movie(12L, listOf(0f, 0f, 0.2f, 1f), listOf(91, 92, 93)),
-                movie(13L, listOf(0f, 0f, 0.5f, 1f), listOf(91, 92)),
-                movie(14L, listOf(0f, 0f, 1f, 0.1f), listOf(91, 92, 93, 94)),
-                movie(15L, listOf(0f, 0f, 1f, 0.5f), emptyList()),
-            ),
-        ).get()
-        stubEmbed(sparse = """{"indices":[91,92,93,94],"values":[0.9,0.9,0.9,0.9]}""", dense = "[0.0,0.0,0.0,1.0]")
-
-        // when
-        val page = service.search("쿼리", SearchFilter(genreIds = listOf(98L), limit = 5))
-
-        // then
-        assertThat(page.hits.map { it.movieId }.take(2)).containsExactly(12L, 11L)
-    }
-
-    @Test
     fun `directorId castId 필터가 payload에 적용된다`() {
         // when
         val byDirector = service.search("쿼리", SearchFilter(directorId = 100L, limit = 5))

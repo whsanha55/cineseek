@@ -18,7 +18,6 @@ import io.qdrant.client.ValueFactory
 import io.qdrant.client.VectorInputFactory
 import io.qdrant.client.WithPayloadSelectorFactory
 import io.qdrant.client.WithVectorsSelectorFactory
-import io.qdrant.client.grpc.Common
 import io.qdrant.client.grpc.Points
 import org.springframework.stereotype.Service
 import java.time.Clock
@@ -47,7 +46,7 @@ class SearchService(
      * 쿼리 묶음을 한 번의 임베딩 배치로 처리하는 진입점 (EvalRunner용 — python eval.py와 같은 배치).
      * query가 있으면 결과의 저장 sparse를 함께 받아 매칭 단어를 계산한다 (재색인 없이 저장 벡터만 사용)
      *
-     * dense·sparse 후보를 RRF(k=[RRF_K])로 합친 상위 [CANDIDATE_LIMIT]개를 인기도로 재정렬한다 (#78).
+     * dense·sparse 후보를 RRF로 합친 상위 [CANDIDATE_LIMIT]개를 인기도로 재정렬한다 (#78).
      * 후보 수를 dense·sparse·RRF 단계 모두 같게 두어 offset+limit이 후보 수 안이면 페이지마다 같은 후보 집합을
      * 재정렬하므로 페이지 사이에 중복·누락이 없다. 더 깊은 페이지는 offset+limit만큼 후보를 늘린다.
      *
@@ -85,7 +84,7 @@ class SearchService(
                     addPrefetch(prefetch(dense, "dense", moodFilter, candidateLimit))
                 }
             }
-            .setQuery(QueryFactory.rrf(Points.Rrf.newBuilder().setK(RRF_K).build()))
+            .setQuery(QueryFactory.fusion(Points.Fusion.RRF))
             .setLimit(candidateLimit)
             .build()
         val request = Points.QueryPoints.newBuilder()
@@ -125,7 +124,7 @@ class SearchService(
             .setQuery(QueryFactory.nearest(VectorInputFactory.vectorInput(dense.toList())))
             .setUsing("dense")
             .setFilter(
-                Common.Filter.newBuilder()
+                Points.Filter.newBuilder()
                     .addMust(voteCountFloor(Instant.now(clock)))
                     .addMustNot(ConditionFactory.hasId(listOf(PointIdFactory.id(movieId))))
                     .build(),
@@ -163,7 +162,7 @@ class SearchService(
             )
             .setUsing("dense")
             .setFilter(
-                Common.Filter.newBuilder()
+                Points.Filter.newBuilder()
                     .addMust(voteCountFloor(Instant.now(clock)))
                     .addMustNot(ConditionFactory.hasId(excluded.map { PointIdFactory.id(it) }))
                     .build(),
@@ -226,7 +225,7 @@ class SearchService(
     private fun prefetch(
         query: Points.Query,
         using: String,
-        filter: Common.Filter,
+        filter: Points.Filter,
         limit: Long,
     ): Points.PrefetchQuery = Points.PrefetchQuery.newBuilder()
         .setQuery(query)
@@ -241,15 +240,15 @@ class SearchService(
      * 줄거리가 짧은 무명작은 제목 단어만으로 상위에 올라오기 때문이다. 하나라도 명시하면 명시값만 쓴다
      * ("숨은 명작" 50~500, 무명작 탐색 등)
      */
-    private fun buildFilter(filter: SearchFilter): Common.Filter {
+    private fun buildFilter(filter: SearchFilter): Points.Filter {
         val must = buildList {
-            filter.yearMin?.let { add(range("release_year", Common.Range.newBuilder().setGte(it.toDouble()))) }
-            filter.yearMax?.let { add(range("release_year", Common.Range.newBuilder().setLte(it.toDouble()))) }
-            filter.ratingMin?.let { add(range("rating", Common.Range.newBuilder().setGte(it))) }
-            filter.runtimeMin?.let { add(range("runtime", Common.Range.newBuilder().setGte(it.toDouble()))) }
-            filter.runtimeMax?.let { add(range("runtime", Common.Range.newBuilder().setLte(it.toDouble()))) }
-            filter.voteCountMin?.let { add(range("vote_count", Common.Range.newBuilder().setGte(it.toDouble()))) }
-            filter.voteCountMax?.let { add(range("vote_count", Common.Range.newBuilder().setLte(it.toDouble()))) }
+            filter.yearMin?.let { add(range("release_year", Points.Range.newBuilder().setGte(it.toDouble()))) }
+            filter.yearMax?.let { add(range("release_year", Points.Range.newBuilder().setLte(it.toDouble()))) }
+            filter.ratingMin?.let { add(range("rating", Points.Range.newBuilder().setGte(it))) }
+            filter.runtimeMin?.let { add(range("runtime", Points.Range.newBuilder().setGte(it.toDouble()))) }
+            filter.runtimeMax?.let { add(range("runtime", Points.Range.newBuilder().setLte(it.toDouble()))) }
+            filter.voteCountMin?.let { add(range("vote_count", Points.Range.newBuilder().setGte(it.toDouble()))) }
+            filter.voteCountMax?.let { add(range("vote_count", Points.Range.newBuilder().setLte(it.toDouble()))) }
             if (filter.voteCountMin == null && filter.voteCountMax == null) {
                 add(voteCountFloor(Instant.now(clock)))
             }
@@ -258,10 +257,10 @@ class SearchService(
         }
         val should = filter.genreIds.map { ConditionFactory.match("genre_ids", it) }
         val mustNot = filter.excludeGenreIds.map { ConditionFactory.match("genre_ids", it) }
-        return Common.Filter.newBuilder().addAllMust(must).addAllShould(should).addAllMustNot(mustNot).build()
+        return Points.Filter.newBuilder().addAllMust(must).addAllShould(should).addAllMustNot(mustNot).build()
     }
 
-    private fun range(key: String, range: Common.Range.Builder) = ConditionFactory.range(key, range.build())
+    private fun range(key: String, range: Points.Range.Builder) = ConditionFactory.range(key, range.build())
 
     companion object {
         private const val QDRANT = "qdrant"
@@ -271,8 +270,7 @@ class SearchService(
         private const val RECENT_RELEASE_DAYS = 365L // 이 기간 안에 개봉했거나 개봉 예정인 장편은 하한에서 뺀다 (#85)
         private const val FEATURE_RUNTIME_MIN = 60 // 하한 예외를 받는 장편의 최소 러닝타임(분) — 단편 제외 (#85)
         private const val RELEASE_DATE = "release_date"
-        private const val POPULARITY_WEIGHT = 0.05f // log10(1 + vote_count) 가중치 — RRF_K와 함께 eval로 정했다 (#78, #40)
-        private const val RRF_K = 10 // RRF 순위 상수 1/(k + rank). Qdrant 기본값 2보다 완만하게 해 한 목록의 1위가 독주하지 않게 한다 (#40)
+        private const val POPULARITY_WEIGHT = 0.1f // log10(1 + vote_count) 가중치 — eval로 정했다 (#78)
 
         /** `$score + w * log10(1 + vote_count)` — 투표 수가 많을수록 조금씩 올린다. vote_count가 없으면 0으로 본다 */
         private val POPULARITY_BOOST: Points.Formula = Points.Formula.newBuilder()
@@ -309,13 +307,13 @@ class SearchService(
          * 러닝타임 조건은 투표가 적은 단편을 계속 걸러낸다.
          * vote_count·release_date·runtime payload가 없는 포인트는 해당 조건을 만족하지 못한다
          */
-        private fun voteCountFloor(now: Instant): Common.Condition {
+        private fun voteCountFloor(now: Instant): Points.Condition {
             val recentFrom = now.minus(Duration.ofDays(RECENT_RELEASE_DAYS))
-            val recentFeature = Common.Filter.newBuilder()
+            val recentFeature = Points.Filter.newBuilder()
                 .addMust(
                     ConditionFactory.datetimeRange(
                         RELEASE_DATE,
-                        Common.DatetimeRange.newBuilder()
+                        Points.DatetimeRange.newBuilder()
                             .setGte(Timestamp.newBuilder().setSeconds(recentFrom.epochSecond).setNanos(recentFrom.nano))
                             .build(),
                     ),
@@ -323,16 +321,16 @@ class SearchService(
                 .addMust(
                     ConditionFactory.range(
                         "runtime",
-                        Common.Range.newBuilder().setGte(FEATURE_RUNTIME_MIN.toDouble()).build(),
+                        Points.Range.newBuilder().setGte(FEATURE_RUNTIME_MIN.toDouble()).build(),
                     ),
                 )
                 .build()
             val voteCountMin = ConditionFactory.range(
                 "vote_count",
-                Common.Range.newBuilder().setGte(DEFAULT_VOTE_COUNT_MIN.toDouble()).build(),
+                Points.Range.newBuilder().setGte(DEFAULT_VOTE_COUNT_MIN.toDouble()).build(),
             )
             return ConditionFactory.filter(
-                Common.Filter.newBuilder()
+                Points.Filter.newBuilder()
                     .addShould(voteCountMin)
                     .addShould(ConditionFactory.filter(recentFeature))
                     .build(),
