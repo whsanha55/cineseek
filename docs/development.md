@@ -108,9 +108,11 @@ pnpm lint
 | `excludeGenreId` | 제외 장르. 여러 번 주면 하나라도 겹치는 영화를 뺀다 |
 | `yearMin`, `yearMax` | 개봉 연도 범위 |
 | `ratingMin` | 최소 평점 |
+| `voteCountMin`, `voteCountMax` | 투표 수 범위. 둘 다 생략하면 하한 10을 적용하고, 하나라도 주면 준 값만 적용한다 |
 | `directorId`, `castId` | 감독·배우 TMDB id |
 | `limit`, `offset` | 페이지. `limit`은 1~50 |
 
+- dense·sparse 각 상위 50개를 RRF로 합친 상위 50개를 `RRF 점수 + 0.1 × log10(1 + 투표 수)`로 다시 정렬한다. `offset + limit`이 50을 넘으면 후보를 그만큼 늘린다
 - 응답은 `items`(영화 카드 + `score`)와 `page{limit, offset, hasNext, total}`이다. `total`은 항상 `null`이다
 - `items[].matchedTerms`는 검색 근거다. 쿼리 sparse와 결과의 저장 sparse에 함께 있는 토큰을 쿼리 원문 단어로 되돌려 기여도 순 최대 3개를 준다. 비어 있으면 의미(dense)로만 찾은 결과다
 - 잘못된 값은 400 ProblemDetail(`code`, `requestId`, `errors`)로 응답한다
@@ -128,7 +130,7 @@ pnpm lint
 | `limit` | 1~50. 기본 20 |
 
 - Qdrant recommend API에 찜을 positive, 관심없음을 negative 포인트 id(= `movieId`)로 넘기고 `dense` 벡터로 찾는다
-- 찜·관심없음·봤어요 영화는 결과에 나오지 않는다. 아직 색인되지 않은 id는 무시하고, 남는 찜이 없으면 빈 목록이다
+- 찜·관심없음·봤어요 영화와 투표 수 10 미만 영화는 결과에 나오지 않는다 (유사 영화도 같은 하한). 아직 색인되지 않은 id는 무시하고, 남는 찜이 없으면 빈 목록이다
 - 응답 형태는 유사 영화와 같다 (`items[].score`는 코사인 유사도, `page.hasNext`는 항상 `false`)
 
 ## 배치 작업

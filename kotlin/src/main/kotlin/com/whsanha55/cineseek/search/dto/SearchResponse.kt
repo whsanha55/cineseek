@@ -35,7 +35,7 @@ data class SearchItemResponse(
     val voteCount: Int?,
     val posterPath: String?,
     val genres: List<GenreResponse>,
-    @field:Schema(description = "검색은 RRF 점수, 유사 영화는 코사인 유사도", example = "0.032")
+    @field:Schema(description = "검색은 RRF 점수 + 0.1 × log10(1 + 투표 수), 유사 영화는 코사인 유사도", example = "0.62")
     val score: Double,
     @field:Schema(
         description = "쿼리와 줄거리 등 색인 텍스트에 함께 있는 단어 (sparse 기여도 순, 최대 3개). " +

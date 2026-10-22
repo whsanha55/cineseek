@@ -120,11 +120,11 @@ stub_tmdb() {
   }')"
 }
 
-# stub_movie tmdbId 제목 줄거리 감독id 감독이름 배우id 배우이름 배역 — TMDB 영화 상세 + credits (장르: 드라마 18)
+# stub_movie tmdbId 제목 줄거리 감독id 감독이름 배우id 배우이름 배역 [투표수=1200] — TMDB 영화 상세 + credits (장르: 드라마 18)
 stub_movie() {
-  stub_tmdb "/movie/$1" "$(jq -n --argjson id "$1" --arg title "$2" --arg overview "$3" '{
+  stub_tmdb "/movie/$1" "$(jq -n --argjson id "$1" --arg title "$2" --arg overview "$3" --argjson votes "${9:-1200}" '{
     id: $id, title: $title, original_title: ("Original " + $title), overview: $overview,
-    release_date: "2024-05-01", runtime: 110, vote_average: 7.8, vote_count: 1200,
+    release_date: "2024-05-01", runtime: 110, vote_average: 7.8, vote_count: $votes,
     poster_path: "/e2e-poster.jpg", original_language: "ko", origin_country: ["KR"],
     genres: [{id: 18, name: "드라마"}]
   }')"

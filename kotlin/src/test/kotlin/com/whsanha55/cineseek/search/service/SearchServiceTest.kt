@@ -28,7 +28,7 @@ import java.time.Duration
 
 /**
  * SearchService 통합 테스트 — 실제 Qdrant 컨테이너(dense 4차원 + sparse) + WireMock 임베딩 스텁.
- * prefetch 20 + RRF + payload ID 필터 이식이 실제로 맞물리는지 확인한다
+ * prefetch + RRF + 인기도 재정렬 + payload ID 필터가 실제로 맞물리는지 확인한다
  */
 class SearchServiceTest {
 
@@ -175,6 +175,62 @@ class SearchServiceTest {
     }
 
     @Test
+    fun `투표 수 조건을 주지 않으면 기본 하한 10 미만인 영화는 빠진다`() {
+        // given
+        upsertObscure()
+
+        // when
+        val page = service.search("쿼리", SearchFilter(limit = 5))
+
+        // then
+        assertThat(page.hits.map { it.movieId }).containsExactly(1L, 2L, 3L)
+    }
+
+    @Test
+    fun `투표 수 상한만 주면 기본 하한 없이 무명작도 검색된다`() {
+        // given
+        upsertObscure()
+
+        // when
+        val page = service.search("쿼리", SearchFilter(voteCountMax = 100, limit = 5))
+
+        // then
+        assertThat(page.hits.map { it.movieId }).containsExactly(6L, 3L)
+    }
+
+    @Test
+    fun `벡터 순위가 바로 아래인 영화도 투표 수가 훨씬 많으면 인기도 보정으로 앞선다`() {
+        // given — 영화7이 쿼리 방향에 더 가깝지만 투표 10, 영화8은 조금 멀지만 투표 50000.
+        // sparse는 아무도 갖지 않은 토큰이고, 장르 99 필터로 두 영화만 비교한다
+        qdrantClient.upsertAsync(
+            "movies",
+            listOf(
+                point(7L, listOf(0f, 0f, 0f, 1f), listOf(7), 2015, 7.0, listOf(99L), emptyList(), emptyList(), 100, 10),
+                point(
+                    8L,
+                    listOf(0f, 0f, 0.3f, 1f),
+                    listOf(8),
+                    2015,
+                    7.0,
+                    listOf(99L),
+                    emptyList(),
+                    emptyList(),
+                    100,
+                    50000,
+                ),
+            ),
+        ).get()
+        stubEmbed(sparse = """{"indices":[99],"values":[0.9]}""", dense = "[0.0,0.0,0.0,1.0]")
+
+        // when
+        val page = service.search("쿼리", SearchFilter(genreIds = listOf(99L), limit = 5))
+
+        // then
+        assertThat(page.hits.map { it.movieId }).containsExactly(8L, 7L)
+        assertThat(page.hits[0].score).isGreaterThan(page.hits[1].score)
+    }
+
+    @Test
     fun `directorId castId 필터가 payload에 적용된다`() {
         // when
         val byDirector = service.search("쿼리", SearchFilter(directorId = 100L, limit = 5))
@@ -204,6 +260,18 @@ class SearchServiceTest {
         val hits = service.similar(movieId = 1L, limit = 3)
 
         // then — 영화1과 영화2·3의 코사인은 둘 다 0(동률)이라 구성만 확인한다
+        assertThat(hits.map { it.movieId }).containsExactlyInAnyOrder(2L, 3L)
+    }
+
+    @Test
+    fun `similar — 투표 수 10 미만 영화는 빠진다`() {
+        // given — 무명작6은 영화1과 가장 가깝다
+        upsertObscure()
+
+        // when
+        val hits = service.similar(movieId = 1L, limit = 3)
+
+        // then
         assertThat(hits.map { it.movieId }).containsExactlyInAnyOrder(2L, 3L)
     }
 
@@ -248,6 +316,24 @@ class SearchServiceTest {
 
         // then
         assertThat(hits.map { it.movieId }).containsExactly(4L)
+    }
+
+    @Test
+    fun `recommend — 투표 수 10 미만 영화는 빠진다`() {
+        // given — 무명작6은 찜한 영화1과 가장 가깝다
+        upsertNearMovie1()
+        upsertObscure()
+
+        // when
+        val hits = service.recommend(
+            likedIds = listOf(1L),
+            dislikedIds = emptyList(),
+            watchedIds = emptyList(),
+            limit = 2,
+        )
+
+        // then
+        assertThat(hits.map { it.movieId }).containsExactly(4L, 5L)
     }
 
     @Test
@@ -337,10 +423,37 @@ class SearchServiceTest {
 
     private fun upsertNearMovie1() {
         val points = listOf(
-            point(4L, listOf(0.9f, 0.1f, 0f, 0f), listOf(4), 2001, 7.0, emptyList(), emptyList(), emptyList()),
-            point(5L, listOf(0.8f, 0f, 0.2f, 0f), listOf(5), 2002, 7.0, emptyList(), emptyList(), emptyList()),
+            point(
+                4L,
+                listOf(0.9f, 0.1f, 0f, 0f),
+                listOf(4),
+                2001,
+                7.0,
+                emptyList(),
+                emptyList(),
+                emptyList(),
+                100,
+                300,
+            ),
+            point(5L, listOf(0.8f, 0f, 0.2f, 0f), listOf(5), 2002, 7.0, emptyList(), emptyList(), emptyList(), 100, 40),
         )
         qdrantClient.upsertAsync("movies", points).get()
+    }
+
+    /** 영화1과 거의 같은 방향·같은 sparse 토큰의 무명작 (투표 3) — 하한이 없으면 검색·유사·추천 상위에 온다 */
+    private fun upsertObscure() {
+        val obscure = point(
+            6L,
+            listOf(1f, 0.05f, 0f, 0f),
+            listOf(1),
+            2020,
+            9.5,
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            voteCount = 3,
+        )
+        qdrantClient.upsertAsync("movies", listOf(obscure)).get()
     }
 
     private fun point(
@@ -378,14 +491,14 @@ class SearchServiceTest {
         )
         .build()
 
-    /** 쿼리 임베딩 스텁 — dense는 영화A 방향, sparse는 기본 토큰 1번(영화A가 보유) */
-    private fun stubEmbed(sparse: String = """{"indices":[1],"values":[0.9]}""") {
+    /** 쿼리 임베딩 스텁 — dense는 기본 영화A 방향, sparse는 기본 토큰 1번(영화A가 보유) */
+    private fun stubEmbed(sparse: String = """{"indices":[1],"values":[0.9]}""", dense: String = "[0.9,0.1,0.0,0.0]") {
         embedStub.stubFor(
             WireMock.post("/embed").willReturn(
                 WireMock.okJson(
                     """
 					{"model":"stub","items":[
-						{"dense":[0.9,0.1,0.0,0.0],"sparse":$sparse}
+						{"dense":$dense,"sparse":$sparse}
 					]}
                     """.trimIndent(),
                 ),

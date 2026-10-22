@@ -214,8 +214,8 @@ export interface components {
             genres?: components["schemas"]["GenreResponse"][];
             /**
              * Format: double
-             * @description 검색은 RRF 점수, 유사 영화는 코사인 유사도
-             * @example 0.032
+             * @description 검색은 RRF 점수 + 0.1 × log10(1 + 투표 수), 유사 영화는 코사인 유사도
+             * @example 0.62
              */
             score?: number;
             /**
@@ -476,12 +476,12 @@ export interface operations {
                  */
                 runtimeMax?: number;
                 /**
-                 * @description 투표 수 하한 — 숨은 명작 탐색용
+                 * @description 투표 수 하한 — 숨은 명작 탐색용. voteCountMin·voteCountMax를 둘 다 생략하면 기본 하한 10을 적용하고, 하나라도 주면 준 값만 적용한다
                  * @example 50
                  */
                 voteCountMin?: number;
                 /**
-                 * @description 투표 수 상한 — 숨은 명작 탐색용
+                 * @description 투표 수 상한 — 숨은 명작 탐색용. 주면 기본 하한 10은 적용하지 않는다
                  * @example 500
                  */
                 voteCountMax?: number;
