@@ -28,6 +28,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
 import java.time.Instant
+import java.time.LocalDate
 
 @WebMvcTest(MovieController::class)
 class MovieControllerTest {
@@ -252,6 +253,10 @@ class MovieControllerTest {
                 filmoState = PersonFilmoStateEnum.COMPLETE,
                 filmoCheckedAt = Instant.parse("2026-10-01T00:00:00Z"),
                 totalWorks = 47,
+                birthday = LocalDate.of(1974, 1, 30),
+                biographyKo = "영국의 배우다.",
+                biographyKoTranslated = true,
+                biographyEn = "An English actor.",
             ),
             items = listOf(FilmographyItem(card(), "브루스 웨인")),
             limit = 20,
@@ -270,6 +275,10 @@ class MovieControllerTest {
             jsonPath("$.person.name") { value("크리스찬 베일") }
             jsonPath("$.person.profilePath") { value("/bale.jpg") }
             jsonPath("$.person.slug") { value("christian-bale") }
+            jsonPath("$.person.birthday") { value("1974-01-30") }
+            jsonPath("$.person.biographyKo") { value("영국의 배우다.") }
+            jsonPath("$.person.biographyKoTranslated") { value(true) }
+            jsonPath("$.person.biographyEn") { value("An English actor.") }
             jsonPath("$.person.filmoState") { value("COMPLETE") }
             jsonPath("$.person.totalWorks") { value(47) }
             jsonPath("$.items[0].movieId") { value(1) }

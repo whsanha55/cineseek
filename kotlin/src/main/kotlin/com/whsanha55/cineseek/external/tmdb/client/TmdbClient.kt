@@ -27,6 +27,7 @@ import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.HttpStatusCodeException
 import org.springframework.web.client.RestClientException
 import java.time.Duration
+import java.time.LocalDate
 
 /**
  * TMDB 클라이언트 — v4 Bearer 인증, ko-KR 고정 (pipeline.tmdb_get 이식).
@@ -127,19 +128,26 @@ class TmdbClient(private val properties: TmdbProperties) {
                 .uri { builder ->
                     builder.path("/person/{id}")
                         .queryParam("language", properties.language)
-                        .queryParam("append_to_response", "translations")
+                        .queryParam("append_to_response", "translations,external_ids")
                         .build(personId)
                 }
                 .retrieve()
                 .body(PersonBody::class.java)
         } ?: return null
-        val nameEn = body.translations?.translations
-            ?.firstNotNullOfOrNull { t -> t.data?.name?.takeIf { t.language == "en" && it.isNotBlank() } }
+        val en = body.translations?.translations.orEmpty().filter { it.language == "en" }.mapNotNull { it.data }
         return TmdbPersonInfo(
             personId = body.id,
             name = body.name.orEmpty(),
             profilePath = body.profilePath,
-            nameEn = nameEn,
+            nameEn = en.firstNotNullOfOrNull { it.name.orNullIfBlank() },
+            birthday = parseDate(body.birthday),
+            deathday = parseDate(body.deathday),
+            placeOfBirth = body.placeOfBirth.orNullIfBlank(),
+            biographyKo = body.biography.orNullIfBlank(),
+            biographyEn = en.firstNotNullOfOrNull { it.biography.orNullIfBlank() },
+            imdbId = body.externalIds?.imdbId.orNullIfBlank(),
+            instagramId = body.externalIds?.instagramId.orNullIfBlank(),
+            homepage = body.homepage.orNullIfBlank(),
         )
     }
 
@@ -273,3 +281,10 @@ class TmdbClient(private val properties: TmdbProperties) {
         )
     }
 }
+
+/** TMDB는 값이 없을 때 null 대신 빈 문자열을 주기도 한다 */
+private fun String?.orNullIfBlank(): String? = this?.takeIf { it.isNotBlank() }
+
+/** TMDB 날짜(yyyy-MM-dd) — 비었거나 형식이 다르면(연도만 있는 등) null */
+private fun parseDate(value: String?): LocalDate? =
+    value.orNullIfBlank()?.let { runCatching { LocalDate.parse(it) }.getOrNull() }

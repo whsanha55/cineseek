@@ -20,6 +20,7 @@ import com.whsanha55.cineseek.movie.repository.MovieRepository
 import com.whsanha55.cineseek.movie.repository.PersonRepository
 import com.whsanha55.cineseek.movie.service.MovieMoodTagger
 import com.whsanha55.cineseek.movie.service.MovieUpsertService
+import com.whsanha55.cineseek.movie.service.PersonTranslator
 import com.whsanha55.cineseek.search.service.IndexedMovieAssembler
 import com.whsanha55.cineseek.search.service.MovieIndexer
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -57,6 +58,7 @@ class CollectPipeline(
     private val movieCastRepository: MovieCastRepository,
     private val personRepository: PersonRepository,
     private val moodTagger: MovieMoodTagger,
+    private val personTranslator: PersonTranslator,
     private val indexer: MovieIndexer,
     private val assembler: IndexedMovieAssembler,
     private val properties: CollectProperties,
@@ -71,6 +73,9 @@ class CollectPipeline(
         PERMANENT,
         RELEASED,
     }
+
+    /** 사용자 요청 인물 번역용 — 번역을 기다리지 않고 사용자 요청 틱을 끝내기 위한 가상 스레드 */
+    private val translationExecutor = Executors.newVirtualThreadPerTaskExecutor()
 
     /** 이번 틱에서 저장·갱신돼 색인 대상이 된 영화 — MOVIE_DETAIL(병렬)과 PERSON_FILMO(관계 보강)이 채운다 */
     private class TouchedMovies {
@@ -141,13 +146,18 @@ class CollectPipeline(
     /**
      * 사용자 요청 처리 — 인물 페이지 조회가 등록한 PERSON_FILMO(PRIORITY_USER_CLICK)만 잡아 바로 실행한다.
      * 정기 틱(최대 maxRuntime)을 기다리면 첫 방문자가 프로필 없이 '수집 중'을 오래 보기 때문이다.
-     * 출연 관계가 늘어난 영화만 색인하고 분위기 태깅은 정기 틱에 맡긴다. 처리한 작업 수를 반환한다
+     * 받은 인물의 출생지·소개를 번역하고 출연 관계가 늘어난 영화만 색인한다. 분위기 태깅은 정기 틱에 맡긴다.
+     * 처리한 작업 수를 반환한다
      */
     fun runUserRequests(): Int {
         val tasks = collectTaskService.claim(USER_REQUEST_BATCH, PRIORITY_USER_CLICK..Int.MAX_VALUE)
         if (tasks.isEmpty()) return 0
         val touched = TouchedMovies()
         val outcomes = tasks.map { handlePersonFilmo(it, touched) }
+        // 방금 받은 인물의 출생지·소개를 따로 번역한다 — 소개 번역은 수십 초 걸려 다음 사용자 요청을 막지 않게 기다리지 않는다.
+        // 실패한 인물은 정기 틱이 다시 잡는다
+        val personIds = tasks.mapNotNull { it.payloadKey.removePrefix(PERSON_PREFIX).toLongOrNull() }
+        translationExecutor.execute { personTranslator.translate(personIds) }
         val targets = touched.distinct()
         if (targets.isNotEmpty()) {
             runCatching { indexer.indexTouched(assembler.assemble(targets)) }
@@ -296,7 +306,7 @@ class CollectPipeline(
         val info = tmdbClient.fetchPerson(personId)
             ?: throw PermanentTaskFailure("TMDB 404 — 인물 없음. personId=$personId")
         personRepository.findById(info.personId).orElseGet { PersonEntity(info.personId, info.name) }
-            .apply { updateProfile(info.name, info.nameEn, info.profilePath) }
+            .apply { updateFrom(info) }
             .let(personRepository::save)
 
         val credits = tmdbClient.fetchPersonMovieCredits(personId).distinctBy { it.tmdbId }
@@ -338,7 +348,7 @@ class CollectPipeline(
     }.getOrElse { fail(task, it) }
 
     /**
-     * 틱 마무리 — 미태깅 영화의 분위기 태깅(상한)과 증분 색인. 색인 대상은 이번에 저장·갱신한 영화와 새로 태깅한 영화다 —
+     * 틱 마무리 — 미태깅 영화의 분위기 태깅(상한), 인물 번역(상한), 증분 색인. 색인 대상은 이번에 저장·갱신한 영화와 새로 태깅한 영화다 —
      * 태그가 임베딩 텍스트에 들어가므로 태깅만 된 영화도 다시 색인해야 검색에 반영된다.
      * PG는 이미 저장됐으므로 실패는 로그만 남긴다. 태깅은 수집할 작업이 없는 틱에도 돌려 밀린 미태깅분을 따라잡는다.
      * 색인 대상 수를 반환한다
@@ -347,6 +357,8 @@ class CollectPipeline(
         val tagged = runCatching { moodTagger.tagAll(MOOD_TAG_LIMIT_PER_TICK) }
             .onFailure { log.error(it) { "분위기 태깅 실패 — 다음 틱에서 회복된다" } }
             .getOrDefault(emptyList())
+        runCatching { personTranslator.translateAll(PERSON_TRANSLATE_LIMIT_PER_TICK) }
+            .onFailure { log.error(it) { "인물 번역 실패 — 다음 틱에서 회복된다" } }
         val targets = (movieIds + tagged).distinct()
         if (targets.isEmpty()) return 0
         runCatching { indexer.indexTouched(assembler.assemble(targets)) }
@@ -404,6 +416,7 @@ class CollectPipeline(
         val KR_CRITERIA = listOf(CRITERION_ORIGIN, CRITERION_LANG)
         private const val HTTP_NOT_FOUND = 404
         private const val MOOD_TAG_LIMIT_PER_TICK = 50 // 틱당 분위기 태깅 상한 — LLM 호출 폭주 방지
+        private const val PERSON_TRANSLATE_LIMIT_PER_TICK = 20 // 틱당 인물 번역 상한 — 소개 번역은 응답이 길다
     }
 }
 

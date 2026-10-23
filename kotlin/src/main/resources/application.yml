@@ -54,6 +54,7 @@ cineseek:
     base-url: ${LLM_BASE_URL:https://api.openai.com/v1}  # OpenAI 호환 엔드포인트 루트
     api-key: ${LLM_API_KEY:}  # 비어 있으면 분위기 태깅 배치를 건너뛴다 (컨테이너 주입은 compose env_file)
     model: ${LLM_MODEL:gpt-4o-mini}
+    read-timeout: 180s  # 인물 소개 번역은 3천 자 안팎이라 응답에 1분이 넘게 걸리기도 한다
   tmdb:
     base-url: https://api.themoviedb.org/3
     access-token: ${TMDB_ACCESS_TOKEN:}

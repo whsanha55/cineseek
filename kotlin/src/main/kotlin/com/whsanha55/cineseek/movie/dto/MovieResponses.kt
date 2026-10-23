@@ -14,6 +14,7 @@ import com.whsanha55.cineseek.movie.vo.WatchProvider
 import com.whsanha55.cineseek.movie.vo.WatchProviders
 import io.swagger.v3.oas.annotations.media.Schema
 import java.time.Instant
+import java.time.LocalDate
 
 /*
  * 영화 도메인 API 응답 — 클래스명이 프론트 openapi-typescript 타입명이 된다 (ui/src/api/types.ts).
@@ -160,6 +161,36 @@ data class FilmographyPersonResponse(
 
     @field:Schema(description = "총 출연 작품 수 (movie_cast 행 수)", example = "47")
     val totalWorks: Long,
+
+    @field:Schema(description = "생년월일", example = "1974-01-30")
+    val birthday: LocalDate?,
+
+    @field:Schema(description = "사망일 (생존 중이면 null)")
+    val deathday: LocalDate?,
+
+    @field:Schema(description = "출생지 한국어 (기계 번역)", example = "영국 웨일스 하버퍼드웨스트")
+    val placeOfBirthKo: String?,
+
+    @field:Schema(description = "출생지 영어 (TMDB 원문)", example = "Haverfordwest, Pembrokeshire, Wales, UK")
+    val placeOfBirthEn: String?,
+
+    @field:Schema(description = "소개 한국어 — TMDB 한국어 소개, 없으면 영어 소개의 기계 번역", example = "크리스찬 베일은 영국의 배우다.")
+    val biographyKo: String?,
+
+    @field:Schema(description = "biographyKo가 영어 소개의 기계 번역인지", example = "true")
+    val biographyKoTranslated: Boolean,
+
+    @field:Schema(description = "소개 영어 (TMDB 원문)", example = "Christian Charles Philip Bale is an English actor.")
+    val biographyEn: String?,
+
+    @field:Schema(description = "IMDb id", example = "nm0000288")
+    val imdbId: String?,
+
+    @field:Schema(description = "인스타그램 계정", example = "christianbale")
+    val instagramId: String?,
+
+    @field:Schema(description = "공식 홈페이지", example = "https://www.example.com")
+    val homepage: String?,
 ) {
     companion object {
         fun from(person: FilmographyPerson) = FilmographyPersonResponse(
@@ -170,6 +201,16 @@ data class FilmographyPersonResponse(
             filmoState = person.filmoState,
             filmoCheckedAt = person.filmoCheckedAt,
             totalWorks = person.totalWorks,
+            birthday = person.birthday,
+            deathday = person.deathday,
+            placeOfBirthKo = person.placeOfBirthKo,
+            placeOfBirthEn = person.placeOfBirthEn,
+            biographyKo = person.biographyKo,
+            biographyKoTranslated = person.biographyKoTranslated,
+            biographyEn = person.biographyEn,
+            imdbId = person.imdbId,
+            instagramId = person.instagramId,
+            homepage = person.homepage,
         )
     }
 }

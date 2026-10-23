@@ -17,6 +17,7 @@ import com.whsanha55.cineseek.movie.repository.MovieCastRepository
 import com.whsanha55.cineseek.movie.repository.MovieDirectorRepository
 import com.whsanha55.cineseek.movie.repository.MovieRepository
 import com.whsanha55.cineseek.movie.repository.PersonRepository
+import com.whsanha55.cineseek.movie.vo.TmdbPersonInfo
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -353,6 +354,41 @@ class MovieQueryServiceTest {
     }
 
     @Test
+    fun `filmography — 생몰일·출생지·소개·외부 링크를 언어별로 응답한다`() {
+        // given
+        seedActorFilmography()
+        personRepository.save(
+            PersonEntity(personId = ACTOR_ID, name = ACTOR_NAME).apply {
+                updateFrom(
+                    TmdbPersonInfo(
+                        personId = ACTOR_ID,
+                        name = ACTOR_NAME,
+                        profilePath = null,
+                        birthday = LocalDate.of(1974, 1, 30),
+                        placeOfBirth = "Haverfordwest, Wales, UK",
+                        biographyEn = "An English actor.",
+                        imdbId = "nm0000288",
+                    ),
+                )
+                applyTranslation(placeOfBirthKo = "영국 웨일스 하버퍼드웨스트", biographyKo = "영국의 배우다.")
+            },
+        )
+
+        // when
+        val person = service.filmography(ACTOR_ID, FilmographySortEnum.RELEASE, page = 0, limit = 10).person
+
+        // then
+        assertThat(person.birthday).isEqualTo(LocalDate.of(1974, 1, 30))
+        assertThat(person.deathday).isNull()
+        assertThat(person.placeOfBirthKo).isEqualTo("영국 웨일스 하버퍼드웨스트")
+        assertThat(person.placeOfBirthEn).isEqualTo("Haverfordwest, Wales, UK")
+        assertThat(person.biographyKo).isEqualTo("영국의 배우다.")
+        assertThat(person.biographyKoTranslated).isTrue()
+        assertThat(person.biographyEn).isEqualTo("An English actor.")
+        assertThat(person.imdbId).isEqualTo("nm0000288")
+    }
+
+    @Test
     fun `filmography — 확인이 30일을 넘으면 갱신을 요청한다`() {
         // given
         seedActorFilmography()
@@ -508,7 +544,9 @@ class MovieQueryServiceTest {
     private fun saveActor(checkedAt: Instant?, profilePath: String? = null, nameEn: String? = null) {
         personRepository.save(
             PersonEntity(personId = ACTOR_ID, name = ACTOR_NAME, profilePath = profilePath).apply {
-                updateProfile(name = ACTOR_NAME, nameEn = nameEn, profilePath = profilePath)
+                updateFrom(
+                    TmdbPersonInfo(personId = ACTOR_ID, name = ACTOR_NAME, profilePath = profilePath, nameEn = nameEn),
+                )
                 checkedAt?.let {
                     applyFilmography(
                         checkedAt = it,

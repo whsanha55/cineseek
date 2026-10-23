@@ -53,7 +53,20 @@ internal data class PersonBody(
     val id: Long,
     val name: String? = null,
     @JsonProperty("profile_path") val profilePath: String? = null,
+    val birthday: String? = null,
+    val deathday: String? = null,
+    @JsonProperty("place_of_birth") val placeOfBirth: String? = null,
+    val biography: String? = null,
+    val homepage: String? = null,
     val translations: PersonTranslations? = null,
+    @JsonProperty("external_ids") val externalIds: PersonExternalIds? = null,
+)
+
+/** append_to_response=external_ids — 외부 서비스 id */
+@JsonIgnoreProperties(ignoreUnknown = true)
+internal data class PersonExternalIds(
+    @JsonProperty("imdb_id") val imdbId: String? = null,
+    @JsonProperty("instagram_id") val instagramId: String? = null,
 )
 
 /** append_to_response=translations — 언어별 이름. 번역이 없는 언어는 목록에 없거나 name이 빈 문자열이다 */
@@ -67,7 +80,7 @@ internal data class PersonTranslation(
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-internal data class PersonTranslationData(val name: String? = null)
+internal data class PersonTranslationData(val name: String? = null, val biography: String? = null)
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 internal data class PersonCreditsBody(val cast: List<PersonCastItem> = emptyList())

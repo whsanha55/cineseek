@@ -16,6 +16,16 @@ const RESPONSE: FilmographyResponse = {
 		filmoState: "COMPLETE",
 		filmoCheckedAt: "2026-10-01T00:00:00Z",
 		totalWorks: 47,
+		birthday: null,
+		deathday: null,
+		placeOfBirthKo: null,
+		placeOfBirthEn: null,
+		biographyKo: null,
+		biographyKoTranslated: false,
+		biographyEn: null,
+		imdbId: null,
+		instagramId: null,
+		homepage: null,
 	},
 	items: [
 		{
@@ -137,6 +147,57 @@ describe("PersonPage", () => {
 
 		expect(screen.getByText("찾으시는 페이지가 없습니다.")).toBeInTheDocument();
 		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it("생몰일·출생지·외부 링크를 표시한다", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		vi.setSystemTime(new Date(2026, 9, 23));
+		stubFetch({
+			...RESPONSE,
+			person: {
+				...RESPONSE.person,
+				birthday: "1974-01-30",
+				placeOfBirthKo: "영국 웨일스 하버퍼드웨스트",
+				placeOfBirthEn: "Haverfordwest, Wales, UK",
+				imdbId: "nm0000288",
+			},
+		});
+		renderPage();
+
+		expect(await screen.findByText("1974년 1월 30일 (52세)")).toBeInTheDocument();
+		expect(screen.getByText("출생지 영국 웨일스 하버퍼드웨스트")).toBeInTheDocument();
+		expect(screen.getByRole("link", { name: "IMDb" })).toHaveAttribute("href", "https://www.imdb.com/name/nm0000288");
+		expect(screen.queryByRole("link", { name: "Instagram" })).not.toBeInTheDocument();
+		vi.useRealTimers();
+	});
+
+	it("소개 — 기계 번역이면 표시하고, 긴 소개는 접었다가 더 보기로 펼친다", async () => {
+		stubFetch({
+			...RESPONSE,
+			person: {
+				...RESPONSE.person,
+				biographyKo: "영국의 배우다. ".repeat(40),
+				biographyKoTranslated: true,
+				biographyEn: "An English actor.",
+			},
+		});
+		renderPage();
+
+		expect(await screen.findByText("영어 소개를 자동 번역했습니다")).toBeInTheDocument();
+		const toggle = screen.getByRole("button", { name: "더 보기" });
+		expect(toggle).toHaveAttribute("aria-expanded", "false");
+		await userEvent.setup().click(toggle);
+		expect(screen.getByRole("button", { name: "접기" })).toHaveAttribute("aria-expanded", "true");
+	});
+
+	it("소개 — 한국어가 없으면 영어 원문을 보여주고 번역 표시는 하지 않는다", async () => {
+		stubFetch({ ...RESPONSE, person: { ...RESPONSE.person, biographyEn: "An English actor." } });
+		renderPage();
+
+		const bio = await screen.findByText("An English actor.");
+		expect(bio).toHaveAttribute("lang", "en");
+		expect(screen.queryByText("영어 소개를 자동 번역했습니다")).not.toBeInTheDocument();
+		expect(screen.queryByRole("button", { name: "더 보기" })).not.toBeInTheDocument();
 	});
 
 	it("collecting이면 수집 중 배지를 표시한다", async () => {
