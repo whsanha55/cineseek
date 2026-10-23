@@ -18,6 +18,7 @@ function filmographyOf(personId: number, name: string): FilmographyResponse {
 			personId,
 			name,
 			profilePath: null,
+			slug: null,
 			filmoState: "COMPLETE",
 			filmoCheckedAt: null,
 			totalWorks: 3,
@@ -41,7 +42,7 @@ function filmographyOf(personId: number, name: string): FilmographyResponse {
 }
 
 const EMPTY: FilmographyResponse = {
-	person: { personId: 0, name: "", profilePath: null, filmoState: "NONE", filmoCheckedAt: null, totalWorks: 0 },
+	person: { personId: 0, name: "", profilePath: null, slug: null, filmoState: "NONE", filmoCheckedAt: null, totalWorks: 0 },
 	items: [],
 	page: { limit: 7, offset: 0, hasNext: false, total: null },
 	collecting: false,

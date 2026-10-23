@@ -2,7 +2,7 @@ import { afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PersonPage } from "./PersonPage";
 import type { FilmographyResponse } from "../api/types";
@@ -12,6 +12,7 @@ const RESPONSE: FilmographyResponse = {
 		personId: 3895,
 		name: "크리스찬 베일",
 		profilePath: null,
+		slug: null,
 		filmoState: "COMPLETE",
 		filmoCheckedAt: "2026-10-01T00:00:00Z",
 		totalWorks: 47,
@@ -53,13 +54,27 @@ function stubFetch(body: unknown, ok = true) {
 	return fetchMock;
 }
 
+/** 현재 주소를 화면에 노출 — 주소 정규화(replace)를 사용자 관점에서 확인한다 */
+function LocationProbe() {
+	const location = useLocation();
+	return <output aria-label="현재 주소">{location.pathname + location.search}</output>;
+}
+
 function renderPage(path = "/people/3895") {
 	const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 	return render(
 		<QueryClientProvider client={client}>
 			<MemoryRouter initialEntries={[path]}>
 				<Routes>
-					<Route path="/people/:id" element={<PersonPage />} />
+					<Route
+						path="/people/:id"
+						element={
+							<>
+								<PersonPage />
+								<LocationProbe />
+							</>
+						}
+					/>
 				</Routes>
 			</MemoryRouter>
 		</QueryClientProvider>,
@@ -87,6 +102,41 @@ describe("PersonPage", () => {
 		expect(url).toContain("/cineseek/people/3895/filmography");
 		expect(url).toContain("sort=release");
 		expect(url).not.toContain("excludeMovieId");
+	});
+
+	it("slug가 있으면 정렬 쿼리를 유지한 채 /people/{id}-{slug} 주소로 바꾼다", async () => {
+		stubFetch({ ...RESPONSE, person: { ...RESPONSE.person, slug: "christian-bale" } });
+		renderPage("/people/3895?sort=rating");
+
+		await waitFor(() => {
+			expect(screen.getByLabelText("현재 주소")).toHaveTextContent("/people/3895-christian-bale?sort=rating");
+		});
+	});
+
+	it("slug가 붙은 주소는 앞의 숫자를 id로 조회하고, 이름이 바뀌었으면 새 slug로 맞춘다", async () => {
+		const fetchMock = stubFetch({ ...RESPONSE, person: { ...RESPONSE.person, slug: "christian-bale" } });
+		renderPage("/people/3895-old-name");
+
+		await waitFor(() => {
+			expect(screen.getByLabelText("현재 주소")).toHaveTextContent("/people/3895-christian-bale");
+		});
+		expect(String(fetchMock.mock.calls[0][0])).toContain("/cineseek/people/3895/filmography");
+	});
+
+	it("slug가 없으면 숫자 주소를 그대로 둔다", async () => {
+		stubFetch(RESPONSE);
+		renderPage();
+
+		await screen.findByRole("heading", { name: "크리스찬 베일" });
+		expect(screen.getByLabelText("현재 주소")).toHaveTextContent("/people/3895");
+	});
+
+	it("주소에 숫자 id가 없으면 404를 보여주고 조회하지 않는다", () => {
+		const fetchMock = stubFetch(RESPONSE);
+		renderPage("/people/tom-cruise");
+
+		expect(screen.getByText("찾으시는 페이지가 없습니다.")).toBeInTheDocument();
+		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
 	it("collecting이면 수집 중 배지를 표시한다", async () => {

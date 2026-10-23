@@ -53,7 +53,21 @@ internal data class PersonBody(
     val id: Long,
     val name: String? = null,
     @JsonProperty("profile_path") val profilePath: String? = null,
+    val translations: PersonTranslations? = null,
 )
+
+/** append_to_response=translations — 언어별 이름. 번역이 없는 언어는 목록에 없거나 name이 빈 문자열이다 */
+@JsonIgnoreProperties(ignoreUnknown = true)
+internal data class PersonTranslations(val translations: List<PersonTranslation> = emptyList())
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+internal data class PersonTranslation(
+    @JsonProperty("iso_639_1") val language: String? = null,
+    val data: PersonTranslationData? = null,
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+internal data class PersonTranslationData(val name: String? = null)
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 internal data class PersonCreditsBody(val cast: List<PersonCastItem> = emptyList())

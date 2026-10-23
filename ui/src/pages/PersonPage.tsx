@@ -1,10 +1,11 @@
 import { useCallback, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useFilmography, type FilmographySort } from "../api/hooks";
 import { MovieCard } from "../components/MovieCard";
 import { MovieGridSkeleton } from "../components/MovieGrid";
 import { ErrorState } from "../components/StateViews";
+import { NotFound } from "./NotFound";
 import { Select } from "../components/ui/select";
 import { Skeleton } from "../components/ui/skeleton";
 import { profileUrl } from "../lib/tmdb";
@@ -14,16 +15,23 @@ const SORT_OPTIONS: { value: FilmographySort; label: string }[] = [
 	{ value: "rating", label: "평점순" },
 ];
 
+/** URL 인물 파라미터 — "500-tom-cruise"·"500" 모두 앞의 숫자가 id다. slug는 읽기용 장식 */
+function parsePersonId(param: string | undefined): number | null {
+	const match = param?.match(/^(\d+)(?:-|$)/);
+	return match ? Number(match[1]) : null;
+}
+
 /** 배우 페이지 — 프로필 헤더 + 출연작 그리드 (T7). 정렬·페이지는 URL이 원천 */
 export function PersonPage() {
 	const { id } = useParams();
+	const personId = parsePersonId(id);
 	const [searchParams, setSearchParams] = useSearchParams();
 	const sortRaw = searchParams.get("sort");
 	const sort: FilmographySort = sortRaw === "rating" ? "rating" : "release";
 	const page = Math.max(0, Number(searchParams.get("page")) || 0);
 
 	const { data, isPending, isError, refetch } = useFilmography({
-		personId: id !== undefined ? Number(id) : null,
+		personId,
 		sort,
 		page,
 		limit: 20,
@@ -43,6 +51,7 @@ export function PersonPage() {
 		[sort, page, setSearchParams],
 	);
 
+	if (personId === null) return <NotFound />;
 	if (isError) return <ErrorState onRetry={() => refetch()} />;
 	if (isPending) {
 		return (
@@ -60,9 +69,14 @@ export function PersonPage() {
 	}
 
 	const person = data!.person;
+	// 영어 이름 slug를 알면 /people/500-tom-cruise 형태로 주소를 맞춘다 (정렬·페이지 쿼리는 유지)
+	const canonical = person.slug ? `${personId}-${person.slug}` : null;
 
 	return (
 		<div className="space-y-8 py-8">
+			{canonical && canonical !== id && (
+				<Navigate replace to={{ pathname: `/people/${canonical}`, search: searchParams.toString() }} />
+			)}
 			<header className="flex items-center gap-5">
 				<div className="aspect-[2/3] w-24 shrink-0 overflow-hidden rounded-[var(--radius)] bg-surface sm:w-32">
 					<ProfileImage name={person.name} profilePath={person.profilePath} />

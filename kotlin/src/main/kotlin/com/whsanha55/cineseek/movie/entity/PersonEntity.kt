@@ -31,6 +31,10 @@ class PersonEntity(
     var profilePath: String? = profilePath
         protected set
 
+    /** 영어 이름 — 인물 페이지 URL slug의 원천. TMDB에 영어 번역이 없으면 null */
+    var nameEn: String? = null
+        protected set
+
     var filmoCheckedAt: Instant? = null
         protected set
 
@@ -45,9 +49,10 @@ class PersonEntity(
     var filmoState: PersonFilmoStateEnum = PersonFilmoStateEnum.NONE
         protected set
 
-    /** 인물 기본 정보 갱신 — 재수집된 이름·프로필 경로를 반영한다 */
-    fun updateProfile(name: String, profilePath: String?) {
+    /** 인물 기본 정보 갱신 — 재수집된 이름·영어 이름·프로필 경로를 반영한다 */
+    fun updateProfile(name: String, nameEn: String?, profilePath: String?) {
         this.name = name
+        this.nameEn = nameEn
         this.profilePath = profilePath
     }
 

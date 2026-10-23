@@ -48,8 +48,8 @@ data class TmdbDiscoverResult(
     val failure: ExternalApiException? = null, // 중간 페이지에서 실패 — tmdbIds·lastPage는 그 직전까지의 진행분
 )
 
-/** TMDB person 상세(ko-KR) */
-data class TmdbPersonInfo(val personId: Long, val name: String, val profilePath: String?)
+/** TMDB person 상세(ko-KR) — nameEn은 영어 번역 이름(URL slug용), 번역이 없으면 null */
+data class TmdbPersonInfo(val personId: Long, val name: String, val profilePath: String?, val nameEn: String? = null)
 
 /** TMDB person movie_credits의 cast 항목 — 인물 필모그래피 */
 data class TmdbPersonCredit(

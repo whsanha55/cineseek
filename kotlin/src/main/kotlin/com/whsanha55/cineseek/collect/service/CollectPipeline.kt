@@ -296,7 +296,7 @@ class CollectPipeline(
         val info = tmdbClient.fetchPerson(personId)
             ?: throw PermanentTaskFailure("TMDB 404 — 인물 없음. personId=$personId")
         personRepository.findById(info.personId).orElseGet { PersonEntity(info.personId, info.name) }
-            .apply { updateProfile(info.name, info.profilePath) }
+            .apply { updateProfile(info.name, info.nameEn, info.profilePath) }
             .let(personRepository::save)
 
         val credits = tmdbClient.fetchPersonMovieCredits(personId).distinctBy { it.tmdbId }

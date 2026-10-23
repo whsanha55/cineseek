@@ -125,12 +125,22 @@ class TmdbClient(private val properties: TmdbProperties) {
         val body = call(notFoundAsNull = true) {
             restClient.get()
                 .uri { builder ->
-                    builder.path("/person/{id}").queryParam("language", properties.language).build(personId)
+                    builder.path("/person/{id}")
+                        .queryParam("language", properties.language)
+                        .queryParam("append_to_response", "translations")
+                        .build(personId)
                 }
                 .retrieve()
                 .body(PersonBody::class.java)
         } ?: return null
-        return TmdbPersonInfo(personId = body.id, name = body.name.orEmpty(), profilePath = body.profilePath)
+        val nameEn = body.translations?.translations
+            ?.firstNotNullOfOrNull { t -> t.data?.name?.takeIf { t.language == "en" && it.isNotBlank() } }
+        return TmdbPersonInfo(
+            personId = body.id,
+            name = body.name.orEmpty(),
+            profilePath = body.profilePath,
+            nameEn = nameEn,
+        )
     }
 
     /** 인물 영화 필모그래피(cast). 인물 404·빈 본문은 빈 목록 */

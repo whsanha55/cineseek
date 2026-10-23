@@ -248,6 +248,7 @@ class MovieControllerTest {
                 personId = 3895L,
                 name = "크리스찬 베일",
                 profilePath = "/bale.jpg",
+                slug = "christian-bale",
                 filmoState = PersonFilmoStateEnum.COMPLETE,
                 filmoCheckedAt = Instant.parse("2026-10-01T00:00:00Z"),
                 totalWorks = 47,
@@ -268,6 +269,7 @@ class MovieControllerTest {
             jsonPath("$.person.personId") { value(3895) }
             jsonPath("$.person.name") { value("크리스찬 베일") }
             jsonPath("$.person.profilePath") { value("/bale.jpg") }
+            jsonPath("$.person.slug") { value("christian-bale") }
             jsonPath("$.person.filmoState") { value("COMPLETE") }
             jsonPath("$.person.totalWorks") { value(47) }
             jsonPath("$.items[0].movieId") { value(1) }

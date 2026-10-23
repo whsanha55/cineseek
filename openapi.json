@@ -1262,6 +1262,14 @@
             "description": "TMDB 프로필 이미지 경로",
             "example": "/fuTEtOeIwXiqtVpIoL0GyyWcnxh.jpg"
           },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "URL slug (영어 이름 기반, 예: /people/500-tom-cruise). 영어 이름을 모르면 null",
+            "example": "christian-bale"
+          },
           "filmoState": {
             "type": "string",
             "description": "필모그래피 수집 상태 (NONE | COLLECTING | COMPLETE)",

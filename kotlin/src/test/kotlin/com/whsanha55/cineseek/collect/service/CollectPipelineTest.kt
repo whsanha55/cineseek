@@ -523,7 +523,7 @@ class CollectPipelineTest {
         val movieId = upsertService.upsert(tmdbMovie(155L))
         collectTaskService.enqueue(PERSON_FILMO, "person:500", CollectPipeline.PRIORITY_USER_CLICK)
         collectTaskService.enqueue(PERSON_FILMO, "person:777")
-        every { tmdbClient.fetchPerson(500L) } returns TmdbPersonInfo(500L, "톰 크루즈", "/tom.jpg")
+        every { tmdbClient.fetchPerson(500L) } returns TmdbPersonInfo(500L, "톰 크루즈", "/tom.jpg", nameEn = "Tom Cruise")
         every { tmdbClient.fetchPersonMovieCredits(500L) } returns listOf(
             TmdbPersonCredit(tmdbId = 155L, title = "영화155", character = "주연", order = 0, releaseDate = null),
         )
@@ -535,7 +535,9 @@ class CollectPipelineTest {
         assertThat(processed).isEqualTo(1)
         assertThat(task(PERSON_FILMO, "person:500")!!.status).isEqualTo(DONE)
         assertThat(task(PERSON_FILMO, "person:777")!!.status).isEqualTo(PENDING)
-        assertThat(personRepository.findById(500L).orElseThrow().profilePath).isEqualTo("/tom.jpg")
+        val person = personRepository.findById(500L).orElseThrow()
+        assertThat(person.profilePath).isEqualTo("/tom.jpg")
+        assertThat(person.nameEn).isEqualTo("Tom Cruise")
         val indexed = slot<List<IndexedMovie>>()
         verify { indexer.indexTouched(capture(indexed)) }
         assertThat(indexed.captured.map { it.movieId }).containsExactly(movieId)
