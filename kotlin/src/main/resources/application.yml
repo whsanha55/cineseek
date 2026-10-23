@@ -17,6 +17,10 @@ spring:
         jdbc:
           batch_size: 100  # 자식(director·cast, 복합키) insert 배치 — movie는 IDENTITY라 배치 불가
         order_inserts: true
+  task:
+    scheduling:
+      pool:
+        size: 3  # 수집 틱·일일 틱·사용자 요청 틱 — 기본 1이면 25분짜리 틱 뒤에서 사용자 요청이 기다린다
 
 logging:
   pattern:
@@ -26,6 +30,7 @@ cineseek:
   collect:
     enabled: ${CINESEEK_COLLECT_ENABLED:false}  # 수집 스케줄러 활성
     interval: 30m  # 수집 틱 주기 (초기 집중 수집)
+    user-request-interval: 10s  # 사용자 요청(인물 페이지 조회) 필모 수집 주기 — 정기 틱과 별도 스레드에서 돈다
     batch-size: 100  # 틱당 최대 작업 수
     max-runtime: 25m  # 한 틱 최대 실행 시간 — 도달하면 체크포인트 남기고 다음 틱에 이어서
     concurrency: 4  # 상세 수집 동시성

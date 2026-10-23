@@ -417,7 +417,14 @@ class TmdbClientTest {
         // given
         wiremock.stubFor(
             WireMock.get(WireMock.urlPathEqualTo("/person/3895")).willReturn(
-                WireMock.okJson("""{"id":3895,"name":"크리스찬 베일","profile_path":"/bale.jpg","birthday":"1974-01-30"}"""),
+                WireMock.okJson(
+                    """
+                    {"id":3895,"name":"크리스찬 베일","profile_path":"/bale.jpg","birthday":"1974-01-30",
+                     "translations":{"translations":[
+                       {"iso_639_1":"ja","data":{"name":"クリスチャン・ベール"}},
+                       {"iso_639_1":"en","data":{"name":"Christian Bale"}}]}}
+                    """.trimIndent(),
+                ),
             ),
         )
         wiremock.stubFor(
@@ -432,11 +439,34 @@ class TmdbClientTest {
         assertThat(person.personId).isEqualTo(3895L)
         assertThat(person.name).isEqualTo("크리스찬 베일")
         assertThat(person.profilePath).isEqualTo("/bale.jpg")
+        assertThat(person.nameEn).isEqualTo("Christian Bale")
         assertThat(missing).isNull()
         wiremock.verify(
             WireMock.getRequestedFor(WireMock.urlPathEqualTo("/person/3895"))
-                .withQueryParam("language", WireMock.equalTo("ko-KR")),
+                .withQueryParam("language", WireMock.equalTo("ko-KR"))
+                .withQueryParam("append_to_response", WireMock.equalTo("translations")),
         )
+    }
+
+    @Test
+    fun `인물 상세 — 영어 번역이 없거나 이름이 비어 있으면 nameEn은 null`() {
+        // given
+        wiremock.stubFor(
+            WireMock.get(WireMock.urlPathEqualTo("/person/3895")).willReturn(
+                WireMock.okJson(
+                    """
+                    {"id":3895,"name":"이창동",
+                     "translations":{"translations":[{"iso_639_1":"en","data":{"name":""}}]}}
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        // when
+        val person = client.fetchPerson(3895L)!!
+
+        // then
+        assertThat(person.nameEn).isNull()
     }
 
     @Test

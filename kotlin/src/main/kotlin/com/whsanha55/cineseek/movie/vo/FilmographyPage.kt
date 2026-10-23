@@ -5,12 +5,13 @@ import java.time.Instant
 
 /**
  * 필모그래피 사람 요약 — person 마스터가 없으면 movie_cast의 이름으로 대체한 값
- * (profilePath·filmoState는 기본값). totalWorks는 제외 조건과 무관한 전체 출연 작품 수다
+ * (profilePath·slug·filmoState는 기본값). totalWorks는 제외 조건과 무관한 전체 출연 작품 수다
  */
 data class FilmographyPerson(
     val personId: Long,
     val name: String,
     val profilePath: String? = null,
+    val slug: String? = null,
     val filmoState: PersonFilmoStateEnum = PersonFilmoStateEnum.NONE,
     val filmoCheckedAt: Instant? = null,
     val totalWorks: Long,

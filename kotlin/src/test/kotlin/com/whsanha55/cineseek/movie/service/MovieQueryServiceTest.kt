@@ -313,6 +313,7 @@ class MovieQueryServiceTest {
         // then — filmo_checked_at가 없으므로(=미확인) 우선 갱신 요청
         assertThat(page.person.name).isEqualTo(ACTOR_NAME)
         assertThat(page.person.profilePath).isNull()
+        assertThat(page.person.slug).isNull()
         assertThat(page.person.filmoState).isEqualTo(PersonFilmoStateEnum.NONE)
         assertThat(page.person.filmoCheckedAt).isNull()
         assertThat(refreshRequester.requested).containsExactly(ACTOR_ID)
@@ -336,6 +337,19 @@ class MovieQueryServiceTest {
         assertThat(page.person.filmoCheckedAt).isEqualTo(now.minus(Duration.ofDays(29)))
         assertThat(refreshRequester.requested).isEmpty()
         assertThat(page.collecting).isTrue()
+    }
+
+    @Test
+    fun `filmography — 영어 이름이 있으면 URL slug를, 없으면 null을 응답한다`() {
+        // given
+        seedActorFilmography()
+        saveActor(checkedAt = now, nameEn = "Christian Bale")
+
+        // when
+        val page = service.filmography(ACTOR_ID, FilmographySortEnum.RELEASE, page = 0, limit = 10)
+
+        // then
+        assertThat(page.person.slug).isEqualTo("christian-bale")
     }
 
     @Test
@@ -491,9 +505,10 @@ class MovieQueryServiceTest {
     }
 
     /** person 마스터 저장 — checkedAt이 null이면 확인 이력 없는 상태(NONE) 그대로 둔다 */
-    private fun saveActor(checkedAt: Instant?, profilePath: String? = null) {
+    private fun saveActor(checkedAt: Instant?, profilePath: String? = null, nameEn: String? = null) {
         personRepository.save(
             PersonEntity(personId = ACTOR_ID, name = ACTOR_NAME, profilePath = profilePath).apply {
+                updateProfile(name = ACTOR_NAME, nameEn = nameEn, profilePath = profilePath)
                 checkedAt?.let {
                     applyFilmography(
                         checkedAt = it,

@@ -11,6 +11,7 @@ import java.time.Duration
 data class CollectProperties(
     val enabled: Boolean = false, // 수집 스케줄러 활성 — 기본 비활성
     val interval: Duration = DEFAULT_INTERVAL, // 수집 틱 주기 (초기 집중 수집)
+    val userRequestInterval: Duration = DEFAULT_USER_REQUEST_INTERVAL, // 사용자 요청(인물 페이지 조회) 처리 주기
     val batchSize: Int = 100, // 틱당 최대 작업 수
     val maxRuntime: Duration = DEFAULT_MAX_RUNTIME, // 한 틱 최대 실행 시간 — 도달하면 작업을 놓고 다음 틱에 이어서
     val concurrency: Int = 4, // 상세 수집 동시성
@@ -33,6 +34,7 @@ data class CollectProperties(
 
     companion object {
         private val DEFAULT_INTERVAL: Duration = Duration.ofMinutes(30)
+        private val DEFAULT_USER_REQUEST_INTERVAL: Duration = Duration.ofSeconds(10)
         private val DEFAULT_MAX_RUNTIME: Duration = Duration.ofMinutes(25)
         private val DEFAULT_LEASE_TIMEOUT: Duration = Duration.ofMinutes(30) // max-runtime보다 길게
         private val DEFAULT_RETRY_BASE: Duration = Duration.ofSeconds(60)

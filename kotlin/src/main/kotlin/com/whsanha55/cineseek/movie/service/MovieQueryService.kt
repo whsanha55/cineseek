@@ -23,6 +23,7 @@ import com.whsanha55.cineseek.movie.vo.MovieCard
 import com.whsanha55.cineseek.movie.vo.MovieDetail
 import com.whsanha55.cineseek.movie.vo.MoviePage
 import com.whsanha55.cineseek.movie.vo.PersonItem
+import com.whsanha55.cineseek.movie.vo.PersonSlug
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.domain.Specification
@@ -168,6 +169,7 @@ class MovieQueryService(
                 personId = personId,
                 name = person?.name ?: requireNotNull(fallbackCast).name,
                 profilePath = person?.profilePath,
+                slug = PersonSlug.from(person?.nameEn),
                 filmoState = person?.filmoState ?: PersonFilmoStateEnum.NONE,
                 filmoCheckedAt = person?.filmoCheckedAt,
                 totalWorks = movieCastRepository.countByPersonId(personId),

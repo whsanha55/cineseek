@@ -20,7 +20,6 @@ import com.whsanha55.cineseek.movie.repository.MovieRepository
 import com.whsanha55.cineseek.movie.repository.PersonRepository
 import com.whsanha55.cineseek.movie.service.MovieMoodTagger
 import com.whsanha55.cineseek.movie.service.MovieUpsertService
-import com.whsanha55.cineseek.movie.vo.TmdbPersonInfo
 import com.whsanha55.cineseek.search.service.IndexedMovieAssembler
 import com.whsanha55.cineseek.search.service.MovieIndexer
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -84,11 +83,14 @@ class CollectPipeline(
         fun distinct(): List<Long> = ids.distinct()
     }
 
-    /** 만료 lease 회수 후 batchSize만큼 클레임해 실행한다. maxRuntime에 도달하면 남은 작업은 체크포인트와 함께 반납한다 */
+    /**
+     * 만료 lease 회수 후 batchSize만큼 클레임해 실행한다. maxRuntime에 도달하면 남은 작업은 체크포인트와 함께 반납한다.
+     * 사용자 요청(PRIORITY_USER_CLICK 이상)은 잡지 않는다 — [runUserRequests]가 따로 처리한다
+     */
     fun runBatch(): BatchResult {
         collectTaskService.recoverExpiredLeases()
         val deadline = Instant.now(clock).plus(properties.maxRuntime)
-        val tasks = collectTaskService.claim(properties.batchSize)
+        val tasks = collectTaskService.claim(properties.batchSize, Int.MIN_VALUE until PRIORITY_USER_CLICK)
         val touched = TouchedMovies()
         val outcomes = mutableListOf<Outcome>()
         var storedMovies = 0
@@ -134,6 +136,28 @@ class CollectPipeline(
             storedMovies = storedMovies,
             touchedMovieIds = touchedMovieIds,
         )
+    }
+
+    /**
+     * 사용자 요청 처리 — 인물 페이지 조회가 등록한 PERSON_FILMO(PRIORITY_USER_CLICK)만 잡아 바로 실행한다.
+     * 정기 틱(최대 maxRuntime)을 기다리면 첫 방문자가 프로필 없이 '수집 중'을 오래 보기 때문이다.
+     * 출연 관계가 늘어난 영화만 색인하고 분위기 태깅은 정기 틱에 맡긴다. 처리한 작업 수를 반환한다
+     */
+    fun runUserRequests(): Int {
+        val tasks = collectTaskService.claim(USER_REQUEST_BATCH, PRIORITY_USER_CLICK..Int.MAX_VALUE)
+        if (tasks.isEmpty()) return 0
+        val touched = TouchedMovies()
+        val outcomes = tasks.map { handlePersonFilmo(it, touched) }
+        val targets = touched.distinct()
+        if (targets.isNotEmpty()) {
+            runCatching { indexer.indexTouched(assembler.assemble(targets)) }
+                .onFailure { log.error(it) { "사용자 요청 색인 실패 — PG는 저장됐고 재색인에서 회복된다" } }
+        }
+        log.info {
+            "사용자 요청 처리 완료. 클레임=${tasks.size}, 성공=${outcomes.count { it == Outcome.SUCCEEDED }}, " +
+                "색인대상=${targets.size}"
+        }
+        return tasks.size
     }
 
     /** bootstrap 초기 enqueue — collect_state.bootstrapped_at이 NULL일 때만 1회 실행한다 */
@@ -271,7 +295,9 @@ class CollectPipeline(
             ?: throw PermanentTaskFailure("PERSON_FILMO payloadKey 파싱 실패. payloadKey=${task.payloadKey}")
         val info = tmdbClient.fetchPerson(personId)
             ?: throw PermanentTaskFailure("TMDB 404 — 인물 없음. personId=$personId")
-        upsertPerson(info)
+        personRepository.findById(info.personId).orElseGet { PersonEntity(info.personId, info.name) }
+            .apply { updateProfile(info.name, info.nameEn, info.profilePath) }
+            .let(personRepository::save)
 
         val credits = tmdbClient.fetchPersonMovieCredits(personId).distinctBy { it.tmdbId }
         val existing = movieRepository.findAllByTmdbIdIn(credits.map { it.tmdbId }).associateBy { it.tmdbId }
@@ -332,12 +358,6 @@ class CollectPipeline(
         collectTaskService.enqueue(MOVIE_DETAIL, "$MOVIE_PREFIX$tmdbId", priority)
     }
 
-    private fun upsertPerson(info: TmdbPersonInfo) {
-        personRepository.findById(info.personId).orElseGet { PersonEntity(info.personId, info.name) }
-            .apply { updateProfile(info.name, info.profilePath) }
-            .let(personRepository::save)
-    }
-
     /**
      * 실패 처리 — 영구(404·파싱 오류)인지 분류해 기록한다. 429/5xx/타임아웃과 나머지는 재시도 예약.
      * [checkpointJson]은 discover 중간 실패의 진행분 — 재시도가 그다음 페이지부터 이어서 한다
@@ -367,6 +387,8 @@ class CollectPipeline(
         const val PRIORITY_USER_CLICK = 100 // 사용자 클릭 즉시 수집(T5 API가 사용)
 
         private const val COLLECT_STATE_ID = 1
+
+        private const val USER_REQUEST_BATCH = 10 // 사용자 요청 틱당 최대 작업 수 — 한 건이 TMDB 2회라 짧게 끝난다
 
         /** MOVIE_DETAIL payloadKey 접두 — 스케줄러·필모 갱신 포트 구현이 같은 형식을 쓴다 */
         const val MOVIE_PREFIX = "movie:tmdb:"

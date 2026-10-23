@@ -47,12 +47,13 @@ interface CollectTaskRepository : JpaRepository<CollectTaskEntity, Long> {
         lockedBy: String,
     ): CollectTaskEntity?
 
-    /** 클레임 1단계 — 예약 시각이 도래한 PENDING 후보 id를 priority DESC, taskId ASC로 조회 */
+    /** 클레임 1단계 — 예약 시각이 도래한 PENDING 중 priority가 [minPriority, maxPriority]인 후보 id를 priority DESC, taskId ASC로 조회 */
     @Query(
         """
         SELECT t.taskId
         FROM CollectTaskEntity t
         WHERE t.status = :status
+            AND t.priority BETWEEN :minPriority AND :maxPriority
             AND (
                 t.nextRetryAt IS NULL
                 OR t.nextRetryAt <= :now
@@ -60,7 +61,13 @@ interface CollectTaskRepository : JpaRepository<CollectTaskEntity, Long> {
         ORDER BY t.priority DESC, t.taskId ASC
         """,
     )
-    fun findClaimableIds(status: CollectTaskStatusEnum, now: Instant, pageable: Pageable): List<Long>
+    fun findClaimableIds(
+        status: CollectTaskStatusEnum,
+        now: Instant,
+        minPriority: Int,
+        maxPriority: Int,
+        pageable: Pageable,
+    ): List<Long>
 
     /** 클레임 2단계 — 후보 중 아직 PENDING인 것만 RUNNING+lease로 바꾼다 (동시 클레임에 안전) */
     @Modifying(flushAutomatically = true, clearAutomatically = true)

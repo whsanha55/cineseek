@@ -62,11 +62,21 @@ class CollectTaskService(
     fun requeue(type: CollectTaskTypeEnum, payloadKey: String): Boolean =
         collectTaskRepository.requeueDone(type, payloadKey, PENDING, DONE) > 0
 
-    /** 클레임 — 예약 시각이 도래한 PENDING을 priority 순으로 최대 [limit]개 잡아 RUNNING(lease)으로 만든다 */
+    /**
+     * 클레임 — 예약 시각이 도래한 PENDING 중 priority가 [priorities] 안인 것을 priority 순으로 최대 [limit]개 잡아
+     * RUNNING(lease)으로 만든다. 같은 프로세스의 두 틱이 서로 겹치지 않는 범위를 잡아야 한다 — lease 주체(workerId)가 같아
+     * 같은 행을 동시에 후보로 잡으면 재조회에서 둘 다 자기 것으로 본다
+     */
     @Transactional
-    fun claim(limit: Int): List<CollectTaskEntity> {
+    fun claim(limit: Int, priorities: IntRange = ALL_PRIORITIES): List<CollectTaskEntity> {
         val now = Instant.now(clock)
-        val ids = collectTaskRepository.findClaimableIds(PENDING, now, PageRequest.ofSize(limit))
+        val ids = collectTaskRepository.findClaimableIds(
+            status = PENDING,
+            now = now,
+            minPriority = priorities.first,
+            maxPriority = priorities.last,
+            pageable = PageRequest.ofSize(limit),
+        )
         if (ids.isEmpty()) {
             return emptyList()
         }
@@ -168,6 +178,8 @@ class CollectTaskService(
         private const val HOST_LIMIT = 48 // locked_by 64자 상한에서 UUID 접미사(9자)를 제외한 안전 길이
 
         private const val SHIFT_LIMIT = 30 // 2^30 초과 분할 방지 — 재시도 상한(기본 8)보다 크다
+
+        private val ALL_PRIORITIES = Int.MIN_VALUE..Int.MAX_VALUE
 
         /**
          * 지수 백오프 — [retryBase] * 2^[attempts]에 [0, retryBase) 지터를 더한다.

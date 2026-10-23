@@ -343,6 +343,11 @@ export interface components {
              */
             profilePath?: string | null;
             /**
+             * @description URL slug (영어 이름 기반, 예: /people/500-tom-cruise). 영어 이름을 모르면 null
+             * @example christian-bale
+             */
+            slug?: string | null;
+            /**
              * @description 필모그래피 수집 상태 (NONE | COLLECTING | COMPLETE)
              * @example COMPLETE
              * @enum {string}

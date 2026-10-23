@@ -146,6 +146,12 @@ data class FilmographyPersonResponse(
     @field:Schema(description = "TMDB 프로필 이미지 경로", example = "/fuTEtOeIwXiqtVpIoL0GyyWcnxh.jpg")
     val profilePath: String?,
 
+    @field:Schema(
+        description = "URL slug (영어 이름 기반, 예: /people/500-tom-cruise). 영어 이름을 모르면 null",
+        example = "christian-bale",
+    )
+    val slug: String?,
+
     @field:Schema(description = "필모그래피 수집 상태 (NONE | COLLECTING | COMPLETE)", example = "COMPLETE")
     val filmoState: PersonFilmoStateEnum,
 
@@ -160,6 +166,7 @@ data class FilmographyPersonResponse(
             personId = person.personId,
             name = person.name,
             profilePath = person.profilePath,
+            slug = person.slug,
             filmoState = person.filmoState,
             filmoCheckedAt = person.filmoCheckedAt,
             totalWorks = person.totalWorks,
