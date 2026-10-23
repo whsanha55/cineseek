@@ -16,6 +16,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.time.LocalDate
 
 /** TMDB 클라이언트 테스트 — WireMock 스텁 (discover 파라미터화·체크포인트 재개, detail+credits 매핑, 404·재시도, 인물) */
 class TmdbClientTest {
@@ -420,9 +421,12 @@ class TmdbClientTest {
                 WireMock.okJson(
                     """
                     {"id":3895,"name":"크리스찬 베일","profile_path":"/bale.jpg","birthday":"1974-01-30",
+                     "deathday":null,"place_of_birth":"Haverfordwest, Pembrokeshire, Wales, UK",
+                     "biography":"","homepage":"",
+                     "external_ids":{"imdb_id":"nm0000288","instagram_id":null},
                      "translations":{"translations":[
-                       {"iso_639_1":"ja","data":{"name":"クリスチャン・ベール"}},
-                       {"iso_639_1":"en","data":{"name":"Christian Bale"}}]}}
+                       {"iso_639_1":"ja","data":{"name":"クリスチャン・ベール","biography":"日本語"}},
+                       {"iso_639_1":"en","data":{"name":"Christian Bale","biography":"Christian Bale is an English actor."}}]}}
                     """.trimIndent(),
                 ),
             ),
@@ -440,11 +444,19 @@ class TmdbClientTest {
         assertThat(person.name).isEqualTo("크리스찬 베일")
         assertThat(person.profilePath).isEqualTo("/bale.jpg")
         assertThat(person.nameEn).isEqualTo("Christian Bale")
+        assertThat(person.birthday).isEqualTo(LocalDate.of(1974, 1, 30))
+        assertThat(person.deathday).isNull()
+        assertThat(person.placeOfBirth).isEqualTo("Haverfordwest, Pembrokeshire, Wales, UK")
+        assertThat(person.biographyKo).isNull() // 빈 문자열은 null
+        assertThat(person.biographyEn).isEqualTo("Christian Bale is an English actor.")
+        assertThat(person.imdbId).isEqualTo("nm0000288")
+        assertThat(person.instagramId).isNull()
+        assertThat(person.homepage).isNull()
         assertThat(missing).isNull()
         wiremock.verify(
             WireMock.getRequestedFor(WireMock.urlPathEqualTo("/person/3895"))
                 .withQueryParam("language", WireMock.equalTo("ko-KR"))
-                .withQueryParam("append_to_response", WireMock.equalTo("translations")),
+                .withQueryParam("append_to_response", WireMock.equalTo("translations,external_ids")),
         )
     }
 

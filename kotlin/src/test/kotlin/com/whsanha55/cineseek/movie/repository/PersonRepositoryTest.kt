@@ -4,6 +4,7 @@ import com.whsanha55.cineseek.global.config.ClockConfig
 import com.whsanha55.cineseek.global.config.JpaConfig
 import com.whsanha55.cineseek.movie.entity.PersonEntity
 import com.whsanha55.cineseek.movie.enums.PersonFilmoStateEnum
+import com.whsanha55.cineseek.movie.vo.TmdbPersonInfo
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -11,6 +12,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
 import org.springframework.context.annotation.Import
+import org.springframework.data.domain.PageRequest
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -65,4 +67,30 @@ class PersonRepositoryTest {
         assertThat(reloaded.filmoStoredCount).isEqualTo(95)
         assertThat(reloaded.filmoState).isEqualTo(PersonFilmoStateEnum.COMPLETE)
     }
+
+    @Test
+    fun `번역 대상 — 출생지 번역이나 한국어 소개가 빈 인물만, 이 버전에서 실패한 인물은 빼고 고른다`() {
+        // given
+        val base = TmdbPersonInfo(personId = 0L, name = "", profilePath = null)
+        val needsPlace = person(1L, base.copy(placeOfBirth = "Seoul, South Korea"))
+        val needsBio = person(2L, base.copy(biographyEn = "An actor."))
+        person(3L, base.copy(biographyKo = "한국어 소개", biographyEn = "An actor."))
+        person(4L, base)
+        person(5L, base.copy(placeOfBirth = "Busan, South Korea")) { it.markTranslationFailed("v1") }
+        val failedOnOldVersion = person(6L, base.copy(biographyEn = "Old.")) { it.markTranslationFailed("v0") }
+
+        // when
+        val ids = personRepository.findIdsRequiringTranslation("v1", PageRequest.ofSize(10))
+
+        // then
+        assertThat(ids).containsExactlyInAnyOrder(needsPlace, needsBio, failedOnOldVersion)
+    }
+
+    private fun person(id: Long, info: TmdbPersonInfo, mutate: (PersonEntity) -> Unit = {}): Long =
+        personRepository.save(
+            PersonEntity(personId = id, name = "인물$id").apply {
+                updateFrom(info.copy(personId = id, name = "인물$id"))
+                mutate(this)
+            },
+        ).personId
 }

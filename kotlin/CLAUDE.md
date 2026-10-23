@@ -40,7 +40,7 @@
 - 도메인 우선 — `docs/convention/backend/kotlin/spring.md` 1절을 따른다:
   - `global/config/` — 공용 HTTP(`http1RestClient()`), `@EnableScheduling`(SchedulingConfig)
   - `external/{tmdb,embedding,qdrant,llm}/` — 외부 시스템별 `client/`·`config/`(`@ConfigurationProperties`, 빈)·`dto/`(와이어 DTO). llm은 OpenAI 호환 chat completions(상주 api 수집 틱의 분위기 태깅 전용 — 검색 경로에 LLM 없음)
-  - `movie/` — `entity/`(엔티티 + 복합키), `repository/`, `service/`(MovieUpsertService, MovieMoodTagger), `vo/`(TmdbMovie — TmdbClient가 변환해 넘기는 수집 모델, MovieTitle — 제목 매칭용 경량 조회, MoodVocabulary — 태깅 프롬프트와 검색이 함께 쓰는 분위기 후보 어휘, PersonSlug — 영어 이름으로 만드는 인물 페이지 URL slug)
+  - `movie/` — `entity/`(엔티티 + 복합키), `repository/`, `service/`(MovieUpsertService, MovieMoodTagger, PersonTranslator — 인물 출생지·소개 한국어 번역), `vo/`(TmdbMovie — TmdbClient가 변환해 넘기는 수집 모델, MovieTitle — 제목 매칭용 경량 조회, MoodVocabulary — 태깅 프롬프트와 검색이 함께 쓰는 분위기 후보 어휘, PersonSlug — 영어 이름으로 만드는 인물 페이지 URL slug)
   - `collect/` — 수집 운영(작업 큐·스케줄러·모드 전환). `config/`(CollectProperties), `entity/`+`enums/`(CollectTask, CollectState), `repository/`, `service/`(CollectTaskService, CollectPipeline, CollectScheduler, UserRequestScheduler, CollectStatsService), `job/`(CollectReportRunner)
   - `search/` — `SearchController`, `service/`(SearchService, MoodTagMatcher, TitleMatcher, MovieIndexer, IndexedMovieAssembler), `dto/`(API 요청·응답 — `from()`으로 vo를 변환), `vo/`(Embedding, SearchResult, MoviePayload, IndexedMovie, PayloadSyncFields), `job/`
   - 배치 Runner(`--cineseek.job=...`)는 도메인 아래 `job/`에 둔다 (ReindexJob, PayloadSyncJob, EvalRunner, CollectReportRunner)

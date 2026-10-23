@@ -22,6 +22,7 @@ import com.whsanha55.cineseek.movie.repository.MovieRepository
 import com.whsanha55.cineseek.movie.repository.PersonRepository
 import com.whsanha55.cineseek.movie.service.MovieMoodTagger
 import com.whsanha55.cineseek.movie.service.MovieUpsertService
+import com.whsanha55.cineseek.movie.service.PersonTranslator
 import com.whsanha55.cineseek.movie.vo.TmdbCastMember
 import com.whsanha55.cineseek.movie.vo.TmdbDiscoverResult
 import com.whsanha55.cineseek.movie.vo.TmdbGenre
@@ -133,6 +134,9 @@ class CollectPipelineTest {
 
     @MockkBean(relaxed = true)
     lateinit var indexer: MovieIndexer
+
+    @MockkBean(relaxed = true)
+    lateinit var personTranslator: PersonTranslator
 
     @Autowired lateinit var pipeline: CollectPipeline
 
@@ -538,6 +542,7 @@ class CollectPipelineTest {
         val person = personRepository.findById(500L).orElseThrow()
         assertThat(person.profilePath).isEqualTo("/tom.jpg")
         assertThat(person.nameEn).isEqualTo("Tom Cruise")
+        verify(timeout = 5_000) { personTranslator.translate(listOf(500L)) } // 방금 받은 인물을 따로 번역한다
         val indexed = slot<List<IndexedMovie>>()
         verify { indexer.indexTouched(capture(indexed)) }
         assertThat(indexed.captured.map { it.movieId }).containsExactly(movieId)

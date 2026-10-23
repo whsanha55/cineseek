@@ -365,6 +365,57 @@ export interface components {
              * @example 47
              */
             totalWorks?: number;
+            /**
+             * Format: date
+             * @description 생년월일
+             * @example 1974-01-30
+             */
+            birthday?: string | null;
+            /**
+             * Format: date
+             * @description 사망일 (생존 중이면 null)
+             */
+            deathday?: string | null;
+            /**
+             * @description 출생지 한국어 (기계 번역)
+             * @example 영국 웨일스 하버퍼드웨스트
+             */
+            placeOfBirthKo?: string | null;
+            /**
+             * @description 출생지 영어 (TMDB 원문)
+             * @example Haverfordwest, Pembrokeshire, Wales, UK
+             */
+            placeOfBirthEn?: string | null;
+            /**
+             * @description 소개 한국어 — TMDB 한국어 소개, 없으면 영어 소개의 기계 번역
+             * @example 크리스찬 베일은 영국의 배우다.
+             */
+            biographyKo?: string | null;
+            /**
+             * @description biographyKo가 영어 소개의 기계 번역인지
+             * @example true
+             */
+            biographyKoTranslated?: boolean;
+            /**
+             * @description 소개 영어 (TMDB 원문)
+             * @example Christian Charles Philip Bale is an English actor.
+             */
+            biographyEn?: string | null;
+            /**
+             * @description IMDb id
+             * @example nm0000288
+             */
+            imdbId?: string | null;
+            /**
+             * @description 인스타그램 계정
+             * @example christianbale
+             */
+            instagramId?: string | null;
+            /**
+             * @description 공식 홈페이지
+             * @example https://www.example.com
+             */
+            homepage?: string | null;
         };
         FilmographyItemResponse: {
             /**
