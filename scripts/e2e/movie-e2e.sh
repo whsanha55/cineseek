@@ -13,17 +13,6 @@ UNKNOWN_ID=999999999999
 
 step "데이터 준비 — TMDB 스텁 등록 후 영화 상세 수집 작업 등록 (tmdbId=$TMDB_ID)"
 stub_movie "$TMDB_ID" "$TITLE" "$OVERVIEW" "$DIRECTOR_ID" "E2E감독$KEY" "$CAST_ID" "E2E배우$KEY" "등대지기"
-stub_tmdb "/movie/$TMDB_ID/watch/providers" '{
-  "id": '"$TMDB_ID"',
-  "results": {
-    "KR": {
-      "link": "https://www.themoviedb.org/movie/'"$TMDB_ID"'/watch?locale=KR",
-      "flatrate": [{"provider_id": 8, "provider_name": "Netflix", "logo_path": "/netflix.jpg", "display_priority": 1}],
-      "rent": [],
-      "buy": [{"provider_id": 3, "provider_name": "Google Play Movies", "logo_path": "/play.jpg", "display_priority": 2}]
-    }
-  }
-}'
 enqueue_task MOVIE_DETAIL "movie:tmdb:$TMDB_ID" 0
 
 step "수집 완료 대기 — 감독 필터 탐색에 나타날 때까지"
@@ -48,7 +37,23 @@ expect_error 404 MOVIE_NOT_FOUND
 get "/cineseek/movies/abc"
 expect_error 400 INVALID_REQUEST
 
-step "GET /cineseek/movies/{id}/watch-providers — 시청처 (TMDB 스텁)"
+step "GET /cineseek/movies/{id}/watch-providers — TMDB 장애는 503"
+stub_tmdb_error "/movie/$TMDB_ID/watch/providers" 500
+get "/cineseek/movies/$MOVIE_ID/watch-providers"
+expect_error 503 EXTERNAL_API_ERROR
+
+step "GET /cineseek/movies/{id}/watch-providers — 시청처 (TMDB 스텁). 직전 실패는 캐시되지 않는다"
+stub_tmdb "/movie/$TMDB_ID/watch/providers" '{
+  "id": '"$TMDB_ID"',
+  "results": {
+    "KR": {
+      "link": "https://www.themoviedb.org/movie/'"$TMDB_ID"'/watch?locale=KR",
+      "flatrate": [{"provider_id": 8, "provider_name": "Netflix", "logo_path": "/netflix.jpg", "display_priority": 1}],
+      "rent": [],
+      "buy": [{"provider_id": 3, "provider_name": "Google Play Movies", "logo_path": "/play.jpg", "display_priority": 2}]
+    }
+  }
+}'
 get "/cineseek/movies/$MOVIE_ID/watch-providers"
 expect_status 200
 expect_eq '.flatrate[0].name' Netflix
