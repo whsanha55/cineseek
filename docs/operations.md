@@ -68,6 +68,19 @@ docker compose -f compose.yml -f compose.prod.yml run --rm --no-deps api --cines
 
 로그 마지막 줄에 PG 영화 수, 태그가 있는 영화 수, 개봉일이 있는 영화 수, 갱신한 포인트 수가 찍힌다. 이후 새로 수집·태깅·색인되는 영화는 색인할 때 두 필드가 함께 들어간다.
 
+### 인물 상세 백필
+
+정기 수집은 영화의 출연진(`movie_cast`)만 채우고 인물 정보(`person`)는 인물 페이지를 열 때 만든다. 이 작업은 출연작이 많은 배우의 생몰일·출생지·소개·외부 링크를 미리 받아 두고, 출생지와 영어 소개를 한국어로 번역한다.
+
+```bash
+docker compose -f compose.yml -f compose.prod.yml run -d --rm api --cineseek.job=person-details   # --min-works=3 처럼 기준을 바꿀 수 있다
+docker logs -f <컨테이너>   # "인물 상세 진행", "인물 번역 진행" 로그로 진행률을 본다
+```
+
+- 대상은 출연 N편(기본 5) 이상이면서 아직 `person` 행이 없는 배우다. 이미 있는 배우는 건너뛰므로 중단돼도 다시 돌리면 이어서 한다
+- 번역은 상세 수집이 끝난 뒤 번역이 남은 인물 전체를 200명씩 처리한다. LLM 호출이라 수천 명이면 몇 시간 걸린다. 실패한 인물은 수집 틱이 다시 번역한다
+- 필모그래피는 받지 않는다(`filmo_checked_at`은 비워 둔다). 인물 페이지를 처음 열 때 기존처럼 필모 수집이 돈다
+
 ### 설정
 
 `kotlin/src/main/resources/application.yml`의 `cineseek.collect.*`에서 조정한다. 추가 비밀값은 없고 TMDB 토큰만 쓴다.

@@ -6,6 +6,7 @@ import com.whsanha55.cineseek.movie.entity.GenreEntity
 import com.whsanha55.cineseek.movie.entity.MovieCastEntity
 import com.whsanha55.cineseek.movie.entity.MovieDirectorEntity
 import com.whsanha55.cineseek.movie.entity.MovieEntity
+import com.whsanha55.cineseek.movie.entity.PersonEntity
 import com.whsanha55.cineseek.movie.vo.MovieTitle
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -44,6 +45,8 @@ class MovieRepositoryTest {
     @Autowired lateinit var movieDirectorRepository: MovieDirectorRepository
 
     @Autowired lateinit var movieCastRepository: MovieCastRepository
+
+    @Autowired lateinit var personRepository: PersonRepository
 
     @Test
     fun `영화 저장 후 tmdbId로 조회 — 장르 조인과 자식 라운드트립`() {
@@ -86,6 +89,26 @@ class MovieRepositoryTest {
         assertThat(directors.map { it.name }).containsExactly("크리스토퍼 놀란")
         assertThat(cast.character).isEqualTo("브루스 웨인")
         assertThat(cast.castOrder).isEqualTo(0)
+    }
+
+    @Test
+    fun `findPersonIdsWithoutDetails — 출연 N편 이상이고 person 행이 없는 인물만 출연 수 많은 순으로`() {
+        // given
+        val movieIds = (1L..3L).map { movieRepository.save(MovieEntity(tmdbId = it, title = "영화$it")).movieId!! }
+        fun cast(personId: Long, works: Int) = movieIds.take(works).forEach {
+            movieCastRepository.save(MovieCastEntity(movieId = it, personId = personId, name = "인물$personId"))
+        }
+        cast(personId = 10L, works = 2)
+        cast(personId = 20L, works = 3)
+        cast(personId = 30L, works = 1)
+        cast(personId = 40L, works = 3)
+        personRepository.save(PersonEntity(personId = 40L, name = "인물40"))
+
+        // when
+        val ids = movieCastRepository.findPersonIdsWithoutDetails(minWorks = 2)
+
+        // then
+        assertThat(ids).containsExactly(20L, 10L)
     }
 
     @Test

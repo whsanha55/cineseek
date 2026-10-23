@@ -108,4 +108,21 @@ interface MovieCastRepository : JpaRepository<MovieCastEntity, MovieCastId> {
 
     /** 칩 라벨 복원 — 같은 사람의 아무 대표 행 하나 */
     fun findFirstByPersonId(personId: Long): MovieCastEntity?
+
+    /** 인물 상세 백필 대상 — 출연 [minWorks]편 이상인데 person 행이 없는 인물을 출연 수 많은 순으로 */
+    @Query(
+        """
+        SELECT c.personId
+        FROM MovieCastEntity c
+        WHERE NOT EXISTS (
+                SELECT p.personId
+                FROM PersonEntity p
+                WHERE p.personId = c.personId
+            )
+        GROUP BY c.personId
+        HAVING COUNT(c) >= :minWorks
+        ORDER BY COUNT(c) DESC, c.personId
+        """,
+    )
+    fun findPersonIdsWithoutDetails(minWorks: Long): List<Long>
 }
