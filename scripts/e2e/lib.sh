@@ -122,6 +122,15 @@ stub_tmdb() {
   }')"
 }
 
+# stub_tmdb_error 경로 상태코드 — TMDB GET 오류 스텁. 같은 경로에 나중에 stub_tmdb를 등록하면 그쪽이 우선한다
+stub_tmdb_error() {
+  register_stub "$(jq -n --arg path "/tmdb/3$1" --argjson status "$2" '{
+    priority: 1,
+    request: {method: "GET", urlPath: $path},
+    response: {status: $status, headers: {"Content-Type": "application/json"}, jsonBody: {status_message: "e2e error"}}
+  }')"
+}
+
 # stub_movie tmdbId 제목 줄거리 감독id 감독이름 배우id 배우이름 배역 [투표수=1200] [개봉일=2024-05-01]
 #   — TMDB 영화 상세 + credits (장르: 드라마 18, 러닝타임 110)
 stub_movie() {
