@@ -505,6 +505,43 @@ class CollectPipelineTest {
     }
 
     @Test
+    fun `정기 배치는 사용자 요청 우선순위 작업을 잡지 않는다`() {
+        // given
+        collectTaskService.enqueue(PERSON_FILMO, "person:500", CollectPipeline.PRIORITY_USER_CLICK)
+
+        // when
+        val result = pipeline.runBatch()
+
+        // then
+        assertThat(result.processed).isZero()
+        assertThat(task(PERSON_FILMO, "person:500")!!.status).isEqualTo(PENDING)
+    }
+
+    @Test
+    fun `사용자 요청 처리 — 클릭으로 등록된 필모만 바로 수집하고 늘어난 관계를 색인한다`() {
+        // given — 사용자 요청 500과 정기 작업 777
+        val movieId = upsertService.upsert(tmdbMovie(155L))
+        collectTaskService.enqueue(PERSON_FILMO, "person:500", CollectPipeline.PRIORITY_USER_CLICK)
+        collectTaskService.enqueue(PERSON_FILMO, "person:777")
+        every { tmdbClient.fetchPerson(500L) } returns TmdbPersonInfo(500L, "톰 크루즈", "/tom.jpg")
+        every { tmdbClient.fetchPersonMovieCredits(500L) } returns listOf(
+            TmdbPersonCredit(tmdbId = 155L, title = "영화155", character = "주연", order = 0, releaseDate = null),
+        )
+
+        // when
+        val processed = pipeline.runUserRequests()
+
+        // then — 500만 처리되고 프로필이 저장된다. 정기 작업은 그대로 대기
+        assertThat(processed).isEqualTo(1)
+        assertThat(task(PERSON_FILMO, "person:500")!!.status).isEqualTo(DONE)
+        assertThat(task(PERSON_FILMO, "person:777")!!.status).isEqualTo(PENDING)
+        assertThat(personRepository.findById(500L).orElseThrow().profilePath).isEqualTo("/tom.jpg")
+        val indexed = slot<List<IndexedMovie>>()
+        verify { indexer.indexTouched(capture(indexed)) }
+        assertThat(indexed.captured.map { it.movieId }).containsExactly(movieId)
+    }
+
+    @Test
     fun `maxRuntime 도달 — 남은 작업을 체크포인트와 함께 반납한다`() {
         // given — 첫 작업 처리 중 시간이 흘러 deadline(maxRuntime 25m)을 넘긴다
         collectTaskService.enqueue(KR_DISCOVER, "kr:origin:2023-01-01..2023-12-31")

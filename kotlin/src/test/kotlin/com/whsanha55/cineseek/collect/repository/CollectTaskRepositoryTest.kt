@@ -77,7 +77,13 @@ class CollectTaskRepositoryTest {
         val done = saveTask("person:456", taskType = CollectTaskTypeEnum.PERSON_FILMO) { it.markDone() }
 
         // when
-        val ids = collectTaskRepository.findClaimableIds(PENDING, NOW, PageRequest.ofSize(10))
+        val ids = collectTaskRepository.findClaimableIds(
+            PENDING,
+            NOW,
+            Int.MIN_VALUE,
+            Int.MAX_VALUE,
+            PageRequest.ofSize(10),
+        )
         val claimedCount = collectTaskRepository.claimTasks(ids, PENDING, RUNNING, NOW, "worker-1")
 
         // then — priority DESC, taskId ASC 정렬로 high가 먼저
@@ -100,6 +106,21 @@ class CollectTaskRepositoryTest {
 
         // 완료된 작업도 건드리지 않는다
         assertThat(collectTaskRepository.findById(done.taskId!!).orElseThrow().status).isEqualTo(DONE)
+    }
+
+    @Test
+    fun `클레임 후보는 지정한 priority 범위 안의 작업만 고른다`() {
+        // given
+        val normal = saveTask("kr:origin:2023-01-01..2023-12-31")
+        val userClick = saveTask("person:500", taskType = CollectTaskTypeEnum.PERSON_FILMO, priority = 100)
+
+        // when
+        val belowUser = collectTaskRepository.findClaimableIds(PENDING, NOW, Int.MIN_VALUE, 99, PageRequest.ofSize(10))
+        val userOnly = collectTaskRepository.findClaimableIds(PENDING, NOW, 100, Int.MAX_VALUE, PageRequest.ofSize(10))
+
+        // then
+        assertThat(belowUser).containsExactly(normal.taskId)
+        assertThat(userOnly).containsExactly(userClick.taskId)
     }
 
     @Test
