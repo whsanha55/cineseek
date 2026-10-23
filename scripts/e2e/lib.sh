@@ -5,8 +5,10 @@
 E2E_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_URL="http://localhost:18080"
 STUB_URL="http://localhost:18089"
-RES_FILE="$(mktemp -t cineseek-e2e.XXXXXX)"
-trap 'rm -f "$RES_FILE"' EXIT
+# 응답 본문 임시 파일 — EXIT trap으로 지우지 않는다. Bash 3.2는 EXIT trap이 있으면 set -u(미정의 변수) 오류의
+# 종료 코드를 0으로 바꿔, 실패한 스크립트가 run-all.sh에서 PASS로 집계된다. 파일은 server.sh stop이 지운다
+mkdir -p "$E2E_DIR/.run"
+RES_FILE="$E2E_DIR/.run/response-$$.json"
 
 STATUS=""
 BODY=""
@@ -139,6 +141,20 @@ stub_movie() {
 stub_mood() {
   local content
   content=$(jq -cn --argjson tags "$2" --arg desc "$3" '{tags: $tags, description: $desc}')
+  register_stub "$(jq -n --arg text "$1" --arg content "$content" '{
+    priority: 1,
+    request: {method: "POST", urlPath: "/llm/v1/chat/completions", bodyPatterns: [{contains: $text}]},
+    response: {
+      status: 200, headers: {"Content-Type": "application/json"},
+      jsonBody: {choices: [{message: {role: "assistant", content: $content}}]}
+    }
+  }')"
+}
+
+# stub_translation 프롬프트에_든_문자열 출생지번역 소개번역 — 해당 인물의 출생지·소개 번역(LLM) 응답
+stub_translation() {
+  local content
+  content=$(jq -cn --arg place "$2" --arg bio "$3" '{placeOfBirth: $place, biography: $bio}')
   register_stub "$(jq -n --arg text "$1" --arg content "$content" '{
     priority: 1,
     request: {method: "POST", urlPath: "/llm/v1/chat/completions", bodyPatterns: [{contains: $text}]},
