@@ -13,6 +13,7 @@ cineseek:
   collect:
     enabled: true          # 영화·인물 데이터는 수집 스케줄러로만 만들어진다
     interval: 1s           # 스크립트가 넣은 작업을 바로 처리하게
+    user-request-interval: 1s  # 사용자 요청(우선순위 100) 작업도 바로 처리하게
     retry-base: 1s
     seed-person-ids: ""    # 시드 인물 수집 끔 — bootstrap discover는 스텁이 빈 페이지를 준다
     daily-cron: "-"        # 일일 증분 끔

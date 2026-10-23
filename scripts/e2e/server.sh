@@ -78,7 +78,7 @@ stop() {
     kill -0 "$pid" 2>/dev/null && kill -9 "$pid"
     echo "api 종료. pid=$pid"
   fi
-  rm -f "$PID_FILE"
+  rm -f "$PID_FILE" "$RUN_DIR"/response-*.json
   compose down -v --remove-orphans
 }
 
