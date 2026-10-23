@@ -150,6 +150,7 @@ docker compose -f compose.yml -f compose.local.yml run --rm api --cineseek.job=<
 | `payload-sync` | PG의 분위기 태그·개봉일을 색인된 Qdrant 포인트의 `mood_tags`·`release_date` payload에만 덮어쓰고 두 필드의 payload 인덱스를 만든다. 임베딩은 하지 않고 다른 payload 키는 그대로 둔다. 이 필드가 없던 때 색인된 포인트를 채울 때 한 번 돌린다 (그 뒤 색인은 두 필드를 함께 쓴다) |
 | `eval` | 라벨셋으로 검색 품질(nDCG@10, MRR)을 재고 기준값과 비교한다. 떨어지면 종료 코드 1 |
 | `collect-report` | 수집 현황 보고 ([운영 가이드](operations.md#수집-보고)) |
+| `person-details` | 출연 N편 이상(기본 5, `--min-works=N`)인데 인물 정보가 없는 배우의 TMDB 상세를 저장하고 번역이 남은 인물을 모두 번역한다. 필모그래피는 받지 않는다 ([운영 가이드](operations.md#인물-상세-백필)) |
 
 ## 검색 품질 평가
 
